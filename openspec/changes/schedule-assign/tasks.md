@@ -10,17 +10,17 @@
 
 ## 2. Contrato, tipos y documentación para el backend
 
-- [ ] 2.1 Definir los tipos `Employee`, `Job`, `Schedule` y los cuerpos de petición según `specs/schedule-api/spec.md`, y verificar que `tsc --noEmit` pasa
-- [ ] 2.2 Implementar utilidades de fecha y hora (rango domingo-sábado de una fecha, `YYYY-MM-DD` local, normalización de `HH:mm:ss` a `HH:mm`, formato "1 - 7 nov 2026") y verificar con tests que el martes 2026-11-03 da el rango 2026-11-01 a 2026-11-07 sin desplazamientos de zona horaria
-- [ ] 2.3 Implementar el cliente HTTP de los siete endpoints con manejo de errores `{"error"}` (404/422/red) y verificar con tests que cada función llama a la ruta y método correctos y lanza un error tipado ante 4xx
-- [ ] 2.4 Escribir `docs/schema.sql` con el DDL de `design.md` y `docs/api.md` con el contrato, ejemplos de petición y respuesta, y la nota de no convertir zonas horarias; verificar que el DDL se ejecuta sin errores en un MySQL de prueba con tablas `jobs` y `employees` equivalentes
+- [x] 2.1 Definir los tipos `Employee`, `Job`, `Schedule` y los cuerpos de petición según `specs/schedule-api/spec.md`, y verificar que `tsc --noEmit` pasa
+- [x] 2.2 Implementar utilidades de fecha y hora (rango domingo-sábado de una fecha, `YYYY-MM-DD` local, normalización de `HH:mm:ss` a `HH:mm`, formato "1 - 7 nov 2026") y verificar con tests que el martes 2026-11-03 da el rango 2026-11-01 a 2026-11-07 sin desplazamientos de zona horaria
+- [x] 2.3 Implementar el cliente HTTP de los siete endpoints con manejo de errores `{"error"}` (404/422/red) y verificar con tests que cada función llama a la ruta y método correctos y lanza un error tipado ante 4xx
+- [x] 2.4 Escribir `docs/schema.sql` con el DDL de `design.md` y `docs/api.md` con el contrato, ejemplos de petición y respuesta, y la nota de no convertir zonas horarias; verificar que el DDL se ejecuta sin errores en un MySQL de prueba con tablas `jobs` y `employees` equivalentes
 
 ## 3. Datos de prueba (MSW)
 
-- [ ] 3.1 Crear los datos semilla en `web/src/mocks/` (10 empleados con 2 inactivos, unos 30 trabajos, programaciones en la semana actual incluido un trabajo repetido el mismo día y un empleado con dos trabajos el mismo día) y verificar con un test que la semilla cumple esas condiciones
-- [ ] 3.2 Implementar los manejadores de `GET /api/employees` y `GET /api/jobs` (filtro `status`, `search` sin distinguir mayúsculas, orden) y verificar con tests en `msw/node` los escenarios de esos requisitos
-- [ ] 3.3 Implementar los manejadores de `/api/schedules` (GET por rango, POST, PATCH, DELETE, PUT de empleados) con las validaciones 404/422 del contrato y verificar con tests en `msw/node` cada escenario de `specs/schedule-api/spec.md`
-- [ ] 3.4 Arrancar el service worker solo cuando `VITE_USE_MOCKS=true`, con latencia configurable, y verificar en el navegador que la pestaña de red muestra las llamadas interceptadas
+- [x] 3.1 Crear los datos semilla en `web/src/mocks/` (10 empleados con 2 inactivos, unos 30 trabajos, programaciones en la semana actual incluido un trabajo repetido el mismo día y un empleado con dos trabajos el mismo día) y verificar con un test que la semilla cumple esas condiciones
+- [x] 3.2 Implementar los manejadores de `GET /api/employees` y `GET /api/jobs` (filtro `status`, `search` sin distinguir mayúsculas, orden) y verificar con tests en `msw/node` los escenarios de esos requisitos
+- [x] 3.3 Implementar los manejadores de `/api/schedules` (GET por rango, POST, PATCH, DELETE, PUT de empleados) con las validaciones 404/422 del contrato y verificar con tests en `msw/node` cada escenario de `specs/schedule-api/spec.md`
+- [x] 3.4 Arrancar el service worker solo cuando `VITE_USE_MOCKS=true`, con latencia configurable, y verificar en el navegador que la pestaña de red muestra las llamadas interceptadas
 
 ## 4. Datos del servidor y reglas
 

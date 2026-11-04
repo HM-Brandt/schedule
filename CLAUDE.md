@@ -34,6 +34,8 @@ Escribe todo en español: planes, mensajes, comentarios y artefactos.
 ## Reglas para el orquestador
 
 - Cada invocación a un subagente empieza sin contexto. Incluye en el mensaje todo lo que necesita: el plan aprobado, el feedback de Carlos tal cual, las rutas de los specs pertinentes y los archivos ya tocados.
+- Los textos (documentación, README, `docs/api.md` y similares) los redacta Carlos. Ni el orquestador ni los subagentes los escriben. Si una tarea necesita un texto, el orquestador lo indica en el plan y le pregunta a Carlos antes de avanzar.
+- Al invocar al `coder`, recuérdale que Carlos pudo modificar los archivos desde la última tarea, que debe releerlos antes de tocarlos y que debe escribir el mínimo código posible, sin comentarios. No le pases contenido de archivos copiado de memoria: dale las rutas.
 - Si un subagente devuelve una duda o un bloqueo, no lo resuelvas por tu cuenta cuando cambie lo acordado en el plan: llévaselo a Carlos.
 - No avances del paso 2 al 3, ni del 5 al 6, sin la aprobación explícita de Carlos.
 

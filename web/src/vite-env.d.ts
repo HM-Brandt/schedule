@@ -6,4 +6,5 @@ interface ImportMetaEnv {
   readonly VITE_USE_MOCKS?: string
   /** URL base del backend. Vacía: mismo origen. */
   readonly VITE_API_URL?: string
+  readonly VITE_MOCK_DELAY?: string
 }

@@ -2,7 +2,21 @@
   "permissions": {
     "allow": [
       "mcp__context7__resolve-library-id",
-      "mcp__context7__query-docs"
+      "mcp__context7__query-docs",
+      "PowerShell($p='C:\\\\Users\\\\ckarlos\\\\Documents\\\\proj\\\\specs\\\\web\\\\node_modules\\\\msw'; \\(Get-Content \"$p\\\\lib\\\\core\\\\index.d.ts\" | Select-String '^export \\\\{'\\) -replace '.{0,0}',''; Get-Content \"$p\\\\package.json\" -TotalCount 26 | Select-Object -Skip 10; Get-Content \"$p\\\\lib\\\\_chunks\\\\http.d.ts\")",
+      "PowerShell(Set-Location C:\\\\Users\\\\ckarlos\\\\Documents\\\\proj\\\\specs\\\\web; npx tsc -b; \"TSC EXIT $LASTEXITCODE\"; npm run lint; \"LINT EXIT $LASTEXITCODE\")",
+      "PowerShell(Set-Location C:\\\\Users\\\\ckarlos\\\\Documents\\\\proj\\\\specs\\\\web; npm run build; \"BUILD EXIT $LASTEXITCODE\"; npm test; \"TEST EXIT $LASTEXITCODE\")",
+      "PowerShell(Set-Location C:\\\\Users\\\\ckarlos\\\\Documents\\\\proj\\\\specs\\\\web; $s=\"C:\\\\Users\\\\ckarlos\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\6e96fe33d6a0c45a\\\\a8eaffef-2793-44bb-b141-58a6c2fb6c01\\\\scratchpad\"; npx vitest run --root $s --config \"$s\\\\vitest.config.mjs\" 2>&1 | Out-String)",
+      "PowerShell($s=\"C:\\\\Users\\\\ckarlos\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\6e96fe33d6a0c45a\\\\a8eaffef-2793-44bb-b141-58a6c2fb6c01\\\\scratchpad\"; Set-Location C:\\\\Users\\\\ckarlos\\\\Documents\\\\proj\\\\specs\\\\web; npx vitest run --root $s --config \"$s\\\\vitest.config.mjs\" --reporter verbose --silent false 2>&1 | Out-String)",
+      "PowerShell(Set-Location C:\\\\Users\\\\ckarlos\\\\Documents\\\\proj\\\\specs\\\\web; $env:VITE_USE_MOCKS='true'; $p = Start-Process -FilePath \"cmd.exe\" -ArgumentList \"/c\",\"npx vite --port 5181 --strictPort\" -PassThru -WindowStyle Hidden; $ok=$false; for \\($i=0; $i -lt 30 -and -not $ok; $i++\\) { Start-Sleep -Milliseconds 700; try { $r = Invoke-WebRequest -UseBasicParsing http://localhost:5181/mockServiceWorker.js; $ok=$true; \"STATUS $\\($r.StatusCode\\) TYPE $\\($r.Headers['Content-Type']\\) LEN $\\($r.Content.Length\\)\" } catch {} }; try { $m = Invoke-WebRequest -UseBasicParsing http://localhost:5181/src/main.tsx; \"MAIN $\\($m.StatusCode\\)\" } catch { \"MAIN ERR $_\" }; taskkill /PID $p.Id /T /F | Out-Null; Start-Sleep -Milliseconds 500; $c = Get-NetTCPConnection -LocalPort 5181 -State Listen -ErrorAction SilentlyContinue; \"PORT LISTENING: $\\([bool]$c\\)\")",
+      "Bash(npx vitest *)",
+      "Bash(npm run *)",
+      "Bash(npm test *)",
+      "Bash(npx tsc *)",
+      "Bash(echo \"tsc exit $?\")",
+      "PowerShell(npm test 2>&1)",
+      "Bash(echo \"lint exit $?\")",
+      "PowerShell(Get-NetTCPConnection -LocalPort 5180 -ErrorAction SilentlyContinue)"
     ]
   }
 }

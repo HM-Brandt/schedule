@@ -5,7 +5,39 @@ describe('readConfig', () => {
   it('lee VITE_USE_MOCKS y VITE_API_URL a la vez', () => {
     expect(
       readConfig({ VITE_USE_MOCKS: 'true', VITE_API_URL: 'http://localhost:8080' }),
-    ).toEqual({ useMocks: true, apiUrl: 'http://localhost:8080' })
+    ).toEqual({ useMocks: true, apiUrl: 'http://localhost:8080', mockDelay: 300 })
+  })
+
+  it('lee las tres variables a la vez', () => {
+    expect(
+      readConfig({
+        VITE_USE_MOCKS: 'true',
+        VITE_API_URL: 'http://localhost:8080',
+        VITE_MOCK_DELAY: '150',
+      }),
+    ).toEqual({ useMocks: true, apiUrl: 'http://localhost:8080', mockDelay: 150 })
+  })
+
+  describe('mockDelay', () => {
+    it('lee el valor numérico de VITE_MOCK_DELAY', () => {
+      expect(readConfig({ VITE_MOCK_DELAY: '150' }).mockDelay).toBe(150)
+    })
+
+    it('acepta 0 para quitar la latencia', () => {
+      expect(readConfig({ VITE_MOCK_DELAY: '0' }).mockDelay).toBe(0)
+    })
+
+    it('es 300 cuando falta VITE_MOCK_DELAY', () => {
+      expect(readConfig({}).mockDelay).toBe(300)
+    })
+
+    it.each([
+      ['vacía', ''],
+      ['un texto', 'rápido'],
+      ['solo espacios', '   '],
+    ])('es 300 cuando VITE_MOCK_DELAY es %s', (_descripcion, valor) => {
+      expect(readConfig({ VITE_MOCK_DELAY: valor }).mockDelay).toBe(300)
+    })
   })
 
   describe('useMocks', () => {
