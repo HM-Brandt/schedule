@@ -1,5 +1,5 @@
-import type { Employee, Schedule } from '../api/types'
-import { fullName, initials } from '../lib/employees'
+import type { Employee, Schedule } from '../../api/types'
+import { fullName, initials } from '../../lib/employees'
 import styles from './ScheduleCard.module.css'
 
 export function ScheduleCard({ schedule, employeesById }: { schedule: Schedule; employeesById: Map<number, Employee> }) {

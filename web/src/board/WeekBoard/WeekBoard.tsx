@@ -1,6 +1,6 @@
-import type { Employee, IsoDate, Schedule } from '../api/types'
-import { DayHeading } from './DayHeading'
-import { ScheduleCard } from './ScheduleCard'
+import type { Employee, IsoDate, Schedule } from '../../api/types'
+import { DayHeading } from '../DayHeading'
+import { ScheduleCard } from '../ScheduleCard'
 import styles from './WeekBoard.module.css'
 
 export function WeekBoard({

@@ -9,9 +9,9 @@ import { fireEvent, render, screen, waitFor, within } from '@testing-library/rea
 import { http, HttpResponse } from 'msw'
 import { setupServer } from 'msw/node'
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest'
-import { createQueryClient } from '../api/queryClient'
-import { createHandlers } from '../mocks/handlers'
-import { createSeed } from '../mocks/seed'
+import { createQueryClient } from '../../api/queryClient'
+import { createHandlers } from '../../mocks/handlers'
+import { createSeed } from '../../mocks/seed'
 import { JobCatalog } from './JobCatalog'
 
 const MENSAJE_500 = 'Fallo simulado del servidor'

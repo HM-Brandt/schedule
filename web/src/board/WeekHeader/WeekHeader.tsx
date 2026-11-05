@@ -1,5 +1,5 @@
-import type { IsoDate } from '../api/types'
-import { formatWeekRange } from '../lib/dates'
+import type { IsoDate } from '../../api/types'
+import { formatWeekRange } from '../../lib/dates'
 import styles from './WeekHeader.module.css'
 
 export function WeekHeader({

@@ -2,8 +2,8 @@
 // días, cada una con las tarjetas de sus programaciones.
 import { render, screen, within } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
-import type { Employee, IsoDate, Schedule } from '../api/types'
-import { createSeed } from '../mocks/seed'
+import type { Employee, IsoDate, Schedule } from '../../api/types'
+import { createSeed } from '../../mocks/seed'
 import { WeekBoard } from './WeekBoard'
 
 const DIAS: IsoDate[] = ['2026-11-01', '2026-11-02', '2026-11-03', '2026-11-04', '2026-11-05', '2026-11-06', '2026-11-07']

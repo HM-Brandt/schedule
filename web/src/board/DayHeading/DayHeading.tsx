@@ -1,5 +1,5 @@
-import type { IsoDate } from '../api/types'
-import { dayOfMonth, formatDayName } from '../lib/dates'
+import type { IsoDate } from '../../api/types'
+import { dayOfMonth, formatDayName } from '../../lib/dates'
 import styles from './DayHeading.module.css'
 
 export function DayHeading({ date, isToday }: { date: IsoDate; isToday: boolean }) {

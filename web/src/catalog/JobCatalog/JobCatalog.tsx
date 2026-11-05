@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useJobs } from '../api/queries'
+import { useJobs } from '../../api/queries'
 import styles from './JobCatalog.module.css'
 
 export function JobCatalog({ counts }: { counts: Map<number, number> }) {

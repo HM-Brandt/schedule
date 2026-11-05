@@ -5,8 +5,8 @@
 // `specs/employee-assignment/spec.md`.
 import { render, screen } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
-import type { Employee, Schedule } from '../api/types'
-import { createSeed } from '../mocks/seed'
+import type { Employee, Schedule } from '../../api/types'
+import { createSeed } from '../../mocks/seed'
 import { ScheduleCard } from './ScheduleCard'
 
 const semilla = createSeed(new Date(2026, 10, 3))
