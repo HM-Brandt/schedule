@@ -9,7 +9,8 @@ test('abre en la semana actual, pasa a la siguiente y vuelve con "Today"', async
   await page.clock.setFixedTime(new Date(2026, 10, 3, 10, 0))
   await page.goto('/')
 
-  const rango = page.getByRole('heading', { level: 2 })
+  // El rango es el `h2` que termina en el año; el otro `h2` es "Jobs" del catálogo.
+  const rango = page.getByRole('heading', { level: 2, name: /\d{4}$/ })
   const diaActual = page.locator('[aria-current="date"]')
 
   await expect(rango).toHaveText('Nov 1 - 7, 2026')

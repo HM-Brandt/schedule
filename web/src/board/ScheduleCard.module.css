@@ -1,0 +1,52 @@
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: var(--space-2);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-card);
+}
+
+.top {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-2);
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+}
+
+.number {
+  font-weight: var(--font-weight-medium);
+}
+
+.time {
+  font-weight: var(--font-weight-bold);
+  color: var(--color-text);
+}
+
+.name {
+  font-size: var(--font-size-sm);
+  color: var(--color-text);
+}
+
+.employees {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+}
+
+.initials {
+  padding: 0 var(--space-1);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text);
+}
+
+.empty {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+}

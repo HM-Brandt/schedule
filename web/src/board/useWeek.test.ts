@@ -108,6 +108,37 @@ describe('useWeek', () => {
     expect(result.current.today).toBe('2026-11-01')
   })
 
+  it('devuelve el mismo array days entre renders si la semana no cambia (tarea 5.2)', () => {
+    const { result, rerender } = renderHook(() => useWeek())
+    const primero = result.current.days
+
+    rerender()
+    rerender()
+
+    expect(result.current.days).toBe(primero)
+  })
+
+  it('goToday en la semana actual conserva el mismo array days', () => {
+    const { result } = renderHook(() => useWeek())
+    const primero = result.current.days
+
+    act(() => result.current.goToday())
+
+    expect(result.current.days).toBe(primero)
+  })
+
+  it('al cambiar de semana devuelve otro array days, que se mantiene en los renders siguientes', () => {
+    const { result, rerender } = renderHook(() => useWeek())
+    const primero = result.current.days
+
+    act(() => result.current.goNext())
+    const segundo = result.current.days
+    rerender()
+
+    expect(segundo).not.toBe(primero)
+    expect(result.current.days).toBe(segundo)
+  })
+
   it('al abrir el sábado 2026-11-07 a las 23:59 sigue en la semana del 1 al 7', () => {
     vi.setSystemTime(new Date(2026, 10, 7, 23, 59))
     const { result } = renderHook(() => useWeek())

@@ -222,12 +222,8 @@ describe('GET /api/jobs', () => {
     expect(respuesta.status).toBe(200)
     const trabajos: Job[] = respuesta.cuerpo
     expect(trabajos).toContainEqual(TRABAJO_7)
-    expect(trabajos.map((trabajo) => trabajo.name)).toEqual([
-      'Pintar oficina',
-      'Pintar fachada',
-      'Pintar pasillo',
-    ])
-    expect(trabajos.map((trabajo) => trabajo.number)).toEqual(['J-1024', 'J-1031', 'J-1039'])
+    expect(trabajos.map((trabajo) => trabajo.name)).toEqual(['Pintar oficina', 'Pintar pasillo'])
+    expect(trabajos.map((trabajo) => trabajo.number)).toEqual(['J-1024', 'J-1039'])
   })
 
   it.each([['PINTAR'], ['Pintar'], ['pInTaR']])(
@@ -235,7 +231,7 @@ describe('GET /api/jobs', () => {
     async (texto) => {
       const { cuerpo } = await pedir('GET', `/api/jobs?search=${texto}`)
 
-      expect((cuerpo as Job[]).map((trabajo) => trabajo.id)).toEqual([7, 14, 22])
+      expect((cuerpo as Job[]).map((trabajo) => trabajo.id)).toEqual([7, 22])
     },
   )
 

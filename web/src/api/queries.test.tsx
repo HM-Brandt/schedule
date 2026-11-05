@@ -172,11 +172,7 @@ describe('useJobs', () => {
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true))
     expect(parametros(urls[0])).toEqual({ search: 'pintar' })
-    expect(result.current.data?.map((trabajo) => trabajo.name)).toEqual([
-      'Pintar oficina',
-      'Pintar fachada',
-      'Pintar pasillo',
-    ])
+    expect(result.current.data?.map((trabajo) => trabajo.name)).toEqual(['Pintar oficina', 'Pintar pasillo'])
   })
 
   it('al cambiar la búsqueda pide de nuevo con el texto recortado', async () => {

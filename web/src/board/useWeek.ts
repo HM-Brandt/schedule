@@ -1,10 +1,10 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { getWeekDays, getWeekRange, shiftWeek, toIsoDate } from '../lib/dates'
 
 export function useWeek() {
   const [today] = useState(() => toIsoDate(new Date()))
   const [from, setFrom] = useState(() => getWeekRange(today).from)
-  const days = getWeekDays(from)
+  const days = useMemo(() => getWeekDays(from), [from])
 
   return {
     from,
