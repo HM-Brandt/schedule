@@ -26,7 +26,7 @@ export type ApiErrorKind = 'not_found' | 'validation' | 'http' | 'network'
 /**
  * Error de una llamada a la API. `status` es el código HTTP de la respuesta,
  * o `null` si no llegó respuesta. `message` es el `error` del cuerpo si el backend
- * lo envió, o un texto por defecto en español.
+ * lo envió, o un texto por defecto en inglés.
  */
 export class ApiError extends Error {
   name = 'ApiError'
@@ -57,17 +57,17 @@ function readBodyMessage(data: unknown): string | null {
 function toApiError(error: AxiosError): ApiError {
   const response = error.response
   if (!response) {
-    return new ApiError('network', null, 'No se pudo conectar con el servidor')
+    return new ApiError('network', null, "Couldn't connect to the server")
   }
   const status = response.status
   const bodyMessage = readBodyMessage(response.data)
   if (status === 404) {
-    return new ApiError('not_found', 404, bodyMessage ?? 'No se encontró el recurso')
+    return new ApiError('not_found', 404, bodyMessage ?? 'Resource not found')
   }
   if (status === 422) {
-    return new ApiError('validation', 422, bodyMessage ?? 'Los datos enviados no son válidos')
+    return new ApiError('validation', 422, bodyMessage ?? 'Invalid data')
   }
-  return new ApiError('http', status, bodyMessage ?? `Error del servidor (${status})`)
+  return new ApiError('http', status, bodyMessage ?? `Server error (${status})`)
 }
 
 /** Deja la hora de inicio de una programación en `HH:mm`, aunque el backend envíe segundos. */

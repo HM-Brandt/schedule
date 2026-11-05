@@ -20,7 +20,8 @@
       "PowerShell(openspec list --json)",
       "PowerShell(openspec status --change \"schedule-assign\" --json)",
       "PowerShell(openspec instructions apply --change \"schedule-assign\" --json)",
-      "PowerShell(Set-Location ..; \\(openspec instructions apply --change \"schedule-assign\" --json | ConvertFrom-Json\\).progress)"
+      "PowerShell(Set-Location ..; \\(openspec instructions apply --change \"schedule-assign\" --json | ConvertFrom-Json\\).progress)",
+      "PowerShell(Set-Location C:\\\\Users\\\\ckarlos\\\\Documents\\\\proj\\\\specs\\\\web; npx tsc -b; \"tsc exit: $LASTEXITCODE\"; npm run lint 2>&1 | Select-Object -Last 15; \"lint exit: $LASTEXITCODE\")"
     ]
   }
 }

@@ -346,14 +346,14 @@ describe('createApiClient', () => {
       expect(error).toMatchObject({ name: 'ApiError', kind: 'not_found', status: 404, message: 'No existe' })
     })
 
-    it('404 sin cuerpo da el mensaje por defecto', async () => {
+    it('404 sin cuerpo da el mensaje por defecto "Resource not found"', async () => {
       const api = createApiClient(BASE_URL)
       capturar(() => new HttpResponse(null, { status: 404 }))
 
       const error = await capturarError(api.deleteSchedule(99999))
 
       expect(error).toBeInstanceOf(ApiError)
-      expect(error).toMatchObject({ kind: 'not_found', status: 404, message: 'No se encontró el recurso' })
+      expect(error).toMatchObject({ kind: 'not_found', status: 404, message: 'Resource not found' })
     })
 
     it('422 con {"error": "..."} da ApiError validation con ese mensaje', async () => {
@@ -375,7 +375,7 @@ describe('createApiClient', () => {
     it.each([
       ['sin cuerpo', () => new HttpResponse(null, { status: 422 })],
       ['con {"error": ""}', () => HttpResponse.json({ error: '' }, { status: 422 })],
-    ])('422 %s da el mensaje por defecto', async (_descripcion, responder) => {
+    ])('422 %s da el mensaje por defecto "Invalid data"', async (_descripcion, responder) => {
       const api = createApiClient(BASE_URL)
       capturar(responder)
 
@@ -385,21 +385,41 @@ describe('createApiClient', () => {
       expect(error).toMatchObject({
         kind: 'validation',
         status: 422,
-        message: 'Los datos enviados no son válidos',
+        message: 'Invalid data',
       })
     })
 
-    it('500 da ApiError http con "Error del servidor (500)"', async () => {
+    it('500 sin cuerpo da ApiError http con "Server error (500)"', async () => {
       const api = createApiClient(BASE_URL)
       capturar(() => new HttpResponse(null, { status: 500 }))
 
       const error = await capturarError(api.replaceScheduleEmployees(101, { employee_ids: [5, 8] }))
 
       expect(error).toBeInstanceOf(ApiError)
-      expect(error).toMatchObject({ kind: 'http', status: 500, message: 'Error del servidor (500)' })
+      expect(error).toMatchObject({ kind: 'http', status: 500, message: 'Server error (500)' })
     })
 
-    it('un error de red da ApiError network sin status', async () => {
+    it('503 sin cuerpo incluye su código: "Server error (503)"', async () => {
+      const api = createApiClient(BASE_URL)
+      capturar(() => new HttpResponse(null, { status: 503 }))
+
+      const error = await capturarError(api.getJobs())
+
+      expect(error).toBeInstanceOf(ApiError)
+      expect(error).toMatchObject({ kind: 'http', status: 503, message: 'Server error (503)' })
+    })
+
+    it('500 con {"error"} en español muestra ese mensaje tal cual, sin traducirlo', async () => {
+      const api = createApiClient(BASE_URL)
+      capturar(() => HttpResponse.json({ error: 'La base de datos no responde' }, { status: 500 }))
+
+      const error = await capturarError(api.getEmployees())
+
+      expect(error).toBeInstanceOf(ApiError)
+      expect(error).toMatchObject({ kind: 'http', status: 500, message: 'La base de datos no responde' })
+    })
+
+    it('un error de red da ApiError network sin status y "Couldn\'t connect to the server"', async () => {
       const api = createApiClient(BASE_URL)
       capturar(() => HttpResponse.error())
 
@@ -409,7 +429,7 @@ describe('createApiClient', () => {
       expect(error).toMatchObject({
         kind: 'network',
         status: null,
-        message: 'No se pudo conectar con el servidor',
+        message: "Couldn't connect to the server",
       })
     })
   })

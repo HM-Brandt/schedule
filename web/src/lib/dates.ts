@@ -1,8 +1,10 @@
-import { addDays, format, startOfWeek } from 'date-fns'
+import { addDays, addWeeks, format, startOfWeek } from 'date-fns'
 import type { IsoDate, StartTime } from '../api/types'
 
-/** Abreviaturas de los meses en español, sin punto, de enero a diciembre. */
-const MONTHS = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic']
+/** Abreviaturas de los meses en inglés, de enero a diciembre. */
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+
+const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 
 const ISO_DATE_PATTERN = /^(\d{4})-(\d{2})-(\d{2})$/
 
@@ -51,6 +53,18 @@ export function getWeekDays(from: IsoDate): IsoDate[] {
   return Array.from({ length: 7 }, (_, index) => toIsoDate(addDays(start, index)))
 }
 
+export function shiftWeek(from: IsoDate, weeks: number): IsoDate {
+  return getWeekRange(addWeeks(parseIsoDate(from), weeks)).from
+}
+
+export function formatDayName(iso: IsoDate): string {
+  return DAY_NAMES[parseIsoDate(iso).getDay()]
+}
+
+export function dayOfMonth(iso: IsoDate): number {
+  return parseIsoDate(iso).getDate()
+}
+
 /**
  * Normaliza una hora a `HH:mm`: quita los segundos de `HH:mm:ss` y deja `HH:mm` igual.
  * Acepta horas de 00 a 23 y minutos y segundos de 00 a 59; ante otro formato lanza un `Error`.
@@ -64,11 +78,11 @@ export function normalizeTime(value: string): StartTime {
 }
 
 /**
- * Da el texto de un rango de fechas para el encabezado de la semana, con días sin cero
- * a la izquierda y meses abreviados sin punto:
- * - mismo mes y año: `"1 - 7 nov 2026"`;
- * - meses distintos del mismo año: `"29 nov - 5 dic 2026"`;
- * - años distintos: `"27 dic 2026 - 2 ene 2027"`.
+ * Da el texto de un rango de fechas para el encabezado de la semana, en formato
+ * estadounidense, con días sin cero a la izquierda y meses abreviados en inglés:
+ * - mismo mes y año: `"Nov 1 - 7, 2026"`;
+ * - meses distintos del mismo año: `"Nov 29 - Dec 5, 2026"`;
+ * - años distintos: `"Dec 27, 2026 - Jan 2, 2027"`.
  */
 export function formatWeekRange(from: IsoDate, to: IsoDate): string {
   const start = parseIsoDate(from)
@@ -81,10 +95,10 @@ export function formatWeekRange(from: IsoDate, to: IsoDate): string {
   const endYear = end.getFullYear()
 
   if (startYear !== endYear) {
-    return `${startDay} ${startMonth} ${startYear} - ${endDay} ${endMonth} ${endYear}`
+    return `${startMonth} ${startDay}, ${startYear} - ${endMonth} ${endDay}, ${endYear}`
   }
   if (start.getMonth() !== end.getMonth()) {
-    return `${startDay} ${startMonth} - ${endDay} ${endMonth} ${endYear}`
+    return `${startMonth} ${startDay} - ${endMonth} ${endDay}, ${endYear}`
   }
-  return `${startDay} - ${endDay} ${endMonth} ${endYear}`
+  return `${startMonth} ${startDay} - ${endDay}, ${endYear}`
 }

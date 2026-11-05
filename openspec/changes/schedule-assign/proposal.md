@@ -11,6 +11,7 @@ Hoy la planificación semanal de trabajos y de qué empleados van a cada uno no 
 - Un mismo trabajo puede programarse varias veces, el mismo día o en días distintos. En el catálogo nunca desaparece: se muestra tenue con un contador cuando ya está programado en la semana visible.
 - Cada trabajo programado tiene solo hora de inicio (nunca hora de fin). Por defecto 07:00; si el mismo trabajo ya está ese día, la siguiente hora después de la más alta de ese trabajo en ese día (tope 23:00).
 - Asignar empleados activos a trabajos programados (arrastrando en escritorio, con lista de casillas en teléfono). Un empleado puede estar en dos o más trabajos el mismo día sin restricción.
+- Todos los textos de la interfaz en inglés.
 - Interfaz responsiva: semana completa en escritorio y tablet horizontal, 3-4 días desplazables en tablet vertical, un día a la vez con tira de días en teléfono.
 - Contrato HTTP (7 endpoints REST) y esquema MySQL de dos tablas nuevas (`job_schedules`, `job_schedule_employees`) para que el backend se implemente por separado. Las tablas `jobs` y `employees` no se modifican.
 - Mientras el backend no exista, el frontend funciona con datos de prueba que implementan exactamente el mismo contrato.

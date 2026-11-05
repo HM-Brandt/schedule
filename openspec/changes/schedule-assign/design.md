@@ -98,7 +98,8 @@ si no              -> min(23, hora_entera(max(horas)) + 1):00
 
 - **React + Vite + TypeScript** en `web/`. El resultado es un build estático que se puede servir desde cualquier hosting.
 - **TanStack Query** para los datos del servidor. Ofrece caché por semana (`['schedules', from, to]`), actualizaciones optimistas con reversión en `onError` e invalidación tras cada cambio. Cubre directamente el requisito de "respuesta inmediata y error al guardar".
-- **date-fns** para el cálculo de semanas (`startOfWeek` con `weekStartsOn: 0`) y para el formato en español. Todas las fechas se manejan como cadenas `YYYY-MM-DD` locales, nunca como `Date` en UTC.
+- **date-fns** para el cálculo de semanas (`startOfWeek` con `weekStartsOn: 0`). Los nombres de días y meses en inglés salen de listas fijas. Todas las fechas se manejan como cadenas `YYYY-MM-DD` locales, nunca como `Date` en UTC.
+- **Idioma:** los textos de la interfaz están en inglés, las fechas en formato estadounidense (`Nov 1 - 7, 2026`) y las horas en 24 h. Los mensajes `{"error"}` del servidor se muestran tal como llegan.
 - **CSS Modules con variables CSS** para un estilo minimalista propio, sin librería de componentes. Paleta neutra, un color de acento, tarjetas con bordes suaves y animaciones cortas al soltar.
 - **Alternativa descartada:** Redux u otro estado global para datos del servidor. Duplicaría lo que ya da TanStack Query. El estado puramente de interfaz (día visible en teléfono, detalle abierto, pila de deshacer) va en estado local o en un contexto pequeño.
 
@@ -111,7 +112,7 @@ si no              -> min(23, hora_entera(max(horas)) + 1):00
   - `schedule-card`: acepta `employee`.
   - `catalog`: acepta `schedule-card` (quitar).
   - Soltar un `employee` que venía de una tarjeta fuera de cualquier destino lo retira de ella.
-- **Duplicar:** se lee `altKey` del evento al soltar. En táctil no hay Alt, así que se usa la acción "Duplicar" del detalle.
+- **Duplicar:** se lee `altKey` del evento al soltar. En táctil no hay Alt, así que se usa la acción "Duplicate" del detalle.
 - Mientras se arrastra un empleado, cada día muestra su número de programaciones ese día. Se calcula en el cliente con los datos de la semana.
 - **Alternativa descartada:** la API nativa HTML5 de drag and drop. Su soporte táctil es pobre y no permite personalizar el elemento arrastrado.
 - **Versión:** se fija una versión concreta de `@dnd-kit/react` en `package.json`, porque la API de la versión 0.x aún puede cambiar.
@@ -156,7 +157,7 @@ Los componentes de tarjeta, catálogo y empleado se comparten. Solo cambia el co
 - **[Catálogo muy grande, más de unos miles de trabajos]** → La búsqueda se hace en el servidor con `search`, pero sin paginación `GET /api/jobs` devuelve todo. Si crece, añadir `limit` es compatible con el contrato actual.
 - **[API de @dnd-kit/react en 0.x]** → Versión fijada. El arrastre queda aislado en un módulo propio para poder cambiar a `@dnd-kit/core` si hace falta.
 - **[La misma persona abre dos pestañas]** → Gana la última escritura. Se acepta, porque solo hay una persona planificando. Al volver a enfocar la pestaña, TanStack Query vuelve a pedir los datos.
-- **[Soltar con precisión en la tira de días del teléfono]** → Destinos grandes, resaltados durante el arrastre. El detalle ofrece además "Mover a…" como alternativa sin arrastre.
+- **[Soltar con precisión en la tira de días del teléfono]** → Destinos grandes, resaltados durante el arrastre. El detalle ofrece además "Move to…" como alternativa sin arrastre.
 - **[Deshacer tras un error de red]** → Si la operación inversa falla, se muestra el error y la entrada vuelve a la pila. No se dan reintentos silenciosos.
 
 ## Migration Plan

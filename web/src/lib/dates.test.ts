@@ -1,11 +1,21 @@
-// Tests de las utilidades de fecha y hora (tarea 2.2 de `schedule-assign`).
+// Tests de las utilidades de fecha y hora (tareas 2.2 y 5.1 de `schedule-assign`).
 //
 // Los resultados no deben depender de la zona horaria del proceso. Además de la zona
 // por defecto, este archivo se ejecuta con `npm run test:tz`, que lo lanza con
 // `TZ=Pacific/Honolulu` (UTC−10) y con `TZ=Pacific/Kiritimati` (UTC+14). La zona
 // efectiva aparece en el nombre del primer `describe` para verla en la salida.
 import { describe, expect, it } from 'vitest'
-import { formatWeekRange, getWeekDays, getWeekRange, normalizeTime, parseIsoDate, toIsoDate } from './dates'
+import {
+  dayOfMonth,
+  formatDayName,
+  formatWeekRange,
+  getWeekDays,
+  getWeekRange,
+  normalizeTime,
+  parseIsoDate,
+  shiftWeek,
+  toIsoDate,
+} from './dates'
 
 const ZONA = Intl.DateTimeFormat().resolvedOptions().timeZone
 
@@ -161,22 +171,132 @@ describe(`utilidades de fecha (zona horaria del proceso: ${ZONA})`, () => {
   })
 
   describe('formatWeekRange', () => {
-    it('mismo mes: "1 - 7 nov 2026"', () => {
-      expect(formatWeekRange('2026-11-01', '2026-11-07')).toBe('1 - 7 nov 2026')
+    it('mismo mes: "Nov 1 - 7, 2026"', () => {
+      expect(formatWeekRange('2026-11-01', '2026-11-07')).toBe('Nov 1 - 7, 2026')
     })
 
-    it('meses distintos del mismo año: "29 nov - 5 dic 2026"', () => {
-      expect(formatWeekRange('2026-11-29', '2026-12-05')).toBe('29 nov - 5 dic 2026')
+    it('mismo mes con días de dos cifras y sin ceros a la izquierda: "Nov 8 - 14, 2026"', () => {
+      expect(formatWeekRange('2026-11-08', '2026-11-14')).toBe('Nov 8 - 14, 2026')
     })
 
-    it('años distintos: "27 dic 2026 - 2 ene 2027"', () => {
-      expect(formatWeekRange('2026-12-27', '2027-01-02')).toBe('27 dic 2026 - 2 ene 2027')
+    it('meses distintos del mismo año: "Nov 29 - Dec 5, 2026"', () => {
+      expect(formatWeekRange('2026-11-29', '2026-12-05')).toBe('Nov 29 - Dec 5, 2026')
+    })
+
+    it('años distintos: "Dec 27, 2026 - Jan 2, 2027"', () => {
+      expect(formatWeekRange('2026-12-27', '2027-01-02')).toBe('Dec 27, 2026 - Jan 2, 2027')
     })
 
     it('encadenado con getWeekRange del martes 2026-11-03', () => {
       const { from, to } = getWeekRange('2026-11-03')
 
-      expect(formatWeekRange(from, to)).toBe('1 - 7 nov 2026')
+      expect(formatWeekRange(from, to)).toBe('Nov 1 - 7, 2026')
+    })
+
+    it('usa las abreviaturas en inglés de los doce meses', () => {
+      const meses = Array.from({ length: 12 }, (_, indice) => {
+        const mes = String(indice + 1).padStart(2, '0')
+        return formatWeekRange(`2026-${mes}-01`, `2026-${mes}-07`).split(' ')[0]
+      })
+
+      expect(meses).toEqual(['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'])
+    })
+  })
+
+  describe('shiftWeek', () => {
+    it('−1 desde el domingo 2026-11-01 da el domingo 2026-10-25 (cambio de mes)', () => {
+      expect(shiftWeek('2026-11-01', -1)).toBe('2026-10-25')
+    })
+
+    it('+1 desde el domingo 2026-11-01 da el domingo 2026-11-08', () => {
+      expect(shiftWeek('2026-11-01', 1)).toBe('2026-11-08')
+    })
+
+    it('0 desde el domingo 2026-11-01 da el mismo domingo', () => {
+      expect(shiftWeek('2026-11-01', 0)).toBe('2026-11-01')
+    })
+
+    it('+1 cruza de mes: del 2026-11-22 al 2026-11-29 y de ahí al 2026-12-06', () => {
+      expect(shiftWeek('2026-11-22', 1)).toBe('2026-11-29')
+      expect(shiftWeek('2026-11-29', 1)).toBe('2026-12-06')
+    })
+
+    it('+1 cruza de año: del 2026-12-27 al 2027-01-03', () => {
+      expect(shiftWeek('2026-12-27', 1)).toBe('2027-01-03')
+    })
+
+    it('−1 cruza de año hacia atrás: del 2027-01-03 al 2026-12-27', () => {
+      expect(shiftWeek('2027-01-03', -1)).toBe('2026-12-27')
+    })
+
+    it('desplaza varias semanas de una vez: +4 desde el 2026-11-01 da el 2026-11-29', () => {
+      expect(shiftWeek('2026-11-01', 4)).toBe('2026-11-29')
+    })
+
+    it.each([
+      ['el martes 2026-11-03', '2026-11-03', 1, '2026-11-08'],
+      ['el sábado 2026-11-07', '2026-11-07', 1, '2026-11-08'],
+      ['el miércoles 2026-11-04', '2026-11-04', -1, '2026-10-25'],
+      ['el jueves 2026-12-31', '2026-12-31', 1, '2027-01-03'],
+    ])('devuelve domingo aunque el origen sea %s', (_descripcion, origen, semanas, esperado) => {
+      const resultado = shiftWeek(origen, semanas)
+
+      expect(resultado).toBe(esperado)
+      expect(parseIsoDate(resultado).getDay()).toBe(0)
+    })
+
+    it('ida y vuelta: +1 y luego −1 vuelve al mismo domingo', () => {
+      expect(shiftWeek(shiftWeek('2026-11-01', 1), -1)).toBe('2026-11-01')
+    })
+
+    it('lanza un error si la fecha no es válida', () => {
+      expect(() => shiftWeek('2026-02-30', 1)).toThrow()
+    })
+  })
+
+  describe('formatDayName', () => {
+    it('da Sun … Sat del domingo 2026-11-01 al sábado 2026-11-07', () => {
+      expect(getWeekDays('2026-11-01').map(formatDayName)).toEqual([
+        'Sun',
+        'Mon',
+        'Tue',
+        'Wed',
+        'Thu',
+        'Fri',
+        'Sat',
+      ])
+    })
+
+    it('el martes 2026-11-03 es "Tue"', () => {
+      expect(formatDayName('2026-11-03')).toBe('Tue')
+    })
+
+    it('respeta el día local al cruzar de año: 2026-12-31 es "Thu" y 2027-01-02 es "Sat"', () => {
+      expect(formatDayName('2026-12-31')).toBe('Thu')
+      expect(formatDayName('2027-01-02')).toBe('Sat')
+    })
+
+    it('lanza un error si la fecha no es válida', () => {
+      expect(() => formatDayName('2026-02-30')).toThrow()
+    })
+  })
+
+  describe('dayOfMonth', () => {
+    it('da los números 1 a 7 para la semana del 2026-11-01', () => {
+      expect(getWeekDays('2026-11-01').map(dayOfMonth)).toEqual([1, 2, 3, 4, 5, 6, 7])
+    })
+
+    it('da números sin ceros a la izquierda y respeta el cambio de mes', () => {
+      expect(getWeekDays('2026-11-29').map(dayOfMonth)).toEqual([29, 30, 1, 2, 3, 4, 5])
+    })
+
+    it('da el último día del mes y del año', () => {
+      expect(dayOfMonth('2026-12-31')).toBe(31)
+      expect(dayOfMonth('2028-02-29')).toBe(29)
+    })
+
+    it('lanza un error si la fecha no es válida', () => {
+      expect(() => dayOfMonth('03/11/2026')).toThrow()
     })
   })
 })

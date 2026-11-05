@@ -7,7 +7,7 @@ test('la página inicial muestra el título y usa los tokens de estilo', async (
   await page.goto('/')
 
   await expect(
-    page.getByRole('heading', { level: 1, name: 'Planificación semanal' }),
+    page.getByRole('heading', { level: 1, name: 'Weekly schedule' }),
   ).toBeVisible()
 
   // `getPropertyValue('--x')` devuelve el texto del CSS (`#f6f7f9`), mientras que
@@ -51,4 +51,11 @@ test('la página inicial muestra el título y usa los tokens de estilo', async (
     expect(valor).not.toBe('')
   }
   expect(estilos.body).toEqual(estilos.tokens)
+})
+
+test('el documento declara el idioma inglés y su título está en inglés', async ({ page }) => {
+  await page.goto('/')
+
+  await expect(page).toHaveTitle('Weekly schedule')
+  await expect(page.locator('html')).toHaveAttribute('lang', 'en')
 })

@@ -7,7 +7,7 @@ Tablero semanal de domingo a sábado donde la persona que planifica programa tra
 ## ADDED Requirements
 
 ### Requirement: Semana de domingo a sábado
-El sistema SHALL mostrar una semana de siete días que empieza en domingo y termina en sábado. Cada día SHALL mostrar su nombre abreviado y su número de día del mes. Al abrir la aplicación SHALL mostrarse la semana que contiene la fecha actual, con el día actual resaltado.
+El sistema SHALL mostrar una semana de siete días que empieza en domingo y termina en sábado. Cada día SHALL mostrar su nombre abreviado en inglés (Sun, Mon, Tue, Wed, Thu, Fri, Sat) y su número de día del mes. Al abrir la aplicación SHALL mostrarse la semana que contiene la fecha actual, con el día actual resaltado.
 
 #### Scenario: Apertura en un martes
 - **WHEN** la persona abre la aplicación el martes 3 de noviembre de 2026
@@ -16,17 +16,24 @@ El sistema SHALL mostrar una semana de siete días que empieza en domingo y term
 
 #### Scenario: Encabezado de la semana
 - **WHEN** se muestra la semana del 1 al 7 de noviembre de 2026
-- **THEN** el encabezado indica el rango "1 - 7 nov 2026"
+- **THEN** el encabezado indica el rango "Nov 1 - 7, 2026"
+
+### Requirement: Idioma de la interfaz
+El sistema SHALL mostrar todos los textos de la interfaz en inglés, con las fechas en formato estadounidense y las horas en formato de 24 horas. Los mensajes `{"error"}` que envía el servidor SHALL mostrarse tal como llegan.
+
+#### Scenario: Textos en inglés
+- **WHEN** se muestra el tablero
+- **THEN** las acciones, etiquetas y avisos de la interfaz están en inglés
 
 ### Requirement: Navegación entre semanas
-El sistema SHALL permitir ir a la semana anterior, a la semana siguiente y volver a la semana actual con una acción "Hoy". Al cambiar de semana SHALL cargarse los trabajos programados de esa semana.
+El sistema SHALL permitir ir a la semana anterior, a la semana siguiente y volver a la semana actual con una acción "Today". Al cambiar de semana SHALL cargarse los trabajos programados de esa semana.
 
 #### Scenario: Semana siguiente
-- **WHEN** la persona está en la semana del 1 al 7 de noviembre de 2026 y pulsa "semana siguiente"
+- **WHEN** la persona está en la semana del 1 al 7 de noviembre de 2026 y pulsa "Next week"
 - **THEN** el tablero muestra la semana del 8 al 14 de noviembre de 2026 con sus trabajos programados
 
 #### Scenario: Volver a hoy
-- **WHEN** la persona está en una semana distinta a la actual y pulsa "Hoy"
+- **WHEN** la persona está en una semana distinta a la actual y pulsa "Today"
 - **THEN** el tablero muestra la semana que contiene la fecha actual
 
 ### Requirement: Catálogo de trabajos
@@ -115,14 +122,14 @@ El sistema SHALL mover una programación al día donde la persona la suelta, con
 - **THEN** la programación movida queda en el martes con hora de inicio 08:00
 
 ### Requirement: Duplicar una programación
-El sistema SHALL permitir duplicar una programación en un día, mediante arrastre con la tecla Alt en escritorio y mediante la acción "Duplicar" del detalle en cualquier dispositivo. La copia SHALL tener el mismo trabajo y los mismos empleados, y su hora de inicio SHALL calcularse con la regla de hora de inicio por defecto.
+El sistema SHALL permitir duplicar una programación en un día, mediante arrastre con la tecla Alt en escritorio y mediante la acción "Duplicate" del detalle en cualquier dispositivo. La copia SHALL tener el mismo trabajo y los mismos empleados, y su hora de inicio SHALL calcularse con la regla de hora de inicio por defecto.
 
 #### Scenario: Duplicar con Alt en otro día
 - **WHEN** la persona arrastra con Alt "J-1024 Pintar oficina" (con Ana) del lunes al viernes
 - **THEN** el lunes conserva su programación y el viernes muestra una nueva "J-1024 Pintar oficina" con Ana
 
 #### Scenario: Duplicar desde el detalle en el mismo día
-- **WHEN** la persona pulsa "Duplicar" en el detalle de "J-1024 Pintar oficina" (07:00) del lunes
+- **WHEN** la persona pulsa "Duplicate" en el detalle de "J-1024 Pintar oficina" (07:00) del lunes
 - **THEN** el lunes muestra una segunda "J-1024 Pintar oficina" a las 08:00
 
 ### Requirement: Quitar una programación
@@ -133,10 +140,10 @@ El sistema SHALL permitir quitar una programación de la semana desde su detalle
 - **THEN** el jueves deja de mostrarla y el trabajo sigue en el catálogo
 
 ### Requirement: Deshacer
-El sistema SHALL permitir deshacer las acciones de programar, mover, duplicar, quitar, cambiar la hora y cambiar empleados. Tras cada acción SHALL mostrarse un aviso breve con la opción "Deshacer", y en escritorio SHALL funcionar el atajo Ctrl+Z (Cmd+Z en macOS) en orden inverso a las acciones realizadas.
+El sistema SHALL permitir deshacer las acciones de programar, mover, duplicar, quitar, cambiar la hora y cambiar empleados. Tras cada acción SHALL mostrarse un aviso breve con la opción "Undo", y en escritorio SHALL funcionar el atajo Ctrl+Z (Cmd+Z en macOS) en orden inverso a las acciones realizadas.
 
 #### Scenario: Deshacer un movimiento
-- **WHEN** la persona mueve una programación del lunes al jueves y pulsa "Deshacer" en el aviso
+- **WHEN** la persona mueve una programación del lunes al jueves y pulsa "Undo" en el aviso
 - **THEN** la programación vuelve al lunes con su hora y sus empleados anteriores
 
 #### Scenario: Deshacer un quitar
@@ -148,7 +155,7 @@ El sistema SHALL reflejar cada cambio en pantalla de inmediato, antes de recibir
 
 #### Scenario: Fallo al mover
 - **WHEN** la persona mueve una programación al jueves y el servidor responde con un error
-- **THEN** la programación vuelve a su día original y se muestra un mensaje indicando que no se pudo guardar
+- **THEN** la programación vuelve a su día original y se muestra un mensaje de error que empieza por "Couldn't save the change."
 
 ### Requirement: Diseño responsivo por tamaño de pantalla
 El sistema SHALL adaptar la vista al ancho de pantalla: con 1024 px o más, los siete días a la vez con catálogo y panel de empleados; entre 640 y 1023 px, de tres a cuatro días visibles con desplazamiento horizontal y paneles plegables; con menos de 640 px, un solo día a la vez con una tira superior de los siete días.

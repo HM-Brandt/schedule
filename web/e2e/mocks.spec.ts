@@ -11,7 +11,7 @@ test('el service worker de MSW responde GET /api/employees con los datos semilla
 
   // main.tsx monta la app después de arrancar el worker: si se ve la página, ya arrancó.
   await expect(
-    page.getByRole('heading', { level: 1, name: 'Planificación semanal' }),
+    page.getByRole('heading', { level: 1, name: 'Weekly schedule' }),
   ).toBeVisible()
   await page.waitForFunction(() => navigator.serviceWorker.controller !== null)
 

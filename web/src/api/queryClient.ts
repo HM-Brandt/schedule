@@ -3,8 +3,8 @@ import { ApiError } from './client'
 
 export function mutationErrorMessage(error: unknown): string {
   return error instanceof ApiError && error.message
-    ? `No se pudo guardar el cambio. ${error.message}`
-    : 'No se pudo guardar el cambio.'
+    ? `Couldn't save the change. ${error.message}`
+    : "Couldn't save the change."
 }
 
 export function createQueryClient(options?: { onMutationError?: (message: string) => void }) {

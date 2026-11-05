@@ -93,7 +93,8 @@ function pausar(metodo: Metodo, ruta: string, responder?: () => Response): () =>
 
 const error500 = () => HttpResponse.json({ error: MENSAJE_500 }, { status: 500 })
 
-const MENSAJE_ESPERADO = `No se pudo guardar el cambio. ${MENSAJE_500}`
+/** El texto de la interfaz va en inglés y el `error` del servidor se añade tal cual. */
+const MENSAJE_ESPERADO = `Couldn't save the change. ${MENSAJE_500}`
 
 describe('useCreateSchedule', () => {
   it('muestra la programación con id temporal antes de la respuesta y luego la sustituye por la real', async () => {

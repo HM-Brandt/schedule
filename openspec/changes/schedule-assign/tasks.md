@@ -7,11 +7,12 @@
 - [x] 1.3 Configurar Vitest + Testing Library + jsdom con un test de humo y verificar que `npm test` pasa
 - [x] 1.4 Definir `VITE_USE_MOCKS` y `VITE_API_URL` en `web/.env.example` y en un módulo de configuración tipado, y verificar con un test que la configuración lee ambos valores
 - [x] 1.5 Crear la base de estilos (variables CSS: paleta neutra, acento, espaciado, radios, tipografía) y verificar que la página inicial las usa
+- [x] 1.6 Pasar a inglés los textos de interfaz ya implementados (título de la página, mensajes por defecto de `ApiError` y mensaje de error al guardar) y verificar con tests los nuevos textos
 
 ## 2. Contrato, tipos y documentación para el backend
 
 - [x] 2.1 Definir los tipos `Employee`, `Job`, `Schedule` y los cuerpos de petición según `specs/schedule-api/spec.md`, y verificar que `tsc --noEmit` pasa
-- [x] 2.2 Implementar utilidades de fecha y hora (rango domingo-sábado de una fecha, `YYYY-MM-DD` local, normalización de `HH:mm:ss` a `HH:mm`, formato "1 - 7 nov 2026") y verificar con tests que el martes 2026-11-03 da el rango 2026-11-01 a 2026-11-07 sin desplazamientos de zona horaria
+- [x] 2.2 Implementar utilidades de fecha y hora (rango domingo-sábado de una fecha, `YYYY-MM-DD` local, normalización de `HH:mm:ss` a `HH:mm`, formato "Nov 1 - 7, 2026") y verificar con tests que el martes 2026-11-03 da el rango 2026-11-01 a 2026-11-07 sin desplazamientos de zona horaria
 - [x] 2.3 Implementar el cliente HTTP de los siete endpoints con manejo de errores `{"error"}` (404/422/red) y verificar con tests que cada función llama a la ruta y método correctos y lanza un error tipado ante 4xx
 - [x] 2.4 Escribir `docs/schema.sql` con el DDL de `design.md` y `docs/api.md` con el contrato, ejemplos de petición y respuesta, y la nota de no convertir zonas horarias; verificar que el DDL se ejecuta sin errores en un MySQL de prueba con tablas `jobs` y `employees` equivalentes
 
@@ -31,7 +32,7 @@
 
 ## 5. Tablero semanal en escritorio
 
-- [ ] 5.1 Construir el encabezado con rango de la semana, anterior, siguiente y "Hoy", y verificar con tests que al abrir el 2026-11-03 se ven del 1 al 7 de noviembre con el martes resaltado y que "semana siguiente" muestra del 8 al 14
+- [x] 5.1 Construir el encabezado con rango de la semana, anterior, siguiente y "Today", y verificar con tests que al abrir el 2026-11-03 se ven del 1 al 7 de noviembre con el martes resaltado y que "Next week" muestra del 8 al 14
 - [ ] 5.2 Construir las siete columnas de días con sus tarjetas (número, nombre, hora de inicio, iniciales de empleados, estado sin empleados) y verificar con tests que no se muestra ninguna hora de fin
 - [ ] 5.3 Construir el catálogo con búsqueda, estado atenuado y contador "xN" de la semana visible, y verificar con tests los escenarios de "Catálogo de trabajos" e "Indicador de trabajo en uso"
 
@@ -53,9 +54,9 @@
 
 ## 8. Detalle y deshacer
 
-- [ ] 8.1 Construir el panel de detalle (editar hora de inicio, empleados con quitar, "Duplicar", "Mover a…", "Quitar") y verificar con tests que cambiar la hora a 10:30 reordena la tarjeta en su día
+- [ ] 8.1 Construir el panel de detalle (editar hora de inicio, empleados con quitar, "Duplicate", "Move to…", "Remove") y verificar con tests que cambiar la hora a 10:30 reordena la tarjeta en su día
 - [ ] 8.2 Implementar la pila de deshacer con operaciones inversas (decisión 6, máximo 20, reasignación de id al deshacer un quitar), y verificar con tests cada fila de la tabla de inversas
-- [ ] 8.3 Mostrar el aviso con "Deshacer" tras cada acción y el atajo Ctrl+Z / Cmd+Z, y verificar en el navegador los escenarios de "Deshacer"
+- [ ] 8.3 Mostrar el aviso con "Undo" tras cada acción y el atajo Ctrl+Z / Cmd+Z, y verificar en el navegador los escenarios de "Deshacer"
 
 ## 9. Diseño responsivo y táctil
 
