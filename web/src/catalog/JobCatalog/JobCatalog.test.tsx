@@ -210,4 +210,19 @@ describe('JobCatalog', () => {
     expect(elementos()).toHaveLength(0)
     expect(screen.queryByText('No jobs found')).not.toBeInTheDocument()
   })
+
+  it('con un 200 en HTML en GET /api/jobs (Vite sin backend) muestra el aviso de carga y no se rompe', async () => {
+    server.use(
+      http.get('/api/jobs', () =>
+        HttpResponse.html('<!doctype html><html><body><div id="root"></div></body></html>'),
+      ),
+    )
+    renderCatalogo()
+
+    const aviso = await screen.findByRole('alert')
+    expect(aviso).toHaveTextContent("Couldn't load jobs. Unexpected response from the server")
+    expect(elementos()).toHaveLength(0)
+    expect(screen.queryByText('No jobs found')).not.toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Jobs' })).toBeInTheDocument()
+  })
 })

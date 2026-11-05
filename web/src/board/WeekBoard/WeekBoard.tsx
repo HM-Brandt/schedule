@@ -1,6 +1,5 @@
 import type { Employee, IsoDate, Schedule } from '../../api/types'
-import { DayHeading } from '../DayHeading'
-import { ScheduleCard } from '../ScheduleCard'
+import { DayColumn } from '../DayColumn'
 import styles from './WeekBoard.module.css'
 
 export function WeekBoard({
@@ -17,14 +16,13 @@ export function WeekBoard({
   return (
     <div className={styles.board}>
       {days.map((day) => (
-        <div key={day} className={styles.day}>
-          <DayHeading date={day} isToday={day === today} />
-          <div className={styles.cards}>
-            {schedulesByDay[day].map((schedule) => (
-              <ScheduleCard key={schedule.id} schedule={schedule} employeesById={employeesById} />
-            ))}
-          </div>
-        </div>
+        <DayColumn
+          key={day}
+          date={day}
+          isToday={day === today}
+          schedules={schedulesByDay[day]}
+          employeesById={employeesById}
+        />
       ))}
     </div>
   )

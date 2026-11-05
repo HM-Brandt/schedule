@@ -5,6 +5,7 @@ import { useWeek } from './board/useWeek'
 import { WeekBoard } from './board/WeekBoard'
 import { WeekHeader } from './board/WeekHeader'
 import { JobCatalog } from './catalog/JobCatalog'
+import { ScheduleDndProvider } from './dnd/ScheduleDndProvider'
 import { jobWeekCounts, schedulesByDay } from './lib/selectors'
 
 /** Página inicial de la aplicación: el catálogo de trabajos y, a su derecha, el encabezado y el tablero de la semana visible. */
@@ -23,26 +24,28 @@ function App() {
   return (
     <main className={styles.app}>
       <h1 className={styles.title}>Weekly schedule</h1>
-      <div className={styles.layout}>
-        <aside>
-          <JobCatalog counts={counts} />
-        </aside>
-        <div>
-          <WeekHeader
-            from={week.from}
-            to={week.to}
-            onPrevious={week.goPrevious}
-            onNext={week.goNext}
-            onToday={week.goToday}
-          />
-          {schedules.error && (
-            <p role="alert" className={styles.error}>
-              Couldn't load the week. {schedules.error.message}
-            </p>
-          )}
-          <WeekBoard days={week.days} today={week.today} schedulesByDay={byDay} employeesById={employeesById} />
+      <ScheduleDndProvider schedules={schedules.data ?? []}>
+        <div className={styles.layout}>
+          <aside>
+            <JobCatalog counts={counts} />
+          </aside>
+          <div>
+            <WeekHeader
+              from={week.from}
+              to={week.to}
+              onPrevious={week.goPrevious}
+              onNext={week.goNext}
+              onToday={week.goToday}
+            />
+            {schedules.error && (
+              <p role="alert" className={styles.error}>
+                Couldn't load the week. {schedules.error.message}
+              </p>
+            )}
+            <WeekBoard days={week.days} today={week.today} schedulesByDay={byDay} employeesById={employeesById} />
+          </div>
         </div>
-      </div>
+      </ScheduleDndProvider>
     </main>
   )
 }

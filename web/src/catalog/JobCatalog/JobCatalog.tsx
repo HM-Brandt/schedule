@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useJobs } from '../../api/queries'
+import { CatalogJob } from '../CatalogJob'
 import styles from './JobCatalog.module.css'
 
 export function JobCatalog({ counts }: { counts: Map<number, number> }) {
@@ -24,16 +25,9 @@ export function JobCatalog({ counts }: { counts: Map<number, number> }) {
       )}
       {jobs.data?.length === 0 && <p className={styles.empty}>No jobs found</p>}
       <ul className={styles.list}>
-        {jobs.data?.map((job) => {
-          const count = counts.get(job.id) ?? 0
-          return (
-            <li key={job.id} className={count > 0 ? `${styles.job} ${styles.inUse}` : styles.job} data-in-use={count > 0 ? 'true' : undefined}>
-              <span className={styles.number}>{job.number}</span>
-              <span className={styles.name}>{job.name}</span>
-              {count > 0 && <span className={styles.count}>{`x${count}`}</span>}
-            </li>
-          )
-        })}
+        {jobs.data?.map((job) => (
+          <CatalogJob key={job.id} job={job} count={counts.get(job.id) ?? 0} />
+        ))}
       </ul>
     </section>
   )

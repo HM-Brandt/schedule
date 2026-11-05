@@ -419,6 +419,64 @@ describe('createApiClient', () => {
       expect(error).toMatchObject({ kind: 'http', status: 500, message: 'La base de datos no responde' })
     })
 
+    it.each([
+      [
+        'con HTML (content-type: text/html), como el index.html de Vite sin backend,',
+        () => HttpResponse.html('<!doctype html><html><body><div id="root"></div></body></html>'),
+      ],
+      ['con texto plano (content-type: text/plain)', () => HttpResponse.text('hola')],
+      [
+        'sin content-type',
+        () => {
+          const respuesta = new HttpResponse(new TextEncoder().encode('hola'), { status: 200 })
+          respuesta.headers.delete('content-type')
+          return respuesta
+        },
+      ],
+    ])('un 200 %s en GET /api/jobs da ApiError invalid_response', async (_descripcion, responder) => {
+      const api = createApiClient(BASE_URL)
+      capturar(responder)
+
+      const error = await capturarError(api.getJobs())
+
+      expect(error).toBeInstanceOf(ApiError)
+      expect(error).toMatchObject({
+        name: 'ApiError',
+        kind: 'invalid_response',
+        status: 200,
+        message: 'Unexpected response from the server',
+      })
+    })
+
+    it('un 201 con HTML en POST /api/schedules también da ApiError invalid_response', async () => {
+      const api = createApiClient(BASE_URL)
+      capturar(() => HttpResponse.html('<html></html>', { status: 201 }))
+
+      const error = await capturarError(api.createSchedule({ job_id: 7, date: '2026-11-02', start_time: '08:00' }))
+
+      expect(error).toBeInstanceOf(ApiError)
+      expect(error).toMatchObject({
+        kind: 'invalid_response',
+        status: 201,
+        message: 'Unexpected response from the server',
+      })
+    })
+
+    it('un 200 con content-type "application/json; charset=utf-8" se acepta', async () => {
+      const api = createApiClient(BASE_URL)
+      capturar(
+        () =>
+          new HttpResponse(JSON.stringify([TRABAJO]), {
+            status: 200,
+            headers: { 'Content-Type': 'application/json; charset=utf-8' },
+          }),
+      )
+
+      const trabajos = await api.getJobs()
+
+      expect(trabajos).toEqual([TRABAJO])
+    })
+
     it('un error de red da ApiError network sin status y "Couldn\'t connect to the server"', async () => {
       const api = createApiClient(BASE_URL)
       capturar(() => HttpResponse.error())

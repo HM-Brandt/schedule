@@ -3,17 +3,3 @@
   grid-template-columns: repeat(7, 1fr);
   gap: var(--space-2);
 }
-
-.day {
-  min-height: 200px;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
-  background: var(--color-surface);
-}
-
-.cards {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
-  padding: 0 var(--space-2) var(--space-2);
-}

@@ -21,7 +21,7 @@ import type {
  * - `http`: cualquier otro código de error de la respuesta;
  * - `network`: no hubo respuesta (error de red o tiempo agotado).
  */
-export type ApiErrorKind = 'not_found' | 'validation' | 'http' | 'network'
+export type ApiErrorKind = 'not_found' | 'validation' | 'http' | 'network' | 'invalid_response'
 
 /**
  * Error de una llamada a la API. `status` es el código HTTP de la respuesta,
@@ -88,7 +88,17 @@ export function createApiClient(baseURL: string) {
   })
 
   http.interceptors.response.use(
-    (response) => response,
+    (response) => {
+      if (
+        response.status !== 204 &&
+        !String(response.headers['content-type']).includes('application/json')
+      ) {
+        return Promise.reject(
+          new ApiError('invalid_response', response.status, 'Unexpected response from the server'),
+        )
+      }
+      return response
+    },
     (error: unknown) => {
       if (axios.isAxiosError(error)) {
         return Promise.reject(toApiError(error))
