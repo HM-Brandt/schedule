@@ -33,8 +33,8 @@
 ## 5. Tablero semanal en escritorio
 
 - [x] 5.1 Construir el encabezado con rango de la semana, anterior, siguiente y "Today", y verificar con tests que al abrir el 2026-11-03 se ven del 1 al 7 de noviembre con el martes resaltado y que "Next week" muestra del 8 al 14
-- [ ] 5.2 Construir las siete columnas de días con sus tarjetas (número, nombre, hora de inicio, iniciales de empleados, estado sin empleados) y verificar con tests que no se muestra ninguna hora de fin
-- [ ] 5.3 Construir el catálogo con búsqueda, estado atenuado y contador "xN" de la semana visible, y verificar con tests los escenarios de "Catálogo de trabajos" e "Indicador de trabajo en uso"
+- [x] 5.2 Construir las siete columnas de días con sus tarjetas (número, nombre, hora de inicio, iniciales de empleados, estado sin empleados) y verificar con tests que no se muestra ninguna hora de fin
+- [x] 5.3 Construir el catálogo con búsqueda, estado atenuado y contador "xN" de la semana visible, y verificar con tests los escenarios de "Catálogo de trabajos" e "Indicador de trabajo en uso"
 
 ## 6. Arrastrar y soltar trabajos
 
