@@ -24,10 +24,10 @@
 
 ## 4. Datos del servidor y reglas
 
-- [ ] 4.1 Configurar TanStack Query y las consultas de empleados, trabajos y semana (clave `['schedules', from, to]`) y verificar con tests que cambiar de semana pide el nuevo rango
-- [ ] 4.2 Implementar las mutaciones (programar, mover o cambiar hora, duplicar, quitar, reemplazar empleados) con actualización optimista y reversión en error, y verificar con tests que ante un 500 simulado el estado vuelve al anterior y se emite un mensaje de error
-- [ ] 4.3 Implementar la función de hora por defecto de `design.md` (decisión 3) y verificar con tests los cinco escenarios de "Hora de inicio por defecto" y los dos de "Mover una programación a otro día"
-- [ ] 4.4 Implementar los selectores derivados (programaciones por día ordenadas por hora y creación, veces que cada trabajo está en la semana, programaciones por empleado y día) y verificar con tests el orden 07:00, 08:00, 09:00 y los contadores
+- [x] 4.1 Configurar TanStack Query y las consultas de empleados, trabajos y semana (clave `['schedules', from, to]`) y verificar con tests que cambiar de semana pide el nuevo rango
+- [x] 4.2 Implementar las mutaciones (programar, mover o cambiar hora, duplicar, quitar, reemplazar empleados) con actualización optimista y reversión en error, y verificar con tests que ante un 500 simulado el estado vuelve al anterior y se emite un mensaje de error
+- [x] 4.3 Implementar la función de hora por defecto de `design.md` (decisión 3) y verificar con tests los cinco escenarios de "Hora de inicio por defecto" y los dos de "Mover una programación a otro día"
+- [x] 4.4 Implementar los selectores derivados (programaciones por día ordenadas por hora y creación, veces que cada trabajo está en la semana, programaciones por empleado y día) y verificar con tests el orden 07:00, 08:00, 09:00 y los contadores
 
 ## 5. Tablero semanal en escritorio
 

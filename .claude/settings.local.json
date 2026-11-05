@@ -16,7 +16,11 @@
       "Bash(echo \"tsc exit $?\")",
       "PowerShell(npm test 2>&1)",
       "Bash(echo \"lint exit $?\")",
-      "PowerShell(Get-NetTCPConnection -LocalPort 5180 -ErrorAction SilentlyContinue)"
+      "PowerShell(Get-NetTCPConnection -LocalPort 5180 -ErrorAction SilentlyContinue)",
+      "PowerShell(openspec list --json)",
+      "PowerShell(openspec status --change \"schedule-assign\" --json)",
+      "PowerShell(openspec instructions apply --change \"schedule-assign\" --json)",
+      "PowerShell(Set-Location ..; \\(openspec instructions apply --change \"schedule-assign\" --json | ConvertFrom-Json\\).progress)"
     ]
   }
 }

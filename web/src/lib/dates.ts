@@ -46,6 +46,11 @@ export function getWeekRange(date: Date | IsoDate): { from: IsoDate; to: IsoDate
   return { from: toIsoDate(start), to: toIsoDate(addDays(start, 6)) }
 }
 
+export function getWeekDays(from: IsoDate): IsoDate[] {
+  const start = parseIsoDate(from)
+  return Array.from({ length: 7 }, (_, index) => toIsoDate(addDays(start, index)))
+}
+
 /**
  * Normaliza una hora a `HH:mm`: quita los segundos de `HH:mm:ss` y deja `HH:mm` igual.
  * Acepta horas de 00 a 23 y minutos y segundos de 00 a 59; ante otro formato lanza un `Error`.

@@ -5,7 +5,7 @@
 // `TZ=Pacific/Honolulu` (UTC−10) y con `TZ=Pacific/Kiritimati` (UTC+14). La zona
 // efectiva aparece en el nombre del primer `describe` para verla en la salida.
 import { describe, expect, it } from 'vitest'
-import { formatWeekRange, getWeekRange, normalizeTime, parseIsoDate, toIsoDate } from './dates'
+import { formatWeekRange, getWeekDays, getWeekRange, normalizeTime, parseIsoDate, toIsoDate } from './dates'
 
 const ZONA = Intl.DateTimeFormat().resolvedOptions().timeZone
 
@@ -46,6 +46,50 @@ describe(`utilidades de fecha (zona horaria del proceso: ${ZONA})`, () => {
 
     it('la semana siguiente empieza el domingo 8', () => {
       expect(getWeekRange('2026-11-08')).toEqual({ from: '2026-11-08', to: '2026-11-14' })
+    })
+  })
+
+  describe('getWeekDays', () => {
+    it('da los 7 días del domingo 2026-11-01 al sábado 2026-11-07', () => {
+      expect(getWeekDays('2026-11-01')).toEqual([
+        '2026-11-01',
+        '2026-11-02',
+        '2026-11-03',
+        '2026-11-04',
+        '2026-11-05',
+        '2026-11-06',
+        '2026-11-07',
+      ])
+    })
+
+    it('cruza de mes: del 2026-11-29 al 2026-12-05', () => {
+      expect(getWeekDays('2026-11-29')).toEqual([
+        '2026-11-29',
+        '2026-11-30',
+        '2026-12-01',
+        '2026-12-02',
+        '2026-12-03',
+        '2026-12-04',
+        '2026-12-05',
+      ])
+    })
+
+    it('cruza de año: del 2026-12-27 al 2027-01-02', () => {
+      const dias = getWeekDays('2026-12-27')
+
+      expect(dias).toHaveLength(7)
+      expect(dias[0]).toBe('2026-12-27')
+      expect(dias[6]).toBe('2027-01-02')
+    })
+
+    it('el último día coincide con el `to` de getWeekRange', () => {
+      const { from, to } = getWeekRange('2026-11-03')
+
+      expect(getWeekDays(from).at(-1)).toBe(to)
+    })
+
+    it('lanza un error si la fecha no es válida', () => {
+      expect(() => getWeekDays('2026-02-30')).toThrow()
     })
   })
 
