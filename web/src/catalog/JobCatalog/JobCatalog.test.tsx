@@ -1,4 +1,4 @@
-// Tests del catálogo de trabajos (tarea 5.3 de `schedule-assign`) con `msw/node`.
+// Tests del catálogo de trabajos (tareas 5.3 y 9.6 de `schedule-assign`) con `msw/node`.
 //
 // Cubren "Catálogo de trabajos" e "Indicador de trabajo en uso" de
 // `specs/weekly-schedule-board/spec.md`. La semilla tiene 30 trabajos, de "J-1018" a
@@ -10,6 +10,7 @@ import { http, HttpResponse } from 'msw'
 import { setupServer } from 'msw/node'
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import { createQueryClient } from '../../api/queryClient'
+import { jobHue } from '../../lib/colors'
 import { createHandlers } from '../../mocks/handlers'
 import { createSeed } from '../../mocks/seed'
 import { JobCatalog } from './JobCatalog'
@@ -198,6 +199,33 @@ describe('JobCatalog', () => {
 
       expect(trabajo('J-1024')).not.toHaveAttribute('data-in-use')
       expect(within(trabajo('J-1024')).queryByText(/^x\d+$/)).not.toBeInTheDocument()
+    })
+  })
+
+  // Tarea 9.6: cada trabajo del catálogo lleva el tono de su trabajo, el mismo que su tarjeta.
+  describe('tonos', () => {
+    it('cada trabajo lleva el tono de su id: J-1024 (id 7) y J-1018 (id 1)', async () => {
+      renderCatalogo()
+
+      await waitFor(() => expect(elementos()).toHaveLength(30))
+      expect(trabajo('J-1024')).toHaveAttribute('data-hue', String(jobHue(7)))
+      expect(trabajo('J-1018')).toHaveAttribute('data-hue', String(jobHue(1)))
+    })
+
+    it('todos los trabajos llevan un tono de 1 a 8 y los 30 usan los 8 tonos', async () => {
+      renderCatalogo()
+
+      await waitFor(() => expect(elementos()).toHaveLength(30))
+      const tonos = elementos().map((elemento) => elemento.getAttribute('data-hue'))
+      expect(new Set(tonos)).toEqual(new Set(['1', '2', '3', '4', '5', '6', '7', '8']))
+    })
+
+    it('un trabajo en uso conserva su tono', async () => {
+      renderCatalogo(new Map([[7, 2]]))
+
+      await waitFor(() => expect(elementos()).toHaveLength(30))
+      expect(trabajo('J-1024')).toHaveAttribute('data-in-use', 'true')
+      expect(trabajo('J-1024')).toHaveAttribute('data-hue', String(jobHue(7)))
     })
   })
 

@@ -1,31 +1,115 @@
-import { useDraggable } from '@dnd-kit/react'
+import { useDraggable, useDroppable } from '@dnd-kit/react'
+import { Clock, UserPlus } from 'lucide-react'
+import { useCallback } from 'react'
 import type { Employee, Schedule } from '../../api/types'
+import { ACCEPTS } from '../../dnd/dropResolution'
+import { useAcceptsDrag } from '../../dnd/useAcceptsDrag'
+import { employeeHue, jobHue } from '../../lib/colors'
 import { fullName, initials } from '../../lib/employees'
 import styles from './ScheduleCard.module.css'
 
-export function ScheduleCard({ schedule, employeesById }: { schedule: Schedule; employeesById: Map<number, Employee> }) {
-  const employees = schedule.employee_ids.flatMap((id) => employeesById.get(id) ?? [])
+const MAX_INITIALS = 4
+
+function EmployeeChip({ employee, scheduleId }: { employee: Employee; scheduleId: number }) {
   const { ref } = useDraggable({
+    id: `employee-${employee.id}-in-${scheduleId}`,
+    type: 'employee',
+    data: { kind: 'employee', employeeId: employee.id, fromScheduleId: scheduleId },
+    disabled: scheduleId < 0,
+  })
+
+  return (
+    <span ref={ref} className={styles.initials} title={fullName(employee)} data-hue={employeeHue(employee.id)}>
+      {initials(employee)}
+    </span>
+  )
+}
+
+export function ScheduleCard({
+  schedule,
+  employeesById,
+  onOpen,
+  onAssign,
+}: {
+  schedule: Schedule
+  employeesById: Map<number, Employee>
+  onOpen?: (schedule: Schedule) => void
+  onAssign?: (schedule: Schedule) => void
+}) {
+  const employees = schedule.employee_ids.flatMap((id) => employeesById.get(id) ?? [])
+  const visible = employees.slice(0, MAX_INITIALS)
+  const hidden = employees.slice(MAX_INITIALS)
+  const { ref: dragRef } = useDraggable({
     id: `schedule-${schedule.id}`,
     type: 'schedule-card',
     data: { kind: 'schedule-card', schedule },
     disabled: schedule.id < 0,
   })
+  const { ref: dropRef, isDropTarget } = useDroppable({
+    id: `card-${schedule.id}`,
+    type: 'schedule-card',
+    accept: ACCEPTS['schedule-card'],
+    data: { kind: 'schedule-card', schedule },
+    disabled: schedule.id < 0,
+  })
+  const accepting = useAcceptsDrag('schedule-card')
+  const ref = useCallback(
+    (element: Element | null) => {
+      dragRef(element)
+      dropRef(element)
+    },
+    [dragRef, dropRef],
+  )
 
   return (
-    <article ref={ref} role="article" className={styles.card}>
+    <article
+      ref={ref}
+      role="article"
+      className={[styles.card, accepting && styles.accepting, isDropTarget && styles.over].filter(Boolean).join(' ')}
+      data-hue={jobHue(schedule.job.id)}
+      onClick={() => schedule.id >= 0 && onOpen?.(schedule)}
+    >
       <div className={styles.top}>
         <span className={styles.number}>{schedule.job.number}</span>
-        <span className={styles.time}>{schedule.start_time}</span>
+        <span className={styles.time}>
+          <Clock size={14} />
+          {schedule.start_time}
+        </span>
+        {onAssign && (
+          <button
+            type="button"
+            className={styles.assign}
+            aria-label="Assign employees"
+            onClick={(event) => {
+              event.stopPropagation()
+              if (schedule.id >= 0) onAssign(schedule)
+            }}
+          >
+            <UserPlus size={14} />
+          </button>
+        )}
       </div>
       <div className={styles.name}>{schedule.job.name}</div>
       {schedule.employee_ids.length > 0 ? (
         <div className={styles.employees}>
-          {employees.map((employee) => (
-            <span key={employee.id} className={styles.initials} title={fullName(employee)}>
-              {initials(employee)}
+          {visible.map((employee) =>
+            employee.status === 'inactivo' ? (
+              <span
+                key={employee.id}
+                className={`${styles.initials} ${styles.inactive}`}
+                title={`${fullName(employee)} (inactive)`}
+              >
+                {initials(employee)}
+              </span>
+            ) : (
+              <EmployeeChip key={employee.id} employee={employee} scheduleId={schedule.id} />
+            ),
+          )}
+          {hidden.length > 0 && (
+            <span className={styles.more} title={hidden.map(fullName).join(', ')}>
+              {`+${hidden.length}`}
             </span>
-          ))}
+          )}
         </div>
       ) : (
         <div className={styles.empty}>No employees</div>

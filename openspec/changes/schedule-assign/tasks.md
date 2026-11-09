@@ -46,25 +46,26 @@
 
 ## 7. Asignación de empleados
 
-- [ ] 7.1 Construir el panel de empleados activos (iniciales, nombre, cargo) y verificar con tests que los inactivos no aparecen
-- [ ] 7.2 Soltar un empleado en una tarjeta lo asigna (sin repetirlo si ya estaba) y verificar con tests de la resolución de soltar y en el navegador los escenarios de "Asignar un empleado arrastrándolo" y "Sin asignaciones repetidas"
-- [ ] 7.3 Mover un empleado entre tarjetas (dos PUT) y retirarlo soltándolo fuera, y verificar en el navegador los escenarios de "Mover un empleado entre programaciones" y "Retirar un empleado"
-- [ ] 7.4 Mostrar durante el arrastre de un empleado cuántas programaciones tiene en cada día, y verificar con datos de prueba que el día con dos trabajos indica 2 y el día sin trabajos no muestra indicador
-- [ ] 7.5 Mostrar "+N" cuando no caben las iniciales y marcar a los empleados inactivos ya asignados, y verificar con tests los escenarios de "Empleados en la tarjeta" y "Empleados que pasan a inactivos"
+- [x] 7.1 Construir el panel de empleados activos (iniciales, nombre, cargo) y verificar con tests que los inactivos no aparecen
+- [x] 7.2 Soltar un empleado en una tarjeta lo asigna (sin repetirlo si ya estaba) y verificar con tests de la resolución de soltar y en el navegador los escenarios de "Asignar un empleado arrastrándolo" y "Sin asignaciones repetidas"
+- [x] 7.3 Mover un empleado entre tarjetas (dos PUT) y retirarlo soltándolo fuera, y verificar en el navegador los escenarios de "Mover un empleado entre programaciones" y "Retirar un empleado"
+- [x] 7.4 Mostrar durante el arrastre de un empleado cuántas programaciones tiene en cada día, y verificar con datos de prueba que el día con dos trabajos indica 2 y el día sin trabajos no muestra indicador
+- [x] 7.5 Mostrar "+N" cuando no caben las iniciales y marcar a los empleados inactivos ya asignados, y verificar con tests los escenarios de "Empleados en la tarjeta" y "Empleados que pasan a inactivos"
 
 ## 8. Detalle y deshacer
 
-- [ ] 8.1 Construir el panel de detalle (editar hora de inicio, empleados con quitar, "Duplicate", "Move to…", "Remove") y verificar con tests que cambiar la hora a 10:30 reordena la tarjeta en su día
-- [ ] 8.2 Implementar la pila de deshacer con operaciones inversas (decisión 6, máximo 20, reasignación de id al deshacer un quitar), y verificar con tests cada fila de la tabla de inversas
-- [ ] 8.3 Mostrar el aviso con "Undo" tras cada acción y el atajo Ctrl+Z / Cmd+Z, y verificar en el navegador los escenarios de "Deshacer"
+- [x] 8.1 Construir el panel de detalle (editar hora de inicio, empleados con quitar, "Duplicate", "Move to…", "Remove") y verificar con tests que cambiar la hora a 10:30 reordena la tarjeta en su día
+- [x] 8.2 Implementar la pila de deshacer con operaciones inversas (decisión 6, máximo 20, reasignación de id al deshacer un quitar), y verificar con tests cada fila de la tabla de inversas
+- [x] 8.3 Mostrar el aviso con "Undo" tras cada acción y el atajo Ctrl+Z / Cmd+Z, y verificar en el navegador los escenarios de "Deshacer"
 
 ## 9. Diseño responsivo y táctil
 
-- [ ] 9.1 Implementar el hook de disposición con cortes en 640 y 1024 px, y verificar con tests que 1280, 800 y 390 px devuelven escritorio, tablet y teléfono
-- [ ] 9.2 Construir la disposición de tablet (3-4 días con desplazamiento horizontal ajustado por columna y paneles plegables) y verificar en el navegador a 800 px
-- [ ] 9.3 Construir la disposición de teléfono (un día, tira de días con contadores, cambio de día al tocar, catálogo en panel inferior) y verificar en el navegador a 390 px los escenarios de "Tira de días en teléfono"
-- [ ] 9.4 Construir el panel inferior de asignación con casillas y carga por día, y verificar con tests los escenarios de "Asignación por lista en teléfono"
-- [ ] 9.5 Verificar el arrastre táctil con emulación táctil del navegador: un deslizamiento rápido desplaza la vista y una pulsación de unos 250 ms arrastra la tarjeta, incluido soltar sobre la tira de días
+- [x] 9.1 Implementar el hook de disposición con cortes en 640 y 1024 px, y verificar con tests que 1280, 800 y 390 px devuelven escritorio, tablet y teléfono
+- [x] 9.2 Construir la disposición de tablet (3-4 días con desplazamiento horizontal ajustado por columna y paneles plegables) y verificar en el navegador a 800 px
+- [x] 9.3 Construir la disposición de teléfono (un día, tira de días con contadores, cambio de día al tocar, catálogo en panel inferior) y verificar en el navegador a 390 px los escenarios de "Tira de días en teléfono"
+- [x] 9.4 Construir el panel inferior de asignación con casillas y carga por día, y verificar con tests los escenarios de "Asignación por lista en teléfono"
+- [x] 9.5 Verificar el arrastre táctil con emulación táctil del navegador: un deslizamiento rápido desplaza la vista y una pulsación de unos 250 ms arrastra la tarjeta, incluido soltar sobre la tira de días
+- [x] 9.6 Estilo visual: paleta con acento índigo, color por trabajo y por empleado, iconos con `lucide-react` (versión fijada) y pulido de encabezado, columnas, tarjetas, detalle y aviso; verificar en el navegador a 1280, 800 y 390 px y que los tests existentes siguen pasando
 
 ## 10. Integración
 

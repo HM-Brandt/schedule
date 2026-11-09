@@ -1,15 +1,12 @@
 import { DragDropProvider } from '@dnd-kit/react'
 import type { ReactNode } from 'react'
-import { useCreateSchedule, useDeleteSchedule, useUpdateSchedule } from '../api/mutations'
 import type { Schedule } from '../api/types'
-import { defaultStartTime, startTimeForMove } from '../lib/startTime'
+import { useScheduleActions } from '../undo/useScheduleActions'
 import { resolveDrop } from './dropResolution'
 import type { DragData, DropData } from './dropResolution'
 
 export function ScheduleDndProvider({ schedules, children }: { schedules: Schedule[]; children: ReactNode }) {
-  const createSchedule = useCreateSchedule()
-  const updateSchedule = useUpdateSchedule()
-  const deleteSchedule = useDeleteSchedule()
+  const actions = useScheduleActions(schedules)
 
   return (
     <DragDropProvider
@@ -19,28 +16,20 @@ export function ScheduleDndProvider({ schedules, children }: { schedules: Schedu
         const action = resolveDrop(source.data as DragData, (target?.data as DropData | undefined) ?? null, {
           altKey: (event.nativeEvent as MouseEvent | undefined)?.altKey ?? false,
         })
-        if (action.kind === 'create') {
-          createSchedule.mutate({
-            job: action.job,
-            date: action.date,
-            start_time: defaultStartTime(schedules, action.job.id, action.date),
-          })
+        if (action.kind === 'create') actions.create(action.job, action.date)
+        if (action.kind === 'move') actions.move(action.schedule, action.date)
+        if (action.kind === 'duplicate') actions.duplicate(action.schedule, action.date)
+        if (action.kind === 'remove') actions.remove(action.schedule)
+        if (action.kind === 'assign') {
+          actions.setEmployees(action.schedule, [...action.schedule.employee_ids, action.employeeId])
         }
-        if (action.kind === 'move') {
-          updateSchedule.mutate({
-            id: action.schedule.id,
-            changes: { date: action.date, start_time: startTimeForMove(schedules, action.schedule, action.date) },
-          })
+        if (action.kind === 'transfer' || action.kind === 'unassign') {
+          const from = schedules.find((schedule) => schedule.id === action.fromScheduleId)
+          if (from && action.kind === 'unassign') {
+            actions.setEmployees(from, from.employee_ids.filter((id) => id !== action.employeeId))
+          }
+          if (from && action.kind === 'transfer') actions.transferEmployee(action.employeeId, from, action.schedule)
         }
-        if (action.kind === 'duplicate') {
-          createSchedule.mutate({
-            job: action.schedule.job,
-            date: action.date,
-            start_time: defaultStartTime(schedules, action.schedule.job.id, action.date),
-            employee_ids: action.schedule.employee_ids,
-          })
-        }
-        if (action.kind === 'remove') deleteSchedule.mutate(action.schedule.id)
       }}
     >
       {children}

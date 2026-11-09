@@ -28,28 +28,17 @@ export function gestorActual(): DragDropManager {
 
 type Simulada = { objeto: object; nombre: string; valor: unknown }
 
-/** APIs del navegador que @dnd-kit usa durante el arrastre y que jsdom no implementa. */
+/**
+ * APIs del navegador que @dnd-kit usa durante el arrastre y que jsdom no implementa.
+ * `matchMedia` la simula `setup.ts` para todos los tests (ver `viewport.ts`), con movimiento
+ * reducido para que @dnd-kit no anime la caída (jsdom no tiene `animate`).
+ */
 const SIMULADAS: Simulada[] = [
   // Desplazamiento automático: no hay ningún elemento bajo el puntero.
   { objeto: Document.prototype, nombre: 'elementFromPoint', valor: () => null },
   // Medición de la vista del elemento arrastrado: no hay animaciones en curso.
   { objeto: Document.prototype, nombre: 'getAnimations', valor: () => [] },
   { objeto: Element.prototype, nombre: 'getAnimations', valor: () => [] },
-  // Se pide movimiento reducido para que @dnd-kit no anime la caída (jsdom no tiene `animate`).
-  {
-    objeto: window,
-    nombre: 'matchMedia',
-    valor: (query: string) => ({
-      matches: query.includes('prefers-reduced-motion: reduce'),
-      media: query,
-      onchange: null,
-      addEventListener() {},
-      removeEventListener() {},
-      addListener() {},
-      removeListener() {},
-      dispatchEvent: () => false,
-    }),
-  },
   // Seguimiento del tamaño del elemento arrastrado y de la posición de los destinos: nunca cambian.
   {
     objeto: globalThis,

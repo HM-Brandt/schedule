@@ -49,7 +49,8 @@ test('soltar "J-1031 Jardín Pérez" en el jueves crea su tarjeta a las 07:00 si
   await expect(tarjetasDelJueves).toHaveCount(1)
   await expect(tarjetasDelJueves.filter({ hasText: 'J-1031' })).toHaveCount(0)
 
-  const catalogo = page.getByRole('list')
+  // La lista del catálogo, dentro de la sección "Jobs"; la página tiene también la de empleados.
+  const catalogo = page.getByRole('heading', { name: 'Jobs' }).locator('xpath=..').getByRole('list')
   await page.getByRole('searchbox', { name: 'Search jobs' }).fill('1031')
   await expect(catalogo.getByRole('listitem')).toHaveCount(1)
 

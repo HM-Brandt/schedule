@@ -122,7 +122,7 @@ El sistema SHALL mover una programación al día donde la persona la suelta, con
 - **THEN** la programación movida queda en el martes con hora de inicio 08:00
 
 ### Requirement: Duplicar una programación
-El sistema SHALL permitir duplicar una programación en un día, mediante arrastre con la tecla Alt en escritorio y mediante la acción "Duplicate" del detalle en cualquier dispositivo. La copia SHALL tener el mismo trabajo y los mismos empleados, y su hora de inicio SHALL calcularse con la regla de hora de inicio por defecto.
+El sistema SHALL permitir duplicar una programación en un día, mediante arrastre con la tecla Alt en escritorio y mediante la acción "Duplicate" del detalle en cualquier dispositivo. La copia SHALL tener el mismo trabajo y los mismos empleados activos; los empleados inactivos SHALL NOT copiarse. Su hora de inicio SHALL calcularse con la regla de hora de inicio por defecto.
 
 #### Scenario: Duplicar con Alt en otro día
 - **WHEN** la persona arrastra con Alt "J-1024 Pintar oficina" (con Ana) del lunes al viernes
@@ -140,7 +140,7 @@ El sistema SHALL permitir quitar una programación de la semana desde su detalle
 - **THEN** el jueves deja de mostrarla y el trabajo sigue en el catálogo
 
 ### Requirement: Deshacer
-El sistema SHALL permitir deshacer las acciones de programar, mover, duplicar, quitar, cambiar la hora y cambiar empleados. Tras cada acción SHALL mostrarse un aviso breve con la opción "Undo", y en escritorio SHALL funcionar el atajo Ctrl+Z (Cmd+Z en macOS) en orden inverso a las acciones realizadas.
+El sistema SHALL permitir deshacer las acciones de programar, mover, duplicar, quitar, cambiar la hora y cambiar empleados. Tras cada acción SHALL mostrarse un aviso breve con la opción "Undo", y en escritorio SHALL funcionar el atajo Ctrl+Z (Cmd+Z en macOS) en orden inverso a las acciones realizadas. Al deshacer, los empleados inactivos SHALL NOT volver a asignarse a una programación que ya no los tenga.
 
 #### Scenario: Deshacer un movimiento
 - **WHEN** la persona mueve una programación del lunes al jueves y pulsa "Undo" en el aviso
@@ -149,6 +149,10 @@ El sistema SHALL permitir deshacer las acciones de programar, mover, duplicar, q
 #### Scenario: Deshacer un quitar
 - **WHEN** la persona quita una programación con dos empleados y pulsa Ctrl+Z
 - **THEN** la programación vuelve a aparecer en su día con su hora y sus dos empleados
+
+#### Scenario: Deshacer un quitar con un empleado inactivo
+- **WHEN** la persona quita una programación con Ana (activa) y Pedro (inactivo) y pulsa "Undo"
+- **THEN** la programación vuelve a su día con su hora y con Ana, sin Pedro
 
 ### Requirement: Respuesta inmediata y error al guardar
 El sistema SHALL reflejar cada cambio en pantalla de inmediato, antes de recibir la confirmación del servidor. Si el servidor rechaza el cambio o no responde, el sistema SHALL revertir el cambio en pantalla y mostrar un mensaje de error.

@@ -7,11 +7,15 @@ export function WeekBoard({
   today,
   schedulesByDay,
   employeesById,
+  onOpenSchedule,
+  onAssignSchedule,
 }: {
   days: IsoDate[]
   today: IsoDate
   schedulesByDay: Record<IsoDate, Schedule[]>
   employeesById: Map<number, Employee>
+  onOpenSchedule?: (schedule: Schedule) => void
+  onAssignSchedule?: (schedule: Schedule) => void
 }) {
   return (
     <div className={styles.board}>
@@ -22,6 +26,8 @@ export function WeekBoard({
           isToday={day === today}
           schedules={schedulesByDay[day]}
           employeesById={employeesById}
+          onOpenSchedule={onOpenSchedule}
+          onAssignSchedule={onAssignSchedule}
         />
       ))}
     </div>

@@ -1,19 +1,49 @@
 /* Variables de diseño de la aplicación. Los componentes solo usan estas variables. */
 :root {
   /* Paleta neutra */
-  --color-bg: #f6f7f9;
+  --color-bg: #f4f6fa;
   --color-surface: #ffffff;
-  --color-border: #e2e5ea;
-  --color-text: #1f2328;
-  --color-text-muted: #6b7280;
+  --color-surface-muted: #f1f5f9;
+  --color-border: #e3e8ef;
+  --color-text: #0f172a;
+  --color-text-muted: #64748b;
 
   /* Acento */
-  --color-accent: #2563eb;
-  --color-accent-hover: #1d4ed8;
+  --color-accent: #4f46e5;
+  --color-accent-hover: #4338ca;
   --color-accent-contrast: #ffffff;
+  --color-accent-soft: #eef2ff;
+  --color-accent-light: #a5b4fc;
 
   /* Error */
-  --color-danger: #b91c1c;
+  --color-danger: #dc2626;
+  --color-danger-soft: #fef2f2;
+  --color-danger-light: #fca5a5;
+
+  --hue-1-bg: #dbeafe;
+  --hue-1-fg: #1d4ed8;
+  --hue-1-accent: #3b82f6;
+  --hue-2-bg: #dcfce7;
+  --hue-2-fg: #166534;
+  --hue-2-accent: #22c55e;
+  --hue-3-bg: #fef3c7;
+  --hue-3-fg: #92400e;
+  --hue-3-accent: #f59e0b;
+  --hue-4-bg: #fce7f3;
+  --hue-4-fg: #be185d;
+  --hue-4-accent: #ec4899;
+  --hue-5-bg: #ede9fe;
+  --hue-5-fg: #6d28d9;
+  --hue-5-accent: #8b5cf6;
+  --hue-6-bg: #ccfbf1;
+  --hue-6-fg: #0f766e;
+  --hue-6-accent: #14b8a6;
+  --hue-7-bg: #ffedd5;
+  --hue-7-fg: #9a3412;
+  --hue-7-accent: #f97316;
+  --hue-8-bg: #ecfccb;
+  --hue-8-fg: #3f6212;
+  --hue-8-accent: #84cc16;
 
   /* Espaciado (base de 4 px) */
   --space-1: 4px;
@@ -26,13 +56,15 @@
   --space-8: 32px;
 
   /* Radios */
-  --radius-sm: 4px;
-  --radius-md: 8px;
+  --radius-sm: 6px;
+  --radius-md: 10px;
   --radius-lg: 12px;
 
   /* Sombras y animaciones */
   --shadow-card:
-    0 1px 2px rgba(16, 24, 40, 0.06), 0 1px 3px rgba(16, 24, 40, 0.08);
+    0 1px 2px rgba(15, 23, 42, 0.04), 0 1px 3px rgba(15, 23, 42, 0.05);
+  --shadow-raised:
+    0 4px 12px rgba(15, 23, 42, 0.08), 0 2px 4px rgba(15, 23, 42, 0.04);
   --duration-fast: 150ms;
 
   /* Tipografía */

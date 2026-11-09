@@ -11,3 +11,19 @@ body {
   background-color: var(--color-bg);
   color: var(--color-text);
 }
+
+button:focus-visible,
+input:focus-visible,
+select:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+[data-hue='1'] { --hue-bg: var(--hue-1-bg); --hue-fg: var(--hue-1-fg); --hue-accent: var(--hue-1-accent); }
+[data-hue='2'] { --hue-bg: var(--hue-2-bg); --hue-fg: var(--hue-2-fg); --hue-accent: var(--hue-2-accent); }
+[data-hue='3'] { --hue-bg: var(--hue-3-bg); --hue-fg: var(--hue-3-fg); --hue-accent: var(--hue-3-accent); }
+[data-hue='4'] { --hue-bg: var(--hue-4-bg); --hue-fg: var(--hue-4-fg); --hue-accent: var(--hue-4-accent); }
+[data-hue='5'] { --hue-bg: var(--hue-5-bg); --hue-fg: var(--hue-5-fg); --hue-accent: var(--hue-5-accent); }
+[data-hue='6'] { --hue-bg: var(--hue-6-bg); --hue-fg: var(--hue-6-fg); --hue-accent: var(--hue-6-accent); }
+[data-hue='7'] { --hue-bg: var(--hue-7-bg); --hue-fg: var(--hue-7-fg); --hue-accent: var(--hue-7-accent); }
+[data-hue='8'] { --hue-bg: var(--hue-8-bg); --hue-fg: var(--hue-8-fg); --hue-accent: var(--hue-8-accent); }

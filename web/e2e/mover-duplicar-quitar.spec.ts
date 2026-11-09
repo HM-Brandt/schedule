@@ -63,7 +63,7 @@ const catalogo = (page: Page) => page.getByRole('heading', { name: 'Jobs' }).loc
 /** Programa `numero` en el día `nombre` arrastrándolo del catálogo, tras buscarlo para que quepa en la vista. */
 async function programarDesdeElCatalogo(page: Page, numero: string, nombre: string) {
   await page.getByRole('searchbox', { name: 'Search jobs' }).fill(numero.replace('J-', ''))
-  const trabajos = page.getByRole('list').getByRole('listitem')
+  const trabajos = catalogo(page).getByRole('list').getByRole('listitem')
   await expect(trabajos).toHaveCount(1)
   const tarjetas = dia(page, nombre).getByRole('article')
   const antes = await tarjetas.count()
@@ -163,7 +163,7 @@ test('arrastrar la tarjeta "J-1031 Jardín Pérez" del jueves al catálogo la qu
   await expect(jardin).toHaveCount(0)
   await expect(jueves).toHaveCount(1)
   await expect(jueves).toContainText('J-1029')
-  const enElCatalogo = page.getByRole('list').getByRole('listitem').filter({ hasText: 'J-1031' })
+  const enElCatalogo = catalogo(page).getByRole('list').getByRole('listitem').filter({ hasText: 'J-1031' })
   await expect(enElCatalogo).toHaveCount(1)
   await expect(enElCatalogo).toContainText('Jardín Pérez')
 })
@@ -190,7 +190,7 @@ test.describe('resaltado de los destinos válidos durante el arrastre', () => {
   })
 
   test('arrastrando un trabajo del catálogo se resaltan los siete días y el catálogo no', async ({ page }) => {
-    const trabajo = page.getByRole('list').getByRole('listitem').filter({ hasText: 'J-1018' })
+    const trabajo = catalogo(page).getByRole('list').getByRole('listitem').filter({ hasText: 'J-1018' })
     const desde = await empezarArrastre(page, trabajo)
 
     for (const nombre of DIAS) await expect(dia(page, nombre)).toHaveClass(/accepting/)

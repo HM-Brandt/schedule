@@ -25,7 +25,8 @@ test('el lunes muestra J-1024 con sus empleados, el catálogo lo marca "x2" y la
   await expect(primera.getByTitle('Luis Martínez')).toHaveText('LM')
   await expect(tarjetasDelLunes.nth(1)).toContainText('08:00')
 
-  const catalogo = page.getByRole('list')
+  // La lista del catálogo, dentro de la sección "Jobs"; la página tiene también la de empleados.
+  const catalogo = page.getByRole('heading', { name: 'Jobs' }).locator('xpath=..').getByRole('list')
   const pintar = catalogo.getByRole('listitem').filter({ hasText: 'J-1024' })
   await expect(pintar).toContainText('Pintar oficina')
   await expect(pintar).toContainText('x2')

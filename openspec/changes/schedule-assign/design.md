@@ -145,7 +145,7 @@ Cada acción guarda en una pila en memoria su operación inversa (como máximo 2
 Hay tres disposiciones según el ancho, con cortes en 640 y 1024 px:
 
 - **≥ 1024 px:** cuadrícula de 7 columnas, catálogo y panel de empleados laterales.
-- **640–1023 px:** columnas de ancho fijo con desplazamiento horizontal con ajuste por columna, y catálogo y empleados en paneles plegables.
+- **640–1023 px:** columnas que encajan 3 o 4 días completos, con desplazamiento horizontal con ajuste por columna; catálogo y empleados en cajones laterales que se apartan durante el arrastre.
 - **< 640 px:** un día con tira de días superior; catálogo y empleados en paneles inferiores; detalle a pantalla completa.
 
 Los componentes de tarjeta, catálogo y empleado se comparten. Solo cambia el contenedor de la disposición. La disposición se elige con `matchMedia` en un hook, porque la del teléfono cambia de verdad la estructura de la página y no solo los estilos.

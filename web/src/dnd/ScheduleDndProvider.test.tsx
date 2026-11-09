@@ -1,14 +1,19 @@
-// Tests del despacho al soltar de `ScheduleDndProvider` (tareas 6.3 y 6.4 de `schedule-assign`)
-// con `msw/node`.
+// Tests del despacho al soltar de `ScheduleDndProvider` (tareas 6.3, 6.4, 7.2 y 7.3 de
+// `schedule-assign`) con `msw/node`.
 //
 // Cubren de `specs/weekly-schedule-board/spec.md` los requisitos "Mover una programación a
 // otro día", "Duplicar una programación" (escenario "Duplicar con Alt en otro día") y "Quitar
-// una programación" (escenario "Arrastrar de vuelta al catálogo"), y la decisión 5 de
-// `design.md`. Para cada acción se comprueba la petición que llega al servidor (método, ruta
-// y cuerpo) y cómo queda el tablero.
+// una programación" (escenario "Arrastrar de vuelta al catálogo"); de
+// `specs/employee-assignment/spec.md`, "Asignar un empleado arrastrándolo", "Sin asignaciones
+// repetidas en una programación", "Varios trabajos por empleado en el mismo día", "Mover un
+// empleado entre programaciones" y "Retirar un empleado de una programación"; y la decisión 5
+// de `design.md`. Para cada acción se comprueba la petición que llega al servidor (método,
+// ruta y cuerpo) y cómo queda el tablero.
 //
-// Se monta el proveedor real con el catálogo y las siete columnas de la semana, y el
-// arrastre se maneja con las acciones del gestor de @dnd-kit (ver `src/test/dnd.tsx`).
+// Se monta el proveedor real, dentro de `UndoProvider` (las acciones apilan su inversa), con el catálogo, las siete columnas de la semana y el panel de
+// empleados, y el arrastre se maneja con las acciones del gestor de @dnd-kit (ver
+// `src/test/dnd.ts`). Los orígenes son `employee-{id}` (empleado del panel) y
+// `employee-{id}-in-{programación}` (chip de una tarjeta); los destinos, `card-{programación}`.
 //
 // La fecha del sistema se fija en el martes 2026-11-03. La semilla programa esa semana:
 // - lunes 2: "J-1024 Pintar oficina" (id 1) a las 07:00 con Ana López (3) y Luis Martínez (5),
@@ -26,10 +31,12 @@ import { useEmployees, useWeekSchedules } from '../api/queries'
 import { createQueryClient } from '../api/queryClient'
 import { WeekBoard } from '../board/WeekBoard'
 import { JobCatalog } from '../catalog/JobCatalog'
+import { EmployeePanel } from '../employees/EmployeePanel'
 import { schedulesByDay } from '../lib/selectors'
 import { createHandlers } from '../mocks/handlers'
 import { createSeed } from '../mocks/seed'
 import { CapturadorDelGestor, arrastrar, simularApisDeArrastre } from '../test/dnd'
+import { UndoProvider } from '../undo/UndoProvider'
 import { ScheduleDndProvider } from './ScheduleDndProvider'
 
 simularApisDeArrastre()
@@ -108,6 +115,7 @@ function Tablero() {
       <CapturadorDelGestor />
       <JobCatalog counts={new Map()} />
       <WeekBoard days={DIAS} today={MARTES} schedulesByDay={byDay} employeesById={employeesById} />
+      <EmployeePanel employees={employees.data ?? []} error={employees.error} />
     </ScheduleDndProvider>
   )
 }
@@ -117,7 +125,9 @@ async function renderTablero(total = 4) {
   prepararServidor()
   render(
     <QueryClientProvider client={client}>
-      <Tablero />
+      <UndoProvider>
+        <Tablero />
+      </UndoProvider>
     </QueryClientProvider>,
   )
   await waitFor(() => expect(screen.getAllByRole('article')).toHaveLength(total))
@@ -292,7 +302,9 @@ describe('ScheduleDndProvider', () => {
   describe('quitar soltando en el catálogo', () => {
     it('DELETE de la programación: el jueves deja de mostrarla y el trabajo sigue en el catálogo', async () => {
       await renderTablero()
-      const catalogo = screen.getByRole('list')
+      const catalogo = within(
+        screen.getByRole('heading', { level: 2, name: 'Jobs' }).closest('section') as HTMLElement,
+      ).getByRole('list')
       await waitFor(() => expect(within(catalogo).getAllByRole('listitem')).toHaveLength(30))
 
       await arrastrar('schedule-4', 'catalog')
@@ -314,6 +326,153 @@ describe('ScheduleDndProvider', () => {
         expect(peticiones).toEqual([{ metodo: 'DELETE', ruta: '/api/schedules/1', cuerpo: null }]),
       )
       await waitFor(() => expect(tarjetasDelDia('Mon')).toHaveLength(1))
+    })
+  })
+
+  describe('empleados', () => {
+    /** Tarjeta del día `nombre` que contiene `texto` (una hora o un número de trabajo). */
+    const tarjeta = (nombre: string, texto: string) =>
+      tarjetasDelDia(nombre).find((elemento) => elemento.textContent?.includes(texto)) as HTMLElement
+
+    describe('asignar desde el panel', () => {
+      it('Pedro en la tarjeta del jueves sin empleados: PUT con [4] y la tarjeta muestra "PS"', async () => {
+        await renderTablero()
+
+        await arrastrar('employee-4', 'card-4')
+
+        await waitFor(() =>
+          expect(peticiones).toEqual([
+            { metodo: 'PUT', ruta: '/api/schedules/4/employees', cuerpo: { employee_ids: [4] } },
+          ]),
+        )
+        await waitFor(() => expect(iniciales(tarjeta('Thu', 'J-1029'))).toEqual(['PS']))
+        expect(within(tarjeta('Thu', 'J-1029')).getByTitle('Pedro Sánchez')).toBeInTheDocument()
+        expect(within(tarjeta('Thu', 'J-1029')).queryByText('No employees')).not.toBeInTheDocument()
+      })
+
+      it('Carlos en la tarjeta del lunes con Ana y Luis: PUT con [3, 5, 8], conservando a los que ya estaban', async () => {
+        await renderTablero()
+
+        await arrastrar('employee-8', 'card-1')
+
+        await waitFor(() =>
+          expect(peticiones).toEqual([
+            { metodo: 'PUT', ruta: '/api/schedules/1/employees', cuerpo: { employee_ids: [3, 5, 8] } },
+          ]),
+        )
+        await waitFor(() => expect(iniciales(tarjeta('Mon', '07:00'))).toEqual(['AL', 'LM', 'CR']))
+      })
+
+      it('escenario "Soltar a Ana dos veces": Ana ya está en la tarjeta del lunes; no envía nada y sigue una sola vez', async () => {
+        await renderTablero()
+
+        await arrastrar('employee-3', 'card-1')
+
+        await sinPeticiones()
+        expect(iniciales(tarjeta('Mon', '07:00'))).toEqual(['AL', 'LM'])
+      })
+
+      it('Luis en una segunda programación del mismo lunes: queda asignado a ambas sin pedir confirmación', async () => {
+        await renderTablero()
+
+        await arrastrar('employee-5', 'card-2')
+
+        await waitFor(() =>
+          expect(peticiones).toEqual([
+            { metodo: 'PUT', ruta: '/api/schedules/2/employees', cuerpo: { employee_ids: [3, 5] } },
+          ]),
+        )
+        await waitFor(() => expect(iniciales(tarjeta('Mon', '08:00'))).toEqual(['AL', 'LM']))
+        expect(iniciales(tarjeta('Mon', '07:00'))).toEqual(['AL', 'LM'])
+      })
+
+      it('soltado fuera de cualquier tarjeta: no envía nada', async () => {
+        await renderTablero()
+
+        await arrastrar('employee-4', null)
+
+        await sinPeticiones()
+      })
+    })
+
+    describe('mover entre tarjetas', () => {
+      it('Luis del lunes al martes: dos PUT, el lunes sin él y el martes con él', async () => {
+        await renderTablero()
+
+        await arrastrar('employee-5-in-1', 'card-3')
+
+        await waitFor(() => expect(peticiones).toHaveLength(2))
+        expect(peticiones).toEqual(
+          expect.arrayContaining([
+            { metodo: 'PUT', ruta: '/api/schedules/1/employees', cuerpo: { employee_ids: [3] } },
+            { metodo: 'PUT', ruta: '/api/schedules/3/employees', cuerpo: { employee_ids: [8, 5] } },
+          ]),
+        )
+        await waitFor(() => expect(iniciales(tarjeta('Tue', 'J-1019'))).toEqual(['CR', 'LM']))
+        expect(iniciales(tarjeta('Mon', '07:00'))).toEqual(['AL'])
+      })
+
+      it('Ana a otra tarjeta donde ya está: un solo PUT que la retira del origen, sin repetirla en el destino', async () => {
+        await renderTablero()
+
+        await arrastrar('employee-3-in-1', 'card-2')
+
+        await waitFor(() =>
+          expect(peticiones).toEqual([
+            { metodo: 'PUT', ruta: '/api/schedules/1/employees', cuerpo: { employee_ids: [5] } },
+          ]),
+        )
+        await waitFor(() => expect(iniciales(tarjeta('Mon', '07:00'))).toEqual(['LM']))
+        expect(iniciales(tarjeta('Mon', '08:00'))).toEqual(['AL'])
+      })
+
+      it('soltada en su misma tarjeta: no envía nada', async () => {
+        await renderTablero()
+
+        await arrastrar('employee-3-in-1', 'card-1')
+
+        await sinPeticiones()
+        expect(iniciales(tarjeta('Mon', '07:00'))).toEqual(['AL', 'LM'])
+      })
+    })
+
+    describe('retirar soltando fuera', () => {
+      it('escenario "Arrastrar fuera": Ana de la tarjeta del lunes a las 07:00; PUT con [5] y la tarjeta deja de mostrarla', async () => {
+        await renderTablero()
+
+        await arrastrar('employee-3-in-1', null)
+
+        await waitFor(() =>
+          expect(peticiones).toEqual([
+            { metodo: 'PUT', ruta: '/api/schedules/1/employees', cuerpo: { employee_ids: [5] } },
+          ]),
+        )
+        await waitFor(() => expect(iniciales(tarjeta('Mon', '07:00'))).toEqual(['LM']))
+        // La otra programación de Ana ese día no cambia.
+        expect(iniciales(tarjeta('Mon', '08:00'))).toEqual(['AL'])
+      })
+
+      it('al último empleado: PUT con la lista vacía y la tarjeta indica "No employees"', async () => {
+        await renderTablero()
+
+        await arrastrar('employee-8-in-3', null)
+
+        await waitFor(() =>
+          expect(peticiones).toEqual([
+            { metodo: 'PUT', ruta: '/api/schedules/3/employees', cuerpo: { employee_ids: [] } },
+          ]),
+        )
+        await waitFor(() => expect(within(tarjeta('Tue', 'J-1019')).getByText('No employees')).toBeInTheDocument())
+      })
+
+      it('con el arrastre cancelado: no envía nada y Ana sigue en la tarjeta', async () => {
+        await renderTablero()
+
+        await arrastrar('employee-3-in-1', null, { cancelado: true })
+
+        await sinPeticiones()
+        expect(iniciales(tarjeta('Mon', '07:00'))).toEqual(['AL', 'LM'])
+      })
     })
   })
 })

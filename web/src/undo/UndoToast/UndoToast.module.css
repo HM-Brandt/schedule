@@ -1,0 +1,38 @@
+.toast {
+  position: fixed;
+  bottom: var(--space-6);
+  left: 50%;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-5);
+  border-radius: 999px;
+  background: var(--color-text);
+  box-shadow: var(--shadow-raised);
+  color: var(--color-accent-contrast);
+  font-size: var(--font-size-sm);
+  transform: translateX(-50%);
+}
+
+.error > svg {
+  color: var(--color-danger-light);
+}
+
+.button {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--color-accent-light);
+  font-family: var(--font-family);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-bold);
+  cursor: pointer;
+}
+
+.error .button {
+  color: var(--color-accent-contrast);
+}

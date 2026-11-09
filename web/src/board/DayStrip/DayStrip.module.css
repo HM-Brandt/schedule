@@ -1,0 +1,61 @@
+.strip {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: var(--space-1);
+  margin-bottom: var(--space-3);
+}
+
+.day {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: var(--space-2) 0;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-card);
+  color: var(--color-text-muted);
+  font-family: var(--font-family);
+  cursor: pointer;
+  transition:
+    border-color var(--duration-fast),
+    box-shadow var(--duration-fast);
+}
+
+.today {
+  color: var(--color-accent);
+}
+
+.today .number {
+  text-decoration: underline 2px;
+  text-underline-offset: 3px;
+}
+
+.day[aria-pressed='true'] {
+  border-color: var(--color-accent);
+  background: var(--color-accent);
+  color: var(--color-accent-contrast);
+}
+
+.accepting {
+  border-color: var(--color-accent);
+}
+
+.over {
+  box-shadow: 0 0 0 2px var(--color-accent);
+}
+
+.name {
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
+}
+
+.number {
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-bold);
+}
+
+.count {
+  font-size: var(--font-size-xs);
+}

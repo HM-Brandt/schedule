@@ -86,10 +86,16 @@ function columnaDelDia(nombre: string): HTMLElement {
 
 const tarjetasDelDia = (nombre: string) => within(columnaDelDia(nombre)).queryAllByRole('article')
 
+/** Sección que encabeza el `h2` con nombre `titulo`: "Jobs" (catálogo) o "Employees" (panel de empleados). */
+const seccion = (titulo: string) =>
+  screen.getByRole('heading', { level: 2, name: titulo }).closest('section') as HTMLElement
+
+/** Lista de trabajos del catálogo; la página tiene también la lista del panel de empleados. */
+const listaDelCatalogo = () => within(seccion('Jobs')).getByRole('list')
+
 /** Elemento del catálogo cuyo número es `numero`, cuando ya cargó la lista de trabajos. */
 async function trabajoDelCatalogo(numero: string): Promise<HTMLElement> {
-  const lista = screen.getByRole('list')
-  return (await within(lista).findByText(numero)).closest('li') as HTMLElement
+  return (await within(listaDelCatalogo()).findByText(numero)).closest('li') as HTMLElement
 }
 
 /** Añade a la semilla una programación de "J-1031 Jardín Pérez" el martes 10 de la semana siguiente. */
@@ -391,7 +397,7 @@ describe('App', () => {
       renderApp()
 
       expect(screen.getByRole('heading', { level: 2, name: 'Jobs' })).toBeInTheDocument()
-      await waitFor(() => expect(within(screen.getByRole('list')).getAllByRole('listitem')).toHaveLength(30))
+      await waitFor(() => expect(within(listaDelCatalogo()).getAllByRole('listitem')).toHaveLength(30))
     })
 
     it('un trabajo programado en la semana sigue en el catálogo', async () => {
@@ -442,6 +448,32 @@ describe('App', () => {
       expect(within(jardin).getByText('x1')).toBeInTheDocument()
       expect(pintar).not.toHaveAttribute('data-in-use')
       expect(within(pintar).queryByText(/^x\d+$/)).not.toBeInTheDocument()
+    })
+  })
+
+  // Tarea 7.1: "Panel de empleados activos" de `specs/employee-assignment/spec.md`. La semilla
+  // tiene 8 empleados activos y 2 inactivos (Raúl Torres y Lucía Navarro).
+  describe('panel de empleados en la página', () => {
+    it('muestra "Employees" en una columna lateral con los 8 activos y sin los inactivos', async () => {
+      renderApp()
+
+      const panel = seccion('Employees')
+      expect(panel.closest('aside')).not.toBeNull()
+      await waitFor(() => expect(within(panel).getAllByRole('listitem')).toHaveLength(8))
+      expect(within(panel).getByText('Ana López')).toBeInTheDocument()
+      expect(within(panel).queryByText('Raúl Torres')).not.toBeInTheDocument()
+      expect(within(panel).queryByText('Lucía Navarro')).not.toBeInTheDocument()
+    })
+
+    it('con un 500 en GET /api/employees muestra "Couldn\'t load employees." con el detalle', async () => {
+      server.use(
+        http.get('/api/employees', () => HttpResponse.json({ error: MENSAJE_500 }, { status: 500 })),
+      )
+      renderApp()
+
+      const aviso = await within(seccion('Employees')).findByRole('alert')
+      expect(aviso).toHaveTextContent(`Couldn't load employees. ${MENSAJE_500}`)
+      expect(within(seccion('Employees')).queryAllByRole('listitem')).toHaveLength(0)
     })
   })
 })

@@ -23,14 +23,39 @@
   color: var(--color-text);
 }
 
+.searchBox {
+  position: relative;
+  display: flex;
+}
+
+.searchBox svg {
+  position: absolute;
+  top: 50%;
+  left: var(--space-3);
+  color: var(--color-text-muted);
+  transform: translateY(-50%);
+  pointer-events: none;
+}
+
 .search {
-  padding: var(--space-2) var(--space-3);
+  flex: 1;
+  min-width: 0;
+  padding: var(--space-2) var(--space-3) var(--space-2) var(--space-8);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-sm);
   background: var(--color-surface);
+  box-shadow: var(--shadow-card);
   color: var(--color-text);
   font-family: var(--font-family);
   font-size: var(--font-size-sm);
+}
+
+@media (min-width: 640px) {
+  .searchBox {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+  }
 }
 
 .list {

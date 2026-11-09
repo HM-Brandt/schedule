@@ -1,4 +1,5 @@
 import { useDroppable } from '@dnd-kit/react'
+import { Search } from 'lucide-react'
 import { useState } from 'react'
 import { useJobs } from '../../api/queries'
 import { ACCEPTS } from '../../dnd/dropResolution'
@@ -18,14 +19,17 @@ export function JobCatalog({ counts }: { counts: Map<number, number> }) {
       className={[styles.catalog, accepting && styles.accepting, isDropTarget && styles.over].filter(Boolean).join(' ')}
     >
       <h2 className={styles.title}>Jobs</h2>
-      <input
-        className={styles.search}
-        type="search"
-        aria-label="Search jobs"
-        placeholder="Search jobs"
-        value={search}
-        onChange={(event) => setSearch(event.target.value)}
-      />
+      <div className={styles.searchBox}>
+        <Search />
+        <input
+          className={styles.search}
+          type="search"
+          aria-label="Search jobs"
+          placeholder="Search jobs"
+          value={search}
+          onChange={(event) => setSearch(event.target.value)}
+        />
+      </div>
       {jobs.error && (
         <p role="alert" className={styles.error}>
           Couldn't load jobs. {jobs.error.message}
