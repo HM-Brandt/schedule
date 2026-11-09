@@ -1,14 +1,22 @@
+import { useDroppable } from '@dnd-kit/react'
 import { useState } from 'react'
 import { useJobs } from '../../api/queries'
+import { ACCEPTS } from '../../dnd/dropResolution'
+import { useAcceptsDrag } from '../../dnd/useAcceptsDrag'
 import { CatalogJob } from '../CatalogJob'
 import styles from './JobCatalog.module.css'
 
 export function JobCatalog({ counts }: { counts: Map<number, number> }) {
   const [search, setSearch] = useState('')
   const jobs = useJobs(search)
+  const { ref, isDropTarget } = useDroppable({ id: 'catalog', type: 'catalog', accept: ACCEPTS.catalog, data: { kind: 'catalog' } })
+  const accepting = useAcceptsDrag('catalog')
 
   return (
-    <section className={styles.catalog}>
+    <section
+      ref={ref}
+      className={[styles.catalog, accepting && styles.accepting, isDropTarget && styles.over].filter(Boolean).join(' ')}
+    >
       <h2 className={styles.title}>Jobs</h2>
       <input
         className={styles.search}

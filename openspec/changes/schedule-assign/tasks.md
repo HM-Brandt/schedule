@@ -40,9 +40,9 @@
 
 - [x] 6.1 Configurar el contexto de arrastre con los tipos y destinos de `design.md` (decisión 5) en un módulo propio, y verificar con un test que la función de resolución de soltar devuelve la acción correcta para cada combinación origen-destino
 - [x] 6.2 Soltar un trabajo del catálogo en un día crea la programación con la hora por defecto, y verificar en el navegador con datos de prueba que aparece en el día y el catálogo pasa a atenuado
-- [ ] 6.3 Mover una tarjeta entre días conserva empleados y aplica la regla de hora al haber repetición, y verificar en el navegador ambos escenarios de "Mover una programación a otro día"
-- [ ] 6.4 Duplicar con Alt al soltar y quitar soltando sobre el catálogo, y verificar en el navegador los escenarios de "Duplicar una programación" y "Quitar una programación"
-- [ ] 6.5 Añadir los resaltados de destino válido y la animación al soltar, y verificar en el navegador que solo se resaltan los destinos que aceptan el elemento arrastrado
+- [x] 6.3 Mover una tarjeta entre días conserva empleados y aplica la regla de hora al haber repetición, y verificar en el navegador ambos escenarios de "Mover una programación a otro día"
+- [x] 6.4 Duplicar con Alt al soltar y quitar soltando sobre el catálogo, y verificar en el navegador los escenarios de "Duplicar una programación" y "Quitar una programación"
+- [x] 6.5 Añadir los resaltados de destino válido y la animación al soltar, y verificar en el navegador que solo se resaltan los destinos que aceptan el elemento arrastrado
 
 ## 7. Asignación de empleados
 

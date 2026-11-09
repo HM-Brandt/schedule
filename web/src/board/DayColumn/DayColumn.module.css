@@ -3,6 +3,17 @@
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
   background: var(--color-surface);
+  transition:
+    border-color var(--duration-fast),
+    box-shadow var(--duration-fast);
+}
+
+.accepting {
+  border-color: var(--color-accent);
+}
+
+.over {
+  box-shadow: 0 0 0 2px var(--color-accent);
 }
 
 .cards {

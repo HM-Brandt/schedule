@@ -1,13 +1,18 @@
-// Tests de la tarjeta de una programación (tarea 5.2 de `schedule-assign`).
+// Tests de la tarjeta de una programación (tareas 5.2 y 6.3 de `schedule-assign`).
 //
 // Cubren "Solo hora de inicio" (escenario "Tarjeta con hora de inicio") de
-// `specs/weekly-schedule-board/spec.md` y "Empleados en la tarjeta" de
-// `specs/employee-assignment/spec.md`.
-import { render, screen } from '@testing-library/react'
-import { describe, expect, it } from 'vitest'
+// `specs/weekly-schedule-board/spec.md`, "Empleados en la tarjeta" de
+// `specs/employee-assignment/spec.md` y que la tarjeta se puede arrastrar salvo mientras
+// tiene un id temporal (negativo), antes de que el servidor confirme su creación.
+import { DragDropProvider } from '@dnd-kit/react'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { describe, expect, it, vi } from 'vitest'
 import type { Employee, Schedule } from '../../api/types'
 import { createSeed } from '../../mocks/seed'
+import { simularApisDeArrastre } from '../../test/dnd'
 import { ScheduleCard } from './ScheduleCard'
+
+simularApisDeArrastre()
 
 const semilla = createSeed(new Date(2026, 10, 3))
 
@@ -93,5 +98,43 @@ describe('ScheduleCard', () => {
 
     expect(screen.queryByText('No employees')).not.toBeInTheDocument()
     expect(tarjeta.querySelectorAll('[title]')).toHaveLength(0)
+  })
+
+  describe('arrastre', () => {
+    /** Monta la tarjeta dentro de un proveedor de arrastre y devuelve el aviso de inicio de arrastre. */
+    function renderArrastrable(schedule: Schedule) {
+      const alEmpezar = vi.fn()
+      render(
+        <DragDropProvider onDragStart={alEmpezar}>
+          <ScheduleCard schedule={schedule} employeesById={EMPLEADOS} />
+        </DragDropProvider>,
+      )
+      return { tarjeta: screen.getByRole('article'), alEmpezar }
+    }
+
+    /** Intenta empezar el arrastre con el teclado: foco en la tarjeta y barra espaciadora. */
+    function pulsarEspacio(tarjeta: HTMLElement) {
+      tarjeta.focus()
+      fireEvent.keyDown(tarjeta, { key: ' ', code: 'Space' })
+    }
+
+    it('con un id del servidor se puede arrastrar', async () => {
+      const { tarjeta, alEmpezar } = renderArrastrable(programacion({ id: 1 }))
+
+      await waitFor(() => expect(tarjeta).toHaveAttribute('aria-disabled', 'false'))
+      pulsarEspacio(tarjeta)
+
+      await waitFor(() => expect(alEmpezar).toHaveBeenCalledTimes(1))
+    })
+
+    it('con un id temporal negativo no se puede arrastrar', async () => {
+      const { tarjeta, alEmpezar } = renderArrastrable(programacion({ id: -1 }))
+
+      await waitFor(() => expect(tarjeta).toHaveAttribute('aria-disabled', 'true'))
+      pulsarEspacio(tarjeta)
+
+      await new Promise((resolve) => setTimeout(resolve, 50))
+      expect(alEmpezar).not.toHaveBeenCalled()
+    })
   })
 })
