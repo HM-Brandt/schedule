@@ -3,8 +3,16 @@ import type { IsoDate, Job, StartTime, UpdateScheduleBody } from '../api/types'
 export type InverseOp =
   | { kind: 'delete'; id: number }
   | { kind: 'patch'; id: number; changes: UpdateScheduleBody }
-  | { kind: 'create'; job: Job; date: IsoDate; start_time: StartTime; employee_ids: number[]; replacesId: number }
-  | { kind: 'put'; id: number; employee_ids: number[] }
+  | {
+      kind: 'create'
+      job: Job
+      date: IsoDate
+      startTime: StartTime
+      employeesIds: number[]
+      scheduleComment: string | null
+      replacesId: number
+    }
+  | { kind: 'put'; id: number; employeesIds: number[] }
 
 export type UndoEntry = { label: string; ops: InverseOp[] }
 

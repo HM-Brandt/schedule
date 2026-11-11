@@ -1,20 +1,16 @@
-// Tests del panel de empleados (tareas 7.1 y 9.6 de `schedule-assign`).
-//
-// Cubren "Panel de empleados activos" de `specs/employee-assignment/spec.md`: solo aparecen
-// los empleados con `status` `activo`, cada uno con sus iniciales, su nombre completo y su
-// cargo, y el aviso cuando no se pudieron cargar.
 import { render, screen, within } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
 import type { Employee } from '../../api/types'
 import { employeeHue } from '../../lib/colors'
 import { createSeed } from '../../mocks/seed'
 import { simularApisDeArrastre } from '../../test/dnd'
+import { empleado } from '../../test/fabricas'
 import { EmployeePanel } from './EmployeePanel'
 
 simularApisDeArrastre()
 
-const ANA: Employee = { id: 3, first_name: 'Ana', last_name: 'López', title: 'Pintora', status: 'activo' }
-const PEDRO_INACTIVO: Employee = { id: 4, first_name: 'Pedro', last_name: 'Sánchez', title: 'Albañil', status: 'inactivo' }
+const ANA: Employee = empleado(3, 'Ana', 'López', 'Pintora')
+const PEDRO_INACTIVO: Employee = empleado(4, 'Pedro', 'Sánchez', 'Albañil', 'Terminated')
 
 function renderPanel(employees: Employee[], error: Error | null = null) {
   render(<EmployeePanel employees={employees} error={error} />)
@@ -31,7 +27,7 @@ describe('EmployeePanel', () => {
     expect(screen.getByRole('heading', { level: 2, name: 'Employees' })).toBeInTheDocument()
   })
 
-  it('escenario "Empleado inactivo": con Ana (activo) y Pedro (inactivo) muestra a Ana y no a Pedro', () => {
+  it('escenario "Empleado inactivo": con Ana (Active) y Pedro (Terminated) muestra a Ana y no a Pedro', () => {
     const lista = renderPanel([ANA, PEDRO_INACTIVO])
 
     expect(within(lista).getAllByRole('listitem')).toHaveLength(1)
@@ -40,7 +36,7 @@ describe('EmployeePanel', () => {
     expect(screen.queryByText('PS')).not.toBeInTheDocument()
   })
 
-  it('con la semilla muestra los 8 activos y ninguno de los 2 inactivos', () => {
+  it('con la semilla muestra los 8 Active y ninguno de los 2 Terminated', () => {
     const { employees } = createSeed(new Date(2026, 10, 3))
     const lista = renderPanel(employees)
 
@@ -71,7 +67,7 @@ describe('EmployeePanel', () => {
   })
 
   it('las iniciales salen en mayúsculas aunque el nombre llegue en minúsculas', () => {
-    const lista = renderPanel([{ ...ANA, first_name: 'ana', last_name: 'lópez' }])
+    const lista = renderPanel([{ ...ANA, firstName: 'ana', lastName: 'lópez' }])
 
     expect(within(fila(lista, 'ana lópez')).getByText('AL')).toBeInTheDocument()
   })
@@ -84,7 +80,7 @@ describe('EmployeePanel', () => {
 
   // Tarea 9.6: el avatar de cada empleado lleva su tono, el mismo que su chip en las tarjetas.
   it('el avatar con las iniciales lleva el tono del empleado', () => {
-    const lista = renderPanel([ANA, { ...ANA, id: 6, first_name: 'Elena', last_name: 'Díaz' }])
+    const lista = renderPanel([ANA, { ...ANA, employeesId: 6, firstName: 'Elena', lastName: 'Díaz' }])
 
     expect(within(fila(lista, 'Ana López')).getByText('AL')).toHaveAttribute('data-hue', String(employeeHue(3)))
     expect(within(fila(lista, 'Elena Díaz')).getByText('ED')).toHaveAttribute('data-hue', String(employeeHue(6)))

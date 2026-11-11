@@ -29,7 +29,7 @@ const NOMBRES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 const INDICADOR = /^\d+ jobs?$/
 
 const semilla = createSeed(new Date(2026, 10, 3))
-const EMPLEADOS = new Map<number, Employee>(semilla.employees.map((empleado) => [empleado.id, empleado]))
+const EMPLEADOS = new Map<number, Employee>(semilla.employees.map((empleado) => [empleado.employeesId, empleado]))
 
 function renderTablero() {
   render(

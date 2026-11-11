@@ -72,7 +72,7 @@ function toApiError(error: AxiosError): ApiError {
 
 /** Deja la hora de inicio de una programación en `HH:mm`, aunque el backend envíe segundos. */
 function normalizeSchedule(schedule: Schedule): Schedule {
-  return { ...schedule, start_time: normalizeTime(schedule.start_time) }
+  return { ...schedule, startTime: normalizeTime(schedule.startTime) }
 }
 
 /**
@@ -82,7 +82,7 @@ function normalizeSchedule(schedule: Schedule): Schedule {
  */
 export function createApiClient(baseURL: string) {
   const http = axios.create({
-    baseURL,
+    baseURL: `${baseURL}/`,
     timeout: 15000,
     headers: { 'Content-Type': 'application/json' },
   })
@@ -111,20 +111,20 @@ export function createApiClient(baseURL: string) {
     /** `GET /api/employees`. Envía `status` solo si viene. */
     async getEmployees(params?: EmployeesQuery): Promise<Employee[]> {
       const query = params?.status !== undefined ? { status: params.status } : undefined
-      const response = await http.get<Employee[]>('/api/employees', { params: query })
+      const response = await http.get<Employee[]>('v1/employee', { params: query })
       return response.data
     },
 
     /** `GET /api/jobs`. Envía `search` solo si viene. */
     async getJobs(params?: JobsQuery): Promise<Job[]> {
       const query = params?.search !== undefined ? { search: params.search } : undefined
-      const response = await http.get<Job[]>('/api/jobs', { params: query })
+      const response = await http.get<Job[]>('v1/job', { params: query })
       return response.data
     },
 
     /** `GET /api/schedules?from&to`. Programaciones del rango, ambos días incluidos. */
     async getSchedules(params: SchedulesQuery): Promise<Schedule[]> {
-      const response = await http.get<Schedule[]>('/api/schedules', {
+      const response = await http.get<Schedule[]>('v1/schedules', {
         params: { from: params.from, to: params.to },
       })
       return response.data.map(normalizeSchedule)
@@ -132,24 +132,24 @@ export function createApiClient(baseURL: string) {
 
     /** `POST /api/schedules`. Crea una programación y la devuelve. */
     async createSchedule(body: CreateScheduleBody): Promise<Schedule> {
-      const response = await http.post<Schedule>('/api/schedules', body)
+      const response = await http.post<Schedule>('v1/schedules', body)
       return normalizeSchedule(response.data)
     },
 
     /** `PATCH /api/schedules/{id}`. Cambia la fecha, la hora o ambas, y devuelve la programación. */
     async updateSchedule(id: number, body: UpdateScheduleBody): Promise<Schedule> {
-      const response = await http.patch<Schedule>(`/api/schedules/${id}`, body)
+      const response = await http.patch<Schedule>(`v1/schedules/${id}`, body)
       return normalizeSchedule(response.data)
     },
 
     /** `DELETE /api/schedules/{id}`. Elimina la programación; el backend responde 204 sin cuerpo. */
     async deleteSchedule(id: number): Promise<void> {
-      await http.delete(`/api/schedules/${id}`)
+      await http.delete(`v1/schedules/${id}`)
     },
 
     /** `PUT /api/schedules/{id}/employees`. Reemplaza el conjunto de empleados y devuelve la programación. */
     async replaceScheduleEmployees(id: number, body: ReplaceEmployeesBody): Promise<Schedule> {
-      const response = await http.put<Schedule>(`/api/schedules/${id}/employees`, body)
+      const response = await http.put<Schedule>(`v1/schedules/${id}/employees`, body)
       return normalizeSchedule(response.data)
     },
   }

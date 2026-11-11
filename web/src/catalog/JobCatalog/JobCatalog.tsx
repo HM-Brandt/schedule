@@ -38,7 +38,7 @@ export function JobCatalog({ counts }: { counts: Map<number, number> }) {
       {jobs.data?.length === 0 && <p className={styles.empty}>No jobs found</p>}
       <ul className={styles.list}>
         {jobs.data?.map((job) => (
-          <CatalogJob key={job.id} job={job} count={counts.get(job.id) ?? 0} />
+          <CatalogJob key={job.jobsId} job={job} count={counts.get(job.jobsId) ?? 0} />
         ))}
       </ul>
     </section>

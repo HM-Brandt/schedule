@@ -9,7 +9,7 @@ import { WeekBoard } from './WeekBoard'
 const DIAS: IsoDate[] = ['2026-11-01', '2026-11-02', '2026-11-03', '2026-11-04', '2026-11-05', '2026-11-06', '2026-11-07']
 
 const semilla = createSeed(new Date(2026, 10, 3))
-const EMPLEADOS = new Map<number, Employee>(semilla.employees.map((empleado) => [empleado.id, empleado]))
+const EMPLEADOS = new Map<number, Employee>(semilla.employees.map((empleado) => [empleado.employeesId, empleado]))
 
 const pintar = semilla.jobs[6]
 const lamparas = semilla.jobs[11]
@@ -40,8 +40,8 @@ describe('WeekBoard', () => {
 
   it('pone cada tarjeta bajo su día y deja vacíos los días sin programaciones', () => {
     const programaciones: Schedule[] = [
-      { id: 1, job: pintar, date: '2026-11-02', start_time: '07:00', employee_ids: [3] },
-      { id: 2, job: lamparas, date: '2026-11-05', start_time: '09:30', employee_ids: [] },
+      { jobSchedulesId: 1, job: pintar, date: '2026-11-02', startTime: '07:00', employeesIds: [3], scheduleComment: null },
+      { jobSchedulesId: 2, job: lamparas, date: '2026-11-05', startTime: '09:30', employeesIds: [], scheduleComment: null },
     ]
 
     render(
@@ -59,9 +59,9 @@ describe('WeekBoard', () => {
 
   it('muestra las tarjetas de un día en el orden en que las recibe', () => {
     const programaciones: Schedule[] = [
-      { id: 1, job: pintar, date: '2026-11-02', start_time: '07:00', employee_ids: [] },
-      { id: 2, job: pintar, date: '2026-11-02', start_time: '08:00', employee_ids: [] },
-      { id: 3, job: lamparas, date: '2026-11-02', start_time: '09:00', employee_ids: [] },
+      { jobSchedulesId: 1, job: pintar, date: '2026-11-02', startTime: '07:00', employeesIds: [], scheduleComment: null },
+      { jobSchedulesId: 2, job: pintar, date: '2026-11-02', startTime: '08:00', employeesIds: [], scheduleComment: null },
+      { jobSchedulesId: 3, job: lamparas, date: '2026-11-02', startTime: '09:00', employeesIds: [], scheduleComment: null },
     ]
 
     render(

@@ -24,45 +24,55 @@ export function ScheduleDetail({
   onClose: () => void
 }) {
   const actions = useScheduleActions(schedules)
-  const schedule = schedules.find((item) => item.id === scheduleId)
+  const schedule = schedules.find((item) => item.jobSchedulesId === scheduleId)
 
   useEffect(() => {
     if (!schedule) onClose()
   }, [schedule, onClose])
 
   if (!schedule) return null
-  const employees = schedule.employee_ids.flatMap((id) => employeesById.get(id) ?? [])
+  const employees = schedule.employeesIds.flatMap((id) => employeesById.get(id) ?? [])
   const saveTime = (value: string) => {
-    if (value && value !== schedule.start_time) actions.setStartTime(schedule, value)
+    if (value && value !== schedule.startTime) actions.setStartTime(schedule, value)
   }
 
   return (
-    <aside role="dialog" aria-label={`${schedule.job.number} ${schedule.job.name}`} className={styles.panel} data-hue={jobHue(schedule.job.id)}>
+    <aside role="dialog" aria-label={`${schedule.job.number} ${schedule.job.name}`} className={styles.panel} data-hue={jobHue(schedule.job.jobsId)}>
       <div className={styles.number}>{schedule.job.number}</div>
       <h2 className={styles.name}>{schedule.job.name}</h2>
       <div className={styles.date}>{formatDate(schedule.date)}</div>
       <label className={styles.field}>
         Start time
         <input
-          key={`${schedule.id}-${schedule.start_time}`}
+          key={`${schedule.jobSchedulesId}-${schedule.startTime}`}
           className={styles.input}
           type="time"
           aria-label="Start time"
-          defaultValue={schedule.start_time}
+          defaultValue={schedule.startTime}
           onBlur={(event) => saveTime(event.currentTarget.value)}
           onKeyDown={(event) => event.key === 'Enter' && event.currentTarget.blur()}
         />
       </label>
+      <label className={styles.field}>
+        Comment
+        <textarea
+          key={`${schedule.jobSchedulesId}-${schedule.scheduleComment}`}
+          className={`${styles.input} ${styles.comment}`}
+          aria-label="Comment"
+          defaultValue={schedule.scheduleComment ?? ''}
+          onBlur={(event) => actions.setComment(schedule, event.currentTarget.value)}
+        />
+      </label>
       <ul className={styles.employees}>
         {employees.map((employee) => (
-          <li key={employee.id} className={styles.employee}>
+          <li key={employee.employeesId} className={styles.employee}>
             <span
-              className={employee.status === 'inactivo' ? `${styles.avatar} ${styles.inactive}` : styles.avatar}
-              data-hue={employeeHue(employee.id)}
+              className={employee.status === 'Terminated' ? `${styles.avatar} ${styles.inactive}` : styles.avatar}
+              data-hue={employeeHue(employee.employeesId)}
             >
               {initials(employee)}
             </span>
-            {employee.status === 'inactivo' ? `${fullName(employee)} (inactive)` : fullName(employee)}
+            {employee.status === 'Terminated' ? `${fullName(employee)} (inactive)` : fullName(employee)}
             <button
               type="button"
               className={styles.button}
@@ -70,7 +80,7 @@ export function ScheduleDetail({
               onClick={() =>
                 actions.setEmployees(
                   schedule,
-                  schedule.employee_ids.filter((id) => id !== employee.id),
+                  schedule.employeesIds.filter((id) => id !== employee.employeesId),
                 )
               }
             >

@@ -92,10 +92,10 @@ function prepararServidor() {
     return undefined
   }
   server.resetHandlers(
-    http.post('/api/schedules', anotar),
-    http.patch('/api/schedules/:id', anotar),
-    http.delete('/api/schedules/:id', anotar),
-    http.put('/api/schedules/:id/employees', anotar),
+    http.post('/v1/schedules', anotar),
+    http.patch('/v1/schedules/:id', anotar),
+    http.delete('/v1/schedules/:id', anotar),
+    http.put('/v1/schedules/:id/employees', anotar),
     ...createHandlers(semilla),
   )
 }
@@ -105,7 +105,7 @@ function Tablero() {
   const schedules = useWeekSchedules(DIAS[0], DIAS[6])
   const employees = useEmployees()
   const employeesById = useMemo(
-    () => new Map((employees.data ?? []).map((employee) => [employee.id, employee])),
+    () => new Map((employees.data ?? []).map((employee) => [employee.employeesId, employee])),
     [employees.data],
   )
   const byDay = useMemo(() => schedulesByDay(schedules.data ?? [], DIAS), [schedules.data])
@@ -144,7 +144,7 @@ const tarjetasDelDia = (nombre: string) => within(columnaDelDia(nombre)).queryAl
 
 /** Iniciales de los empleados de una tarjeta, en orden. */
 const iniciales = (tarjeta: HTMLElement) =>
-  Array.from(tarjeta.querySelectorAll('[title]')).map((elemento) => elemento.textContent)
+  Array.from(tarjeta.querySelectorAll('[title]:not([aria-label^="Comment:"])')).map((elemento) => elemento.textContent)
 
 /** Comprueba que soltar no envió ninguna petición de cambio. */
 async function sinPeticiones() {
@@ -161,7 +161,7 @@ describe('ScheduleDndProvider', () => {
 
       await waitFor(() =>
         expect(peticiones).toEqual([
-          { metodo: 'PATCH', ruta: '/api/schedules/1', cuerpo: { date: MARTES, start_time: '07:00' } },
+          { metodo: 'PATCH', ruta: '/v1/schedules/1', cuerpo: { date: MARTES, startTime: '07:00' } },
         ]),
       )
       await waitFor(() => expect(tarjetasDelDia('Tue')).toHaveLength(2))
@@ -179,7 +179,7 @@ describe('ScheduleDndProvider', () => {
 
       await waitFor(() =>
         expect(peticiones).toEqual([
-          { metodo: 'PATCH', ruta: '/api/schedules/4', cuerpo: { date: SABADO, start_time: '09:30' } },
+          { metodo: 'PATCH', ruta: '/v1/schedules/4', cuerpo: { date: SABADO, startTime: '09:30' } },
         ]),
       )
       await waitFor(() => expect(tarjetasDelDia('Sat')).toHaveLength(1))
@@ -188,7 +188,7 @@ describe('ScheduleDndProvider', () => {
     })
 
     it('a un día que ya tiene ese trabajo a las 07:00: PATCH con la hora recalculada 08:00', async () => {
-      semilla.schedules.push({ id: 10, job: semilla.jobs[6], date: MARTES, start_time: '07:00', employee_ids: [] })
+      semilla.schedules.push({ jobSchedulesId: 10, job: semilla.jobs[6], date: MARTES, startTime: '07:00', employeesIds: [], scheduleComment: null })
       await renderTablero(5)
       expect(tarjetasDelDia('Tue')).toHaveLength(2)
 
@@ -196,7 +196,7 @@ describe('ScheduleDndProvider', () => {
 
       await waitFor(() =>
         expect(peticiones).toEqual([
-          { metodo: 'PATCH', ruta: '/api/schedules/1', cuerpo: { date: MARTES, start_time: '08:00' } },
+          { metodo: 'PATCH', ruta: '/v1/schedules/1', cuerpo: { date: MARTES, startTime: '08:00' } },
         ]),
       )
       await waitFor(() => expect(tarjetasDelDia('Tue')).toHaveLength(3))
@@ -244,8 +244,8 @@ describe('ScheduleDndProvider', () => {
         expect(peticiones).toEqual([
           {
             metodo: 'POST',
-            ruta: '/api/schedules',
-            cuerpo: { job_id: 7, date: VIERNES, start_time: '07:00', employee_ids: [3, 5] },
+            ruta: '/v1/schedules',
+            cuerpo: { jobsId: 7, date: VIERNES, startTime: '07:00', employeesIds: [3, 5] },
           },
         ]),
       )
@@ -265,7 +265,7 @@ describe('ScheduleDndProvider', () => {
       await arrastrar('schedule-2', `day-${VIERNES}`, { altKey: true })
 
       await waitFor(() => expect(peticiones).toHaveLength(1))
-      expect(peticiones[0].cuerpo).toEqual({ job_id: 7, date: VIERNES, start_time: '07:00', employee_ids: [3] })
+      expect(peticiones[0].cuerpo).toEqual({ jobsId: 7, date: VIERNES, startTime: '07:00', employeesIds: [3] })
     })
 
     it('una tarjeta sin empleados: la copia se envía con la lista vacía', async () => {
@@ -276,8 +276,8 @@ describe('ScheduleDndProvider', () => {
       await waitFor(() => expect(peticiones).toHaveLength(1))
       expect(peticiones[0]).toEqual({
         metodo: 'POST',
-        ruta: '/api/schedules',
-        cuerpo: { job_id: 12, date: VIERNES, start_time: '07:00', employee_ids: [] },
+        ruta: '/v1/schedules',
+        cuerpo: { jobsId: 12, date: VIERNES, startTime: '07:00', employeesIds: [] },
       })
     })
 
@@ -290,8 +290,8 @@ describe('ScheduleDndProvider', () => {
         expect(peticiones).toEqual([
           {
             metodo: 'POST',
-            ruta: '/api/schedules',
-            cuerpo: { job_id: 7, date: LUNES, start_time: '09:00', employee_ids: [3, 5] },
+            ruta: '/v1/schedules',
+            cuerpo: { jobsId: 7, date: LUNES, startTime: '09:00', employeesIds: [3, 5] },
           },
         ]),
       )
@@ -310,7 +310,7 @@ describe('ScheduleDndProvider', () => {
       await arrastrar('schedule-4', 'catalog')
 
       await waitFor(() =>
-        expect(peticiones).toEqual([{ metodo: 'DELETE', ruta: '/api/schedules/4', cuerpo: null }]),
+        expect(peticiones).toEqual([{ metodo: 'DELETE', ruta: '/v1/schedules/4', cuerpo: null }]),
       )
       await waitFor(() => expect(tarjetasDelDia('Thu')).toHaveLength(0))
       expect(within(catalogo).getByText('J-1029').closest('li')).toHaveTextContent('Instalar lámparas')
@@ -323,7 +323,7 @@ describe('ScheduleDndProvider', () => {
       await arrastrar('schedule-1', 'catalog', { altKey: true })
 
       await waitFor(() =>
-        expect(peticiones).toEqual([{ metodo: 'DELETE', ruta: '/api/schedules/1', cuerpo: null }]),
+        expect(peticiones).toEqual([{ metodo: 'DELETE', ruta: '/v1/schedules/1', cuerpo: null }]),
       )
       await waitFor(() => expect(tarjetasDelDia('Mon')).toHaveLength(1))
     })
@@ -342,7 +342,7 @@ describe('ScheduleDndProvider', () => {
 
         await waitFor(() =>
           expect(peticiones).toEqual([
-            { metodo: 'PUT', ruta: '/api/schedules/4/employees', cuerpo: { employee_ids: [4] } },
+            { metodo: 'PUT', ruta: '/v1/schedules/4/employees', cuerpo: { employeesIds: [4] } },
           ]),
         )
         await waitFor(() => expect(iniciales(tarjeta('Thu', 'J-1029'))).toEqual(['PS']))
@@ -357,7 +357,7 @@ describe('ScheduleDndProvider', () => {
 
         await waitFor(() =>
           expect(peticiones).toEqual([
-            { metodo: 'PUT', ruta: '/api/schedules/1/employees', cuerpo: { employee_ids: [3, 5, 8] } },
+            { metodo: 'PUT', ruta: '/v1/schedules/1/employees', cuerpo: { employeesIds: [3, 5, 8] } },
           ]),
         )
         await waitFor(() => expect(iniciales(tarjeta('Mon', '07:00'))).toEqual(['AL', 'LM', 'CR']))
@@ -379,7 +379,7 @@ describe('ScheduleDndProvider', () => {
 
         await waitFor(() =>
           expect(peticiones).toEqual([
-            { metodo: 'PUT', ruta: '/api/schedules/2/employees', cuerpo: { employee_ids: [3, 5] } },
+            { metodo: 'PUT', ruta: '/v1/schedules/2/employees', cuerpo: { employeesIds: [3, 5] } },
           ]),
         )
         await waitFor(() => expect(iniciales(tarjeta('Mon', '08:00'))).toEqual(['AL', 'LM']))
@@ -404,8 +404,8 @@ describe('ScheduleDndProvider', () => {
         await waitFor(() => expect(peticiones).toHaveLength(2))
         expect(peticiones).toEqual(
           expect.arrayContaining([
-            { metodo: 'PUT', ruta: '/api/schedules/1/employees', cuerpo: { employee_ids: [3] } },
-            { metodo: 'PUT', ruta: '/api/schedules/3/employees', cuerpo: { employee_ids: [8, 5] } },
+            { metodo: 'PUT', ruta: '/v1/schedules/1/employees', cuerpo: { employeesIds: [3] } },
+            { metodo: 'PUT', ruta: '/v1/schedules/3/employees', cuerpo: { employeesIds: [8, 5] } },
           ]),
         )
         await waitFor(() => expect(iniciales(tarjeta('Tue', 'J-1019'))).toEqual(['CR', 'LM']))
@@ -419,7 +419,7 @@ describe('ScheduleDndProvider', () => {
 
         await waitFor(() =>
           expect(peticiones).toEqual([
-            { metodo: 'PUT', ruta: '/api/schedules/1/employees', cuerpo: { employee_ids: [5] } },
+            { metodo: 'PUT', ruta: '/v1/schedules/1/employees', cuerpo: { employeesIds: [5] } },
           ]),
         )
         await waitFor(() => expect(iniciales(tarjeta('Mon', '07:00'))).toEqual(['LM']))
@@ -444,7 +444,7 @@ describe('ScheduleDndProvider', () => {
 
         await waitFor(() =>
           expect(peticiones).toEqual([
-            { metodo: 'PUT', ruta: '/api/schedules/1/employees', cuerpo: { employee_ids: [5] } },
+            { metodo: 'PUT', ruta: '/v1/schedules/1/employees', cuerpo: { employeesIds: [5] } },
           ]),
         )
         await waitFor(() => expect(iniciales(tarjeta('Mon', '07:00'))).toEqual(['LM']))
@@ -459,7 +459,7 @@ describe('ScheduleDndProvider', () => {
 
         await waitFor(() =>
           expect(peticiones).toEqual([
-            { metodo: 'PUT', ruta: '/api/schedules/3/employees', cuerpo: { employee_ids: [] } },
+            { metodo: 'PUT', ruta: '/v1/schedules/3/employees', cuerpo: { employeesIds: [] } },
           ]),
         )
         await waitFor(() => expect(within(tarjeta('Tue', 'J-1019')).getByText('No employees')).toBeInTheDocument())

@@ -35,11 +35,12 @@ beforeEach(() => {
   const semilla = createSeed(HOY)
   // Una programación en la semana siguiente para distinguir los rangos.
   semilla.schedules.push({
-    id: 50,
+    jobSchedulesId: 50,
     job: semilla.jobs[0],
     date: '2026-11-10',
-    start_time: '07:00',
-    employee_ids: [],
+    startTime: '07:00',
+    employeesIds: [],
+    scheduleComment: null,
   })
   server.resetHandlers(...createHandlers(semilla))
   client = createQueryClient()
@@ -85,20 +86,20 @@ describe('queryKeys', () => {
 })
 
 describe('useWeekSchedules', () => {
-  it('pide GET /api/schedules con from y to de la semana', async () => {
-    const urls = capturarPeticiones('/api/schedules')
+  it('pide GET /v1/schedules con from y to de la semana', async () => {
+    const urls = capturarPeticiones('/v1/schedules')
 
     const { result } = renderHook(() => useWeekSchedules('2026-11-01', '2026-11-07'), { wrapper: envoltorio })
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true))
     expect(urls).toHaveLength(1)
-    expect(urls[0].pathname).toBe('/api/schedules')
+    expect(urls[0].pathname).toBe('/v1/schedules')
     expect(parametros(urls[0])).toEqual({ from: '2026-11-01', to: '2026-11-07' })
-    expect(result.current.data?.map((item) => item.id)).toEqual([1, 2, 3, 4])
+    expect(result.current.data?.map((item) => item.jobSchedulesId)).toEqual([1, 2, 3, 4])
   })
 
   it('al cambiar de semana pide el nuevo rango y devuelve sus datos', async () => {
-    const urls = capturarPeticiones('/api/schedules')
+    const urls = capturarPeticiones('/v1/schedules')
     const { result, rerender } = renderHook(({ from, to }) => useWeekSchedules(from, to), {
       wrapper: envoltorio,
       initialProps: { from: '2026-11-01', to: '2026-11-07' },
@@ -107,7 +108,7 @@ describe('useWeekSchedules', () => {
 
     rerender({ from: '2026-11-08', to: '2026-11-14' })
 
-    await waitFor(() => expect(result.current.data?.map((item) => item.id)).toEqual([50]))
+    await waitFor(() => expect(result.current.data?.map((item) => item.jobSchedulesId)).toEqual([50]))
     expect(urls.map(parametros)).toEqual([
       { from: '2026-11-01', to: '2026-11-07' },
       { from: '2026-11-08', to: '2026-11-14' },
@@ -121,18 +122,18 @@ describe('useWeekSchedules', () => {
     })
     await waitFor(() => expect(result.current.isSuccess).toBe(true))
     rerender({ from: '2026-11-08', to: '2026-11-14' })
-    await waitFor(() => expect(result.current.data?.map((item) => item.id)).toEqual([50]))
+    await waitFor(() => expect(result.current.data?.map((item) => item.jobSchedulesId)).toEqual([50]))
 
     const semana1 = client.getQueryData<Schedule[]>(['schedules', '2026-11-01', '2026-11-07'])
     const semana2 = client.getQueryData<Schedule[]>(['schedules', '2026-11-08', '2026-11-14'])
-    expect(semana1?.map((item) => item.id)).toEqual([1, 2, 3, 4])
-    expect(semana2?.map((item) => item.id)).toEqual([50])
+    expect(semana1?.map((item) => item.jobSchedulesId)).toEqual([1, 2, 3, 4])
+    expect(semana2?.map((item) => item.jobSchedulesId)).toEqual([50])
   })
 })
 
 describe('useEmployees', () => {
-  it('pide GET /api/employees sin filtro e incluye los inactivos', async () => {
-    const urls = capturarPeticiones('/api/employees')
+  it('pide GET /v1/employee sin filtro e incluye los inactivos', async () => {
+    const urls = capturarPeticiones('/v1/employee')
 
     const { result } = renderHook(() => useEmployees(), { wrapper: envoltorio })
 
@@ -140,13 +141,13 @@ describe('useEmployees', () => {
     expect(urls).toHaveLength(1)
     expect(parametros(urls[0])).toEqual({})
     expect(result.current.data).toHaveLength(10)
-    expect(result.current.data?.filter((empleado) => empleado.status === 'inactivo')).toHaveLength(2)
+    expect(result.current.data?.filter((empleado) => empleado.status === 'Terminated')).toHaveLength(2)
   })
 })
 
 describe('useJobs', () => {
   it('con búsqueda vacía no envía search y devuelve todo el catálogo', async () => {
-    const urls = capturarPeticiones('/api/jobs')
+    const urls = capturarPeticiones('/v1/job')
 
     const { result } = renderHook(() => useJobs(''), { wrapper: envoltorio })
 
@@ -157,7 +158,7 @@ describe('useJobs', () => {
   })
 
   it('con solo espacios tampoco envía search', async () => {
-    const urls = capturarPeticiones('/api/jobs')
+    const urls = capturarPeticiones('/v1/job')
 
     const { result } = renderHook(() => useJobs('   '), { wrapper: envoltorio })
 
@@ -166,7 +167,7 @@ describe('useJobs', () => {
   })
 
   it('con texto envía search y devuelve los trabajos que coinciden', async () => {
-    const urls = capturarPeticiones('/api/jobs')
+    const urls = capturarPeticiones('/v1/job')
 
     const { result } = renderHook(() => useJobs('pintar'), { wrapper: envoltorio })
 
@@ -176,7 +177,7 @@ describe('useJobs', () => {
   })
 
   it('al cambiar la búsqueda pide de nuevo con el texto recortado', async () => {
-    const urls = capturarPeticiones('/api/jobs')
+    const urls = capturarPeticiones('/v1/job')
     const { result, rerender } = renderHook(({ busqueda }) => useJobs(busqueda), {
       wrapper: envoltorio,
       initialProps: { busqueda: '' },

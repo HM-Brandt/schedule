@@ -6,8 +6,9 @@
 // empleados activos se pueden arrastrar salvo mientras la programación tiene un id temporal
 // (negativo), antes de que el servidor confirme su creación.
 import { DragDropProvider } from '@dnd-kit/react'
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
+import { trabajo } from '../../test/fabricas'
 import type { Employee, Schedule } from '../../api/types'
 import { employeeHue, jobHue } from '../../lib/colors'
 import { createSeed } from '../../mocks/seed'
@@ -19,15 +20,16 @@ simularApisDeArrastre()
 const semilla = createSeed(new Date(2026, 10, 3))
 
 /** Todos los empleados de la semilla por id: Ana López es el 3 y Luis Martínez el 5. */
-const EMPLEADOS = new Map<number, Employee>(semilla.employees.map((empleado) => [empleado.id, empleado]))
+const EMPLEADOS = new Map<number, Employee>(semilla.employees.map((empleado) => [empleado.employeesId, empleado]))
 
 function programacion(cambios: Partial<Schedule> = {}): Schedule {
   return {
-    id: 1,
-    job: { id: 7, number: 'J-1024', name: 'Pintar oficina' },
+    jobSchedulesId: 1,
+    job: trabajo(7, 'J-1024', 'Pintar oficina'),
     date: '2026-11-02',
-    start_time: '07:00',
-    employee_ids: [3, 5],
+    startTime: '07:00',
+    employeesIds: [3, 5],
+    scheduleComment: null,
     ...cambios,
   }
 }
@@ -36,6 +38,9 @@ function renderTarjeta(schedule: Schedule, employeesById = EMPLEADOS) {
   render(<ScheduleCard schedule={schedule} employeesById={employeesById} />)
   return screen.getByRole('article')
 }
+
+/** Icono de comentario de la tarjeta, o `null` si no lo tiene. */
+const iconoComentario = (tarjeta: HTMLElement) => within(tarjeta).queryByLabelText(/^Comment: /)
 
 describe('ScheduleCard', () => {
   it('muestra el número, el nombre del trabajo y la hora de inicio "07:00"', () => {
@@ -55,7 +60,7 @@ describe('ScheduleCard', () => {
   })
 
   it('muestra otras horas tal como llegan, en 24 horas: "23:00"', () => {
-    const tarjeta = renderTarjeta(programacion({ start_time: '23:00' }))
+    const tarjeta = renderTarjeta(programacion({ startTime: '23:00' }))
 
     expect((tarjeta.textContent ?? '').match(/\d{2}:\d{2}/g)).toEqual(['23:00'])
   })
@@ -68,7 +73,7 @@ describe('ScheduleCard', () => {
   })
 
   it('muestra los empleados en el orden de la programación', () => {
-    const tarjeta = renderTarjeta(programacion({ employee_ids: [5, 3] }))
+    const tarjeta = renderTarjeta(programacion({ employeesIds: [5, 3] }))
 
     const iniciales = Array.from(tarjeta.querySelectorAll('[title]')).map((elemento) => elemento.textContent)
     expect(iniciales).toEqual(['LM', 'AL'])
@@ -81,14 +86,14 @@ describe('ScheduleCard', () => {
   })
 
   it('sin empleados indica "No employees" y no muestra iniciales', () => {
-    const tarjeta = renderTarjeta(programacion({ employee_ids: [] }))
+    const tarjeta = renderTarjeta(programacion({ employeesIds: [] }))
 
     expect(screen.getByText('No employees')).toBeInTheDocument()
     expect(tarjeta.querySelectorAll('[title]')).toHaveLength(0)
   })
 
   it('omite los ids de empleado que no están en el mapa', () => {
-    const tarjeta = renderTarjeta(programacion({ employee_ids: [3, 99] }))
+    const tarjeta = renderTarjeta(programacion({ employeesIds: [3, 99] }))
 
     expect(screen.getByTitle('Ana López')).toHaveTextContent('AL')
     expect(tarjeta.querySelectorAll('[title]')).toHaveLength(1)
@@ -96,10 +101,69 @@ describe('ScheduleCard', () => {
   })
 
   it('con empleados asignados pero aún sin cargar no muestra "No employees" ni iniciales', () => {
-    const tarjeta = renderTarjeta(programacion({ employee_ids: [3, 5] }), new Map())
+    const tarjeta = renderTarjeta(programacion({ employeesIds: [3, 5] }), new Map())
 
     expect(screen.queryByText('No employees')).not.toBeInTheDocument()
     expect(tarjeta.querySelectorAll('[title]')).toHaveLength(0)
+  })
+
+  // Tarea 12.2: "Comentario de una programación" de `specs/weekly-schedule-board/spec.md`.
+  describe('comentario', () => {
+    it('con comentario muestra el icono con el texto completo como ayuda emergente y "Comment: …" como nombre accesible', () => {
+      const tarjeta = renderTarjeta(programacion({ scheduleComment: 'Llevar escalera' }))
+
+      const icono = iconoComentario(tarjeta)
+      expect(icono).toHaveAttribute('title', 'Llevar escalera')
+      expect(icono).toHaveAccessibleName('Comment: Llevar escalera')
+      expect(icono?.querySelector('svg')).not.toBeNull()
+    })
+
+    it('un comentario de varias líneas aparece entero en la ayuda emergente', () => {
+      const tarjeta = renderTarjeta(programacion({ scheduleComment: 'Llevar escalera\nY rodillos' }))
+
+      expect(iconoComentario(tarjeta)).toHaveAttribute('title', 'Llevar escalera\nY rodillos')
+    })
+
+    it('el texto del comentario no aparece en la tarjeta, solo en la ayuda emergente', () => {
+      const tarjeta = renderTarjeta(programacion({ scheduleComment: 'Llevar escalera' }))
+
+      expect(tarjeta).not.toHaveTextContent('Llevar escalera')
+    })
+
+    it('sin comentario no muestra el icono', () => {
+      const tarjeta = renderTarjeta(programacion({ scheduleComment: null }))
+
+      expect(iconoComentario(tarjeta)).toBeNull()
+      expect(tarjeta.querySelectorAll('[title]')).toHaveLength(2)
+    })
+
+    it('al borrar el comentario el icono desaparece', () => {
+      const { rerender } = render(
+        <ScheduleCard schedule={programacion({ scheduleComment: 'Llevar escalera' })} employeesById={EMPLEADOS} />,
+      )
+      expect(iconoComentario(screen.getByRole('article'))).not.toBeNull()
+
+      rerender(<ScheduleCard schedule={programacion({ scheduleComment: null })} employeesById={EMPLEADOS} />)
+
+      expect(iconoComentario(screen.getByRole('article'))).toBeNull()
+    })
+
+    it('al agregar un comentario el icono aparece', () => {
+      const { rerender } = render(<ScheduleCard schedule={programacion()} employeesById={EMPLEADOS} />)
+      expect(iconoComentario(screen.getByRole('article'))).toBeNull()
+
+      rerender(<ScheduleCard schedule={programacion({ scheduleComment: 'Llevar andamio' })} employeesById={EMPLEADOS} />)
+
+      expect(iconoComentario(screen.getByRole('article'))).toHaveAttribute('title', 'Llevar andamio')
+    })
+
+    it('el icono no cambia las iniciales de los empleados', () => {
+      renderTarjeta(programacion({ scheduleComment: 'Llevar escalera' }))
+
+      expect(screen.getByTitle('Ana López')).toHaveTextContent('AL')
+      expect(screen.getByTitle('Luis Martínez')).toHaveTextContent('LM')
+      expect(screen.queryByText('No employees')).not.toBeInTheDocument()
+    })
   })
 
   describe('arrastre', () => {
@@ -121,7 +185,7 @@ describe('ScheduleCard', () => {
     }
 
     it('con un id del servidor se puede arrastrar', async () => {
-      const { tarjeta, alEmpezar } = renderArrastrable(programacion({ id: 1 }))
+      const { tarjeta, alEmpezar } = renderArrastrable(programacion({ jobSchedulesId: 1 }))
 
       await waitFor(() => expect(tarjeta).toHaveAttribute('aria-disabled', 'false'))
       pulsarEspacio(tarjeta)
@@ -130,7 +194,7 @@ describe('ScheduleCard', () => {
     })
 
     it('con un id temporal negativo no se puede arrastrar', async () => {
-      const { tarjeta, alEmpezar } = renderArrastrable(programacion({ id: -1 }))
+      const { tarjeta, alEmpezar } = renderArrastrable(programacion({ jobSchedulesId: -1 }))
 
       await waitFor(() => expect(tarjeta).toHaveAttribute('aria-disabled', 'true'))
       pulsarEspacio(tarjeta)
@@ -149,13 +213,13 @@ describe('ScheduleCard', () => {
       Array.from(tarjeta.querySelectorAll('[title]')).map((elemento) => elemento.textContent)
 
     it('escenario "Muchos empleados": con seis muestra cuatro iniciales y el indicador "+2"', () => {
-      const tarjeta = renderTarjeta(programacion({ employee_ids: [1, 2, 3, 4, 5, 6] }))
+      const tarjeta = renderTarjeta(programacion({ employeesIds: [1, 2, 3, 4, 5, 6] }))
 
       expect(indicadoresDeEmpleados(tarjeta)).toEqual(['MG', 'JP', 'AL', 'PS', '+2'])
     })
 
     it('el "+2" lista al pasar el puntero los nombres de los dos ocultos', () => {
-      renderTarjeta(programacion({ employee_ids: [1, 2, 3, 4, 5, 6] }))
+      renderTarjeta(programacion({ employeesIds: [1, 2, 3, 4, 5, 6] }))
 
       expect(screen.getByText('+2')).toHaveAttribute('title', 'Luis Martínez, Elena Díaz')
       expect(screen.queryByTitle('Luis Martínez')).not.toBeInTheDocument()
@@ -163,14 +227,14 @@ describe('ScheduleCard', () => {
     })
 
     it('con cinco muestra cuatro iniciales y "+1" con el nombre del oculto', () => {
-      const tarjeta = renderTarjeta(programacion({ employee_ids: [1, 2, 3, 4, 5] }))
+      const tarjeta = renderTarjeta(programacion({ employeesIds: [1, 2, 3, 4, 5] }))
 
       expect(indicadoresDeEmpleados(tarjeta)).toEqual(['MG', 'JP', 'AL', 'PS', '+1'])
       expect(screen.getByText('+1')).toHaveAttribute('title', 'Luis Martínez')
     })
 
     it('con cuatro, que caben, muestra las cuatro iniciales y ningún "+N"', () => {
-      const tarjeta = renderTarjeta(programacion({ employee_ids: [1, 2, 3, 4] }))
+      const tarjeta = renderTarjeta(programacion({ employeesIds: [1, 2, 3, 4] }))
 
       expect(indicadoresDeEmpleados(tarjeta)).toEqual(['MG', 'JP', 'AL', 'PS'])
       expect(screen.queryByText(/^\+\d+$/)).not.toBeInTheDocument()
@@ -182,11 +246,11 @@ describe('ScheduleCard', () => {
   describe('empleado asignado que pasó a inactivo', () => {
     /** La semilla con Pedro Sánchez (4) dado de baja. */
     const CON_PEDRO_INACTIVO = new Map(EMPLEADOS)
-    CON_PEDRO_INACTIVO.set(4, { ...EMPLEADOS.get(4)!, status: 'inactivo' })
+    CON_PEDRO_INACTIVO.set(4, { ...EMPLEADOS.get(4)!, status: 'Terminated' })
 
     /** Programación del martes con Pedro (inactivo) y Ana (activa). */
     const delMartes = (cambios: Partial<Schedule> = {}) =>
-      programacion({ date: '2026-11-03', employee_ids: [4, 3], ...cambios })
+      programacion({ date: '2026-11-03', employeesIds: [4, 3], ...cambios })
 
     it('escenario "Asignación previa a la baja": la tarjeta del martes sigue mostrando a Pedro marcado "(inactive)"', () => {
       renderTarjeta(delMartes(), CON_PEDRO_INACTIVO)
@@ -198,7 +262,7 @@ describe('ScheduleCard', () => {
     })
 
     it('un inactivo oculto tras el "+N" también aparece en su lista de nombres', () => {
-      renderTarjeta(programacion({ employee_ids: [1, 2, 3, 5, 4] }), CON_PEDRO_INACTIVO)
+      renderTarjeta(programacion({ employeesIds: [1, 2, 3, 5, 4] }), CON_PEDRO_INACTIVO)
 
       expect(screen.getByText('+1')).toHaveAttribute('title', 'Pedro Sánchez')
     })
@@ -255,7 +319,7 @@ describe('ScheduleCard', () => {
       })
 
       it('con un id temporal negativo el chip de Ana, activa, no se puede arrastrar', async () => {
-        const arrastres = renderConProveedor(delMartes({ id: -1 }))
+        const arrastres = renderConProveedor(delMartes({ jobSchedulesId: -1 }))
         const ana = screen.getByTitle('Ana López')
 
         await waitFor(() => expect(ana).toHaveAttribute('aria-disabled', 'true'))
@@ -278,8 +342,8 @@ describe('ScheduleCard', () => {
     it('dos trabajos distintos con tonos distintos se pintan distinto', () => {
       render(
         <>
-          <ScheduleCard schedule={programacion({ id: 1, job: { id: 1, number: 'J-1', name: 'Uno' } })} employeesById={EMPLEADOS} />
-          <ScheduleCard schedule={programacion({ id: 2, job: { id: 2, number: 'J-2', name: 'Dos' } })} employeesById={EMPLEADOS} />
+          <ScheduleCard schedule={programacion({ jobSchedulesId: 1, job: trabajo(1, 'J-1', 'Uno') })} employeesById={EMPLEADOS} />
+          <ScheduleCard schedule={programacion({ jobSchedulesId: 2, job: trabajo(2, 'J-2', 'Dos') })} employeesById={EMPLEADOS} />
         </>,
       )
       const [primera, segunda] = screen.getAllByRole('article')
@@ -290,22 +354,22 @@ describe('ScheduleCard', () => {
     })
 
     it('el chip de cada empleado activo lleva el tono de ese empleado', () => {
-      renderTarjeta(programacion({ employee_ids: [3, 5] }))
+      renderTarjeta(programacion({ employeesIds: [3, 5] }))
 
       expect(screen.getByTitle('Ana López')).toHaveAttribute('data-hue', String(employeeHue(3)))
       expect(screen.getByTitle('Luis Martínez')).toHaveAttribute('data-hue', String(employeeHue(5)))
     })
 
     it('el tono del chip depende del empleado, no del trabajo', () => {
-      renderTarjeta(programacion({ job: { id: 2, number: 'J-2', name: 'Dos' }, employee_ids: [3] }))
+      renderTarjeta(programacion({ job: trabajo(2, 'J-2', 'Dos'), employeesIds: [3] }))
 
       expect(screen.getByTitle('Ana López')).toHaveAttribute('data-hue', String(employeeHue(3)))
     })
 
     it('el chip de un inactivo no lleva tono propio y va con el estilo de inactivo', () => {
       const conPedroInactivo = new Map(EMPLEADOS)
-      conPedroInactivo.set(4, { ...EMPLEADOS.get(4)!, status: 'inactivo' })
-      renderTarjeta(programacion({ employee_ids: [4, 3] }), conPedroInactivo)
+      conPedroInactivo.set(4, { ...EMPLEADOS.get(4)!, status: 'Terminated' })
+      renderTarjeta(programacion({ employeesIds: [4, 3] }), conPedroInactivo)
 
       const pedro = screen.getByTitle('Pedro Sánchez (inactive)')
       expect(pedro).not.toHaveAttribute('data-hue')
@@ -314,7 +378,7 @@ describe('ScheduleCard', () => {
     })
 
     it('el indicador "+N" no lleva tono', () => {
-      renderTarjeta(programacion({ employee_ids: [1, 2, 3, 4, 5, 6] }))
+      renderTarjeta(programacion({ employeesIds: [1, 2, 3, 4, 5, 6] }))
 
       expect(screen.getByText('+2')).not.toHaveAttribute('data-hue')
     })

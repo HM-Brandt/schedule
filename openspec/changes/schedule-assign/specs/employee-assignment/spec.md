@@ -7,7 +7,7 @@ Asignación de empleados activos a los trabajos programados del tablero semanal,
 ## ADDED Requirements
 
 ### Requirement: Panel de empleados activos
-El sistema SHALL mostrar un panel con los empleados cuyo `status` es `activo`, cada uno con sus iniciales, su nombre completo (`first_name` y `last_name`) y su `title`. Los empleados con `status` `inactivo` SHALL NOT aparecer en el panel.
+El sistema SHALL mostrar un panel con los empleados activos (`status` `Active`), cada uno con sus iniciales, su nombre completo (`firstName` y `lastName`) y su `title`. Los empleados inactivos (`status` `Terminated`) SHALL NOT aparecer en el panel.
 
 #### Scenario: Empleado inactivo
 - **WHEN** existen Ana (activo) y Pedro (inactivo)
@@ -71,8 +71,27 @@ Cada tarjeta SHALL mostrar los empleados asignados con sus iniciales, y el nombr
 - **THEN** la tarjeta muestra cuatro iniciales y el indicador "+2"
 
 ### Requirement: Empleados que pasan a inactivos
-Si un empleado asignado a una programación pasa a `inactivo`, la programación SHALL seguir mostrándolo, marcado como inactivo, hasta que se le retire. Un empleado inactivo SHALL NOT poder asignarse a nuevas programaciones.
+Si un empleado asignado a una programación pasa a inactivo (`status` `Terminated`), la programación SHALL seguir mostrándolo, marcado como inactivo, hasta que se le retire. Un empleado inactivo SHALL NOT poder asignarse a nuevas programaciones.
 
 #### Scenario: Asignación previa a la baja
 - **WHEN** Pedro estaba asignado a una programación del martes y luego pasó a inactivo
 - **THEN** la tarjeta del martes sigue mostrando a Pedro marcado como inactivo y Pedro no aparece en el panel de empleados
+
+### Requirement: Días con trabajo en la semana visible
+Cada empleado del panel, y de la lista de casillas del teléfono, SHALL mostrar siete recuadros, de domingo a sábado, para la semana visible. Un recuadro SHALL mostrarse vacío si el empleado no tiene programaciones ese día, con un tono claro si tiene una y con un tono fuerte si tiene dos o más. El recuadro del día actual SHALL distinguirse con un borde. Cada fila SHALL tener un texto accesible con los días asignados y su número de programaciones, por ejemplo "Assigned: Mon (1), Tue (2)". Los recuadros SHALL actualizarse al asignar, retirar, mover o quitar programaciones y al cambiar de semana.
+
+#### Scenario: Juan asignado lunes y martes
+- **WHEN** Juan tiene una programación el lunes y otra el martes de la semana visible
+- **THEN** su fila en el panel muestra pintados los recuadros del lunes y del martes con tono claro y vacíos los demás
+
+#### Scenario: Dos trabajos el mismo día
+- **WHEN** Ana tiene dos programaciones el lunes de la semana visible
+- **THEN** el recuadro del lunes de Ana se muestra con tono fuerte
+
+#### Scenario: Cambio de semana
+- **WHEN** la persona pasa a una semana en la que Juan no tiene programaciones
+- **THEN** los siete recuadros de Juan se muestran vacíos
+
+#### Scenario: Asignar actualiza los recuadros
+- **WHEN** Juan no tiene programaciones el jueves y la persona lo asigna a una programación del jueves
+- **THEN** el recuadro del jueves de Juan pasa a mostrarse pintado

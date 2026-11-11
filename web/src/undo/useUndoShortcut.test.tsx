@@ -6,7 +6,7 @@
 // lista desplegable o un área de texto, para no robar el deshacer propio del campo.
 //
 // Se monta `useUndoShortcut` dentro de `UndoProvider` con un botón de prueba que apila una
-// acción cuya inversa es `DELETE /api/schedules/4`.
+// acción cuya inversa es `DELETE /v1/schedules/4`.
 import { QueryClientProvider } from '@tanstack/react-query'
 import type { QueryClient } from '@tanstack/react-query'
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
@@ -35,7 +35,7 @@ beforeEach(() => {
   client = createQueryClient()
   client.setDefaultOptions({ queries: { retry: false } })
   server.resetHandlers(
-    http.all('/api/schedules/*', ({ request }) => {
+    http.all('/v1/schedules/*', ({ request }) => {
       peticiones.push({ metodo: request.method, ruta: new URL(request.url).pathname })
       return undefined
     }),
@@ -100,7 +100,7 @@ describe('useUndoShortcut', () => {
 
     fireEvent.keyDown(window, { key: 'z', ctrlKey: true })
 
-    await waitFor(() => expect(peticiones).toEqual([{ metodo: 'DELETE', ruta: '/api/schedules/4' }]))
+    await waitFor(() => expect(peticiones).toEqual([{ metodo: 'DELETE', ruta: '/v1/schedules/4' }]))
     expect(entradas()).toHaveTextContent('0')
   })
 
@@ -110,7 +110,7 @@ describe('useUndoShortcut', () => {
 
     fireEvent.keyDown(window, { key: 'z', metaKey: true })
 
-    await waitFor(() => expect(peticiones).toEqual([{ metodo: 'DELETE', ruta: '/api/schedules/4' }]))
+    await waitFor(() => expect(peticiones).toEqual([{ metodo: 'DELETE', ruta: '/v1/schedules/4' }]))
     expect(entradas()).toHaveTextContent('0')
   })
 
@@ -134,8 +134,8 @@ describe('useUndoShortcut', () => {
 
     await waitFor(() =>
       expect(peticiones).toEqual([
-        { metodo: 'DELETE', ruta: '/api/schedules/3' },
-        { metodo: 'DELETE', ruta: '/api/schedules/4' },
+        { metodo: 'DELETE', ruta: '/v1/schedules/3' },
+        { metodo: 'DELETE', ruta: '/v1/schedules/4' },
       ]),
     )
     expect(entradas()).toHaveTextContent('0')

@@ -70,7 +70,7 @@ afterAll(() => {
 /** Registra los manejadores de la semilla y, delante, uno que anota cada `PUT …/employees`. */
 function prepararServidor() {
   server.resetHandlers(
-    http.put('/api/schedules/:id/employees', async ({ request }) => {
+    http.put('/v1/schedules/:id/employees', async ({ request }) => {
       reemplazos.push({ ruta: new URL(request.url).pathname, cuerpo: await request.clone().json() })
       return undefined
     }),
@@ -83,9 +83,9 @@ function Arnes({ id, onClose }: { id: number; onClose: () => void }) {
   const schedules = useWeekSchedules('2026-11-01', '2026-11-07')
   const employees = useEmployees()
   const [abierto, setAbierto] = useState(true)
-  const schedule = schedules.data?.find((item) => item.id === id)
+  const schedule = schedules.data?.find((item) => item.jobSchedulesId === id)
   if (!schedule || !employees.data) return null
-  const porId = new Map(employees.data.map((empleado) => [empleado.id, empleado]))
+  const porId = new Map(employees.data.map((empleado) => [empleado.employeesId, empleado]))
 
   return (
     <>
@@ -123,7 +123,7 @@ async function renderPanel(id = 1) {
 const casilla = (nombre: string) => screen.getByRole('checkbox', { name: nombre })
 
 /** Iniciales de los empleados de la tarjeta, en orden. */
-const iniciales = () => Array.from(screen.getByRole('article').querySelectorAll('[title]')).map((item) => item.textContent)
+const iniciales = () => Array.from(screen.getByRole('article').querySelectorAll('[title]:not([aria-label^="Comment:"])')).map((item) => item.textContent)
 
 /** Fila del panel con el nombre completo `nombre`. */
 const fila = (panel: HTMLElement, nombre: string) =>
@@ -149,6 +149,17 @@ describe('AssignSheet', () => {
     expect(panel).not.toHaveTextContent('Lucía Navarro')
   })
 
+  it('solo ofrece a los Active: si Marta pasa a Terminated deja de tener casilla', async () => {
+    semilla.employees = semilla.employees.map((empleado) =>
+      empleado.firstName === 'Marta' ? { ...empleado, status: 'Terminated' } : empleado,
+    )
+
+    const { panel } = await renderPanel()
+
+    expect(within(panel).getAllByRole('checkbox')).toHaveLength(7)
+    expect(within(panel).queryByRole('checkbox', { name: 'Marta Gómez' })).not.toBeInTheDocument()
+  })
+
   it('marca las casillas de los empleados ya asignados: Ana y Luis en la de las 07:00 del lunes', async () => {
     await renderPanel()
 
@@ -172,7 +183,7 @@ describe('AssignSheet', () => {
   describe('escenario "Marcar dos empleados"', () => {
     beforeEach(() => {
       // "J-1024 Pintar oficina" del lunes a las 07:00 empieza sin empleados.
-      semilla.schedules[0].employee_ids = []
+      semilla.schedules[0].employeesIds = []
     })
 
     it('marcar a Ana y a Luis hace que la tarjeta los muestre y los guarda en el servidor', async () => {
@@ -188,8 +199,8 @@ describe('AssignSheet', () => {
       expect(screen.getByRole('article')).not.toHaveTextContent('No employees')
       await waitFor(() => expect(reemplazos).toHaveLength(2))
       expect(reemplazos).toEqual([
-        { ruta: '/api/schedules/1/employees', cuerpo: { employee_ids: [3] } },
-        { ruta: '/api/schedules/1/employees', cuerpo: { employee_ids: [3, 5] } },
+        { ruta: '/v1/schedules/1/employees', cuerpo: { employeesIds: [3] } },
+        { ruta: '/v1/schedules/1/employees', cuerpo: { employeesIds: [3, 5] } },
       ])
     })
 
@@ -214,7 +225,7 @@ describe('AssignSheet', () => {
       expect(casilla('Luis Martínez')).toBeChecked()
       await waitFor(() => expect(iniciales()).toEqual(['LM']))
       await waitFor(() => expect(reemplazos).toHaveLength(1))
-      expect(reemplazos[0]).toEqual({ ruta: '/api/schedules/1/employees', cuerpo: { employee_ids: [5] } })
+      expect(reemplazos[0]).toEqual({ ruta: '/v1/schedules/1/employees', cuerpo: { employeesIds: [5] } })
     })
 
     it('desmarcar al único empleado deja la tarjeta con "No employees"', async () => {
@@ -251,7 +262,7 @@ describe('AssignSheet', () => {
   it('si la programación ya no está en la semana, el panel se cierra solo', async () => {
     prepararServidor()
     const onClose = vi.fn()
-    const desaparecida: Schedule = { ...semilla.schedules[0], id: 99 }
+    const desaparecida: Schedule = { ...semilla.schedules[0], jobSchedulesId: 99 }
     render(
       <QueryClientProvider client={client}>
         <UndoProvider>

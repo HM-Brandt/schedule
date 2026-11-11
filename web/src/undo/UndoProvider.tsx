@@ -31,7 +31,7 @@ export function UndoProvider({ children }: { children: ReactNode }) {
   const employees = useEmployees()
   const queryClient = useQueryClient()
   const isInactive = (id: number) =>
-    employees.data?.some((employee) => employee.id === id && employee.status === 'inactivo')
+    employees.data?.some((employee) => employee.employeesId === id && employee.status === 'Terminated')
 
   const push = (entry: UndoEntry) => {
     setStack((current) => pushEntry(current, entry))
@@ -44,20 +44,21 @@ export function UndoProvider({ children }: { children: ReactNode }) {
     if (op.kind === 'delete') await deleteSchedule.mutateAsync(op.id)
     if (op.kind === 'patch') await updateSchedule.mutateAsync({ id: op.id, changes: op.changes })
     if (op.kind === 'put') {
-      const assigned = findCachedSchedule(queryClient, op.id)?.employee_ids ?? []
+      const assigned = findCachedSchedule(queryClient, op.id)?.employeesIds ?? []
       await replaceEmployees.mutateAsync({
         id: op.id,
-        employee_ids: op.employee_ids.filter((id) => !isInactive(id) || assigned.includes(id)),
+        employeesIds: op.employeesIds.filter((id) => !isInactive(id) || assigned.includes(id)),
       })
     }
     if (op.kind === 'create') {
       const created = await createSchedule.mutateAsync({
         job: op.job,
         date: op.date,
-        start_time: op.start_time,
-        employee_ids: op.employee_ids.filter((id) => !isInactive(id)),
+        startTime: op.startTime,
+        employeesIds: op.employeesIds.filter((id) => !isInactive(id)),
+        scheduleComment: op.scheduleComment,
       })
-      setStack((current) => replaceScheduleId(current, op.replacesId, created.id))
+      setStack((current) => replaceScheduleId(current, op.replacesId, created.jobSchedulesId))
     }
   }
 

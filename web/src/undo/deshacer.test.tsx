@@ -2,12 +2,14 @@
 // (tarea 8.3 de `schedule-assign`) con `msw/node`.
 //
 // Cubren de `specs/weekly-schedule-board/spec.md` los escenarios "Deshacer un movimiento",
-// "Deshacer un quitar", "Deshacer un quitar con un empleado inactivo" y "Fallo al mover". Las
-// acciones se hacen desde el detalle ("Move to" y "Remove"), porque en jsdom el arrastre real
-// no puede montarse sobre `App`; el arrastre se cubre en los e2e.
+// "Deshacer un quitar" (con su comentario), "Deshacer un cambio de comentario", "Deshacer un
+// quitar con un empleado inactivo" y "Fallo al mover". Las acciones se hacen desde el detalle
+// ("Move to", "Comment" y "Remove"), porque en jsdom el arrastre real no puede montarse sobre
+// `App`; el arrastre se cubre en los e2e.
 //
 // La fecha del sistema se fija en el martes 2026-11-03. La semilla programa el lunes 2
-// "J-1024 Pintar oficina" a las 07:00 con Ana López y Luis Martínez, y a las 08:00 con Ana.
+// "J-1024 Pintar oficina" a las 07:00 con Ana López, Luis Martínez y el comentario "Llevar
+// escalera", y a las 08:00 con Ana y sin comentario.
 // Raúl Torres (9) está inactivo; los casos que lo necesitan lo añaden a la semilla.
 import { QueryClientProvider } from '@tanstack/react-query'
 import type { QueryClient } from '@tanstack/react-query'
@@ -71,7 +73,7 @@ const tarjeta = (nombre: string, texto: string) =>
   tarjetasDelDia(nombre).find((elemento) => elemento.textContent?.includes(texto))
 
 const iniciales = (elemento: HTMLElement) =>
-  Array.from(elemento.querySelectorAll('[title]')).map((item) => item.textContent)
+  Array.from(elemento.querySelectorAll('[title]:not([aria-label^="Comment:"])')).map((item) => item.textContent)
 
 function abrirDetalle(elemento: HTMLElement | undefined, nombre: string): HTMLElement {
   fireEvent.click(elemento as HTMLElement)
@@ -96,7 +98,7 @@ describe('deshacer en la página', () => {
     expect(screen.queryByRole('button', { name: 'Undo' })).not.toBeInTheDocument()
   })
 
-  it('escenario "Deshacer un quitar": quitar la de Ana y Luis y pulsar Ctrl+Z la devuelve con su hora y sus dos empleados', async () => {
+  it('escenario "Deshacer un quitar": quitar la de Ana y Luis con comentario y pulsar Ctrl+Z la devuelve con su hora, sus dos empleados y su comentario', async () => {
     await renderApp()
     const detalle = abrirDetalle(tarjeta('Mon', '07:00'), 'J-1024 Pintar oficina')
     fireEvent.click(within(detalle).getByRole('button', { name: 'Remove' }))
@@ -109,13 +111,35 @@ describe('deshacer en la página', () => {
     const devuelta = tarjeta('Mon', '07:00') as HTMLElement
     expect(devuelta).toHaveTextContent('J-1024')
     await waitFor(() => expect(iniciales(devuelta)).toEqual(['AL', 'LM']))
+    expect(within(devuelta).getByLabelText('Comment: Llevar escalera')).toHaveAttribute('title', 'Llevar escalera')
     // La programación vuelve a crearse en el servidor: ya no es temporal y se puede abrir.
     await waitFor(() => expect(devuelta).toHaveAttribute('aria-disabled', 'false'))
     expect(abrirDetalle(devuelta, 'J-1024 Pintar oficina')).toBeInTheDocument()
   })
 
+  it('escenario "Deshacer un cambio de comentario": de "Llevar escalera" a "Llevar andamio" y "Undo" vuelve a "Llevar escalera"', async () => {
+    await renderApp()
+    const detalle = abrirDetalle(tarjeta('Mon', '07:00'), 'J-1024 Pintar oficina')
+    const campo = within(detalle).getByLabelText('Comment')
+    fireEvent.change(campo, { target: { value: 'Llevar andamio' } })
+    fireEvent.blur(campo)
+    await waitFor(() =>
+      expect(within(tarjeta('Mon', '07:00') as HTMLElement).getByLabelText('Comment: Llevar andamio')).toBeInTheDocument(),
+    )
+    await screen.findByText('Comment updated')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Undo' }))
+
+    await waitFor(() =>
+      expect(within(tarjeta('Mon', '07:00') as HTMLElement).getByLabelText('Comment: Llevar escalera')).toBeInTheDocument(),
+    )
+    expect(within(tarjeta('Mon', '07:00') as HTMLElement).queryByLabelText('Comment: Llevar andamio')).not.toBeInTheDocument()
+    // El detalle, aún abierto, muestra también el comentario restaurado.
+    expect(within(screen.getByRole('dialog')).getByLabelText('Comment')).toHaveValue('Llevar escalera')
+  })
+
   it('escenario "Deshacer un quitar con un empleado inactivo": vuelve con Ana y sin Raúl', async () => {
-    semilla.schedules.push({ id: 10, job: semilla.jobs[13], date: MIERCOLES, start_time: '07:00', employee_ids: [3, 9] })
+    semilla.schedules.push({ jobSchedulesId: 10, job: semilla.jobs[13], date: MIERCOLES, startTime: '07:00', employeesIds: [3, 9], scheduleComment: null })
     await renderApp(5)
     const jardin = tarjeta('Wed', 'J-1031') as HTMLElement
     expect(within(jardin).getByTitle('Raúl Torres (inactive)')).toBeInTheDocument()
@@ -139,7 +163,7 @@ describe('error al guardar en la página', () => {
   it('escenario "Fallo al mover": al jueves con un 500, vuelve al lunes y el aviso empieza por "Couldn\'t save the change."', async () => {
     await renderApp()
     server.use(
-      http.patch('/api/schedules/:id', () =>
+      http.patch('/v1/schedules/:id', () =>
         HttpResponse.json({ error: 'Fallo simulado del servidor' }, { status: 500 }),
       ),
     )

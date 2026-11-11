@@ -11,8 +11,8 @@
 // no se apila nada si falla, y las peticiones que envía `undo()`.
 //
 // La semilla para el martes 2026-11-03 programa en la semana del 1 al 7:
-// - lunes 2: "J-1024 Pintar oficina" (id 1) a las 07:00 con Ana López (3) y Luis Martínez (5),
-//   y otra (id 2) a las 08:00 con Ana;
+// - lunes 2: "J-1024 Pintar oficina" (id 1) a las 07:00 con Ana López (3) y Luis Martínez (5) y
+//   el comentario "Llevar escalera", y otra (id 2) a las 08:00 con Ana y sin comentario;
 // - martes 3: "J-1019 Cambiar ventanas" (id 3) a las 07:00 con Carlos Ruiz (8);
 // - jueves 5: "J-1029 Instalar lámparas" (id 4) a las 09:30, sin empleados.
 // Raúl Torres (9) y Lucía Navarro (10) están inactivos. La siguiente programación que cree el
@@ -87,17 +87,24 @@ function prepararServidor() {
     return undefined
   }
   server.resetHandlers(
-    http.post('/api/schedules', anotar),
-    http.patch('/api/schedules/:id', anotar),
-    http.delete('/api/schedules/:id', anotar),
-    http.put('/api/schedules/:id/employees', anotar),
+    http.post('/v1/schedules', anotar),
+    http.patch('/v1/schedules/:id', anotar),
+    http.delete('/v1/schedules/:id', anotar),
+    http.put('/v1/schedules/:id/employees', anotar),
     ...createHandlers(semilla),
   )
 }
 
 /** Añade a la semilla, el miércoles a las 07:00, "J-1031 Jardín Pérez" (id 10) con Ana (activa) y Raúl (inactivo). */
 function programarConUnInactivo() {
-  semilla.schedules.push({ id: 10, job: semilla.jobs[13], date: MIERCOLES, start_time: '07:00', employee_ids: [3, RAUL] })
+  semilla.schedules.push({
+    jobSchedulesId: 10,
+    job: semilla.jobs[13],
+    date: MIERCOLES,
+    startTime: '07:00',
+    employeesIds: [3, RAUL],
+    scheduleComment: null,
+  })
 }
 
 const error500 = () => HttpResponse.json({ error: MENSAJE_500 }, { status: 500 })
@@ -134,7 +141,7 @@ async function montar() {
 type Arnes = Awaited<ReturnType<typeof montar>>
 
 const programacion = (arnes: Arnes, id: number) =>
-  arnes.current.programaciones.find((item) => item.id === id) as Schedule
+  arnes.current.programaciones.find((item) => item.jobSchedulesId === id) as Schedule
 
 /** Ejecuta `accion` y espera a que el servidor la confirme o la rechace. */
 async function ejecutar(accion: () => Promise<unknown>) {
@@ -158,14 +165,14 @@ describe('useScheduleActions: cada acción apila su inversa al confirmar el serv
     await ejecutar(() => arnes.current.acciones.create(semilla.jobs[13], JUEVES))
 
     expect(peticiones).toEqual([
-      { metodo: 'POST', ruta: '/api/schedules', cuerpo: { job_id: 14, date: JUEVES, start_time: '07:00' } },
+      { metodo: 'POST', ruta: '/v1/schedules', cuerpo: { jobsId: 14, date: JUEVES, startTime: '07:00' } },
     ])
     expect(arnes.current.deshacer.stack).toEqual([{ label: 'Job scheduled', ops: [{ kind: 'delete', id: 5 }] }])
     expect(arnes.current.deshacer.toast).toEqual({ message: 'Job scheduled', kind: 'action' })
 
     await deshacer(arnes)
 
-    expect(peticiones).toEqual([{ metodo: 'DELETE', ruta: '/api/schedules/5', cuerpo: null }])
+    expect(peticiones).toEqual([{ metodo: 'DELETE', ruta: '/v1/schedules/5', cuerpo: null }])
     await waitFor(() => expect(programacion(arnes, 5)).toBeUndefined())
     expect(arnes.current.deshacer.stack).toEqual([])
   })
@@ -176,20 +183,20 @@ describe('useScheduleActions: cada acción apila su inversa al confirmar el serv
     await ejecutar(() => arnes.current.acciones.move(programacion(arnes, 1), JUEVES))
 
     expect(peticiones).toEqual([
-      { metodo: 'PATCH', ruta: '/api/schedules/1', cuerpo: { date: JUEVES, start_time: '07:00' } },
+      { metodo: 'PATCH', ruta: '/v1/schedules/1', cuerpo: { date: JUEVES, startTime: '07:00' } },
     ])
     expect(arnes.current.deshacer.stack).toEqual([
-      { label: 'Job moved', ops: [{ kind: 'patch', id: 1, changes: { date: LUNES, start_time: '07:00' } }] },
+      { label: 'Job moved', ops: [{ kind: 'patch', id: 1, changes: { date: LUNES, startTime: '07:00' } }] },
     ])
     expect(arnes.current.deshacer.toast).toEqual({ message: 'Job moved', kind: 'action' })
 
     await deshacer(arnes)
 
     expect(peticiones).toEqual([
-      { metodo: 'PATCH', ruta: '/api/schedules/1', cuerpo: { date: LUNES, start_time: '07:00' } },
+      { metodo: 'PATCH', ruta: '/v1/schedules/1', cuerpo: { date: LUNES, startTime: '07:00' } },
     ])
     await waitFor(() =>
-      expect(programacion(arnes, 1)).toMatchObject({ date: LUNES, start_time: '07:00', employee_ids: [3, 5] }),
+      expect(programacion(arnes, 1)).toMatchObject({ date: LUNES, startTime: '07:00', employeesIds: [3, 5] }),
     )
   })
 
@@ -204,11 +211,11 @@ describe('useScheduleActions: cada acción apila su inversa al confirmar el serv
 
     expect(peticiones.at(-1)).toEqual({
       metodo: 'PATCH',
-      ruta: '/api/schedules/1',
-      cuerpo: { date: MARTES, start_time: '09:00' },
+      ruta: '/v1/schedules/1',
+      cuerpo: { date: MARTES, startTime: '09:00' },
     })
     expect(arnes.current.deshacer.stack.at(-1)?.ops).toEqual([
-      { kind: 'patch', id: 1, changes: { date: LUNES, start_time: '07:00' } },
+      { kind: 'patch', id: 1, changes: { date: LUNES, startTime: '07:00' } },
     ])
   })
 
@@ -217,18 +224,18 @@ describe('useScheduleActions: cada acción apila su inversa al confirmar el serv
 
     await ejecutar(() => arnes.current.acciones.setStartTime(programacion(arnes, 1), '10:30'))
 
-    expect(peticiones).toEqual([{ metodo: 'PATCH', ruta: '/api/schedules/1', cuerpo: { start_time: '10:30' } }])
+    expect(peticiones).toEqual([{ metodo: 'PATCH', ruta: '/v1/schedules/1', cuerpo: { startTime: '10:30' } }])
     expect(arnes.current.deshacer.stack).toEqual([
-      { label: 'Start time changed', ops: [{ kind: 'patch', id: 1, changes: { date: LUNES, start_time: '07:00' } }] },
+      { label: 'Start time changed', ops: [{ kind: 'patch', id: 1, changes: { date: LUNES, startTime: '07:00' } }] },
     ])
     expect(arnes.current.deshacer.toast).toEqual({ message: 'Start time changed', kind: 'action' })
 
     await deshacer(arnes)
 
     expect(peticiones).toEqual([
-      { metodo: 'PATCH', ruta: '/api/schedules/1', cuerpo: { date: LUNES, start_time: '07:00' } },
+      { metodo: 'PATCH', ruta: '/v1/schedules/1', cuerpo: { date: LUNES, startTime: '07:00' } },
     ])
-    await waitFor(() => expect(programacion(arnes, 1).start_time).toBe('07:00'))
+    await waitFor(() => expect(programacion(arnes, 1).startTime).toBe('07:00'))
   })
 
   it('duplicar: entrada "Job duplicated" con DELETE de la copia; deshacer borra la copia y deja la original', async () => {
@@ -239,8 +246,8 @@ describe('useScheduleActions: cada acción apila su inversa al confirmar el serv
     expect(peticiones).toEqual([
       {
         metodo: 'POST',
-        ruta: '/api/schedules',
-        cuerpo: { job_id: 7, date: LUNES, start_time: '09:00', employee_ids: [3, 5] },
+        ruta: '/v1/schedules',
+        cuerpo: { jobsId: 7, date: LUNES, startTime: '09:00', employeesIds: [3, 5] },
       },
     ])
     expect(arnes.current.deshacer.stack).toEqual([{ label: 'Job duplicated', ops: [{ kind: 'delete', id: 5 }] }])
@@ -248,23 +255,31 @@ describe('useScheduleActions: cada acción apila su inversa al confirmar el serv
 
     await deshacer(arnes)
 
-    expect(peticiones).toEqual([{ metodo: 'DELETE', ruta: '/api/schedules/5', cuerpo: null }])
+    expect(peticiones).toEqual([{ metodo: 'DELETE', ruta: '/v1/schedules/5', cuerpo: null }])
     await waitFor(() => expect(programacion(arnes, 5)).toBeUndefined())
-    expect(programacion(arnes, 1)).toMatchObject({ date: LUNES, start_time: '07:00', employee_ids: [3, 5] })
+    expect(programacion(arnes, 1)).toMatchObject({ date: LUNES, startTime: '07:00', employeesIds: [3, 5] })
   })
 
-  it('quitar: entrada "Job removed" con POST del mismo trabajo, fecha, hora y empleados; deshacer la vuelve a crear', async () => {
+  it('quitar: entrada "Job removed" con POST del mismo trabajo, fecha, hora, empleados y comentario; deshacer la vuelve a crear', async () => {
     const arnes = await montar()
     const pintar = programacion(arnes, 1)
 
     await ejecutar(() => arnes.current.acciones.remove(pintar))
 
-    expect(peticiones).toEqual([{ metodo: 'DELETE', ruta: '/api/schedules/1', cuerpo: null }])
+    expect(peticiones).toEqual([{ metodo: 'DELETE', ruta: '/v1/schedules/1', cuerpo: null }])
     expect(arnes.current.deshacer.stack).toEqual([
       {
         label: 'Job removed',
         ops: [
-          { kind: 'create', job: pintar.job, date: LUNES, start_time: '07:00', employee_ids: [3, 5], replacesId: 1 },
+          {
+            kind: 'create',
+            job: pintar.job,
+            date: LUNES,
+            startTime: '07:00',
+            employeesIds: [3, 5],
+            scheduleComment: 'Llevar escalera',
+            replacesId: 1,
+          },
         ],
       },
     ])
@@ -275,12 +290,18 @@ describe('useScheduleActions: cada acción apila su inversa al confirmar el serv
     expect(peticiones).toEqual([
       {
         metodo: 'POST',
-        ruta: '/api/schedules',
-        cuerpo: { job_id: 7, date: LUNES, start_time: '07:00', employee_ids: [3, 5] },
+        ruta: '/v1/schedules',
+        cuerpo: { jobsId: 7, date: LUNES, startTime: '07:00', employeesIds: [3, 5], scheduleComment: 'Llevar escalera' },
       },
     ])
     await waitFor(() =>
-      expect(programacion(arnes, 5)).toMatchObject({ job: pintar.job, date: LUNES, start_time: '07:00', employee_ids: [3, 5] }),
+      expect(programacion(arnes, 5)).toMatchObject({
+        job: pintar.job,
+        date: LUNES,
+        startTime: '07:00',
+        employeesIds: [3, 5],
+        scheduleComment: 'Llevar escalera',
+      }),
     )
   })
 
@@ -290,19 +311,19 @@ describe('useScheduleActions: cada acción apila su inversa al confirmar el serv
     await ejecutar(() => arnes.current.acciones.setEmployees(programacion(arnes, 1), [3]))
 
     expect(peticiones).toEqual([
-      { metodo: 'PUT', ruta: '/api/schedules/1/employees', cuerpo: { employee_ids: [3] } },
+      { metodo: 'PUT', ruta: '/v1/schedules/1/employees', cuerpo: { employeesIds: [3] } },
     ])
     expect(arnes.current.deshacer.stack).toEqual([
-      { label: 'Employees updated', ops: [{ kind: 'put', id: 1, employee_ids: [3, 5] }] },
+      { label: 'Employees updated', ops: [{ kind: 'put', id: 1, employeesIds: [3, 5] }] },
     ])
     expect(arnes.current.deshacer.toast).toEqual({ message: 'Employees updated', kind: 'action' })
 
     await deshacer(arnes)
 
     expect(peticiones).toEqual([
-      { metodo: 'PUT', ruta: '/api/schedules/1/employees', cuerpo: { employee_ids: [3, 5] } },
+      { metodo: 'PUT', ruta: '/v1/schedules/1/employees', cuerpo: { employeesIds: [3, 5] } },
     ])
-    await waitFor(() => expect(programacion(arnes, 1).employee_ids).toEqual([3, 5]))
+    await waitFor(() => expect(programacion(arnes, 1).employeesIds).toEqual([3, 5]))
   })
 
   it('mover un empleado: una sola entrada "Employee moved" con los dos PUT anteriores; deshacer envía ambos', async () => {
@@ -315,16 +336,16 @@ describe('useScheduleActions: cada acción apila su inversa al confirmar el serv
     expect(peticiones).toHaveLength(2)
     expect(peticiones).toEqual(
       expect.arrayContaining([
-        { metodo: 'PUT', ruta: '/api/schedules/1/employees', cuerpo: { employee_ids: [3] } },
-        { metodo: 'PUT', ruta: '/api/schedules/3/employees', cuerpo: { employee_ids: [8, 5] } },
+        { metodo: 'PUT', ruta: '/v1/schedules/1/employees', cuerpo: { employeesIds: [3] } },
+        { metodo: 'PUT', ruta: '/v1/schedules/3/employees', cuerpo: { employeesIds: [8, 5] } },
       ]),
     )
     expect(arnes.current.deshacer.stack).toEqual([
       {
         label: 'Employee moved',
         ops: [
-          { kind: 'put', id: 1, employee_ids: [3, 5] },
-          { kind: 'put', id: 3, employee_ids: [8] },
+          { kind: 'put', id: 1, employeesIds: [3, 5] },
+          { kind: 'put', id: 3, employeesIds: [8] },
         ],
       },
     ])
@@ -335,12 +356,12 @@ describe('useScheduleActions: cada acción apila su inversa al confirmar el serv
     expect(peticiones).toHaveLength(2)
     expect(peticiones).toEqual(
       expect.arrayContaining([
-        { metodo: 'PUT', ruta: '/api/schedules/1/employees', cuerpo: { employee_ids: [3, 5] } },
-        { metodo: 'PUT', ruta: '/api/schedules/3/employees', cuerpo: { employee_ids: [8] } },
+        { metodo: 'PUT', ruta: '/v1/schedules/1/employees', cuerpo: { employeesIds: [3, 5] } },
+        { metodo: 'PUT', ruta: '/v1/schedules/3/employees', cuerpo: { employeesIds: [8] } },
       ]),
     )
-    await waitFor(() => expect(programacion(arnes, 1).employee_ids).toEqual([3, 5]))
-    expect(programacion(arnes, 3).employee_ids).toEqual([8])
+    await waitFor(() => expect(programacion(arnes, 1).employeesIds).toEqual([3, 5]))
+    expect(programacion(arnes, 3).employeesIds).toEqual([8])
     expect(arnes.current.deshacer.stack).toEqual([])
   })
 })
@@ -354,37 +375,42 @@ describe('useScheduleActions: si el servidor rechaza la acción no se apila nada
   const casos: Caso[] = [
     {
       accion: 'programar',
-      rechazar: () => server.use(http.post('/api/schedules', error500)),
+      rechazar: () => server.use(http.post('/v1/schedules', error500)),
       ejecutar: (arnes) => arnes.current.acciones.create(semilla.jobs[13], JUEVES),
     },
     {
       accion: 'mover',
-      rechazar: () => server.use(http.patch('/api/schedules/:id', error500)),
+      rechazar: () => server.use(http.patch('/v1/schedules/:id', error500)),
       ejecutar: (arnes) => arnes.current.acciones.move(programacion(arnes, 1), JUEVES),
     },
     {
       accion: 'cambiar la hora',
-      rechazar: () => server.use(http.patch('/api/schedules/:id', error500)),
+      rechazar: () => server.use(http.patch('/v1/schedules/:id', error500)),
       ejecutar: (arnes) => arnes.current.acciones.setStartTime(programacion(arnes, 1), '10:30'),
     },
     {
+      accion: 'cambiar el comentario',
+      rechazar: () => server.use(http.patch('/v1/schedules/:id', error500)),
+      ejecutar: async (arnes) => arnes.current.acciones.setComment(programacion(arnes, 1), 'Llevar andamio'),
+    },
+    {
       accion: 'duplicar',
-      rechazar: () => server.use(http.post('/api/schedules', error500)),
+      rechazar: () => server.use(http.post('/v1/schedules', error500)),
       ejecutar: (arnes) => arnes.current.acciones.duplicate(programacion(arnes, 1), LUNES),
     },
     {
       accion: 'quitar',
-      rechazar: () => server.use(http.delete('/api/schedules/:id', error500)),
+      rechazar: () => server.use(http.delete('/v1/schedules/:id', error500)),
       ejecutar: (arnes) => arnes.current.acciones.remove(programacion(arnes, 1)),
     },
     {
       accion: 'cambiar empleados',
-      rechazar: () => server.use(http.put('/api/schedules/:id/employees', error500)),
+      rechazar: () => server.use(http.put('/v1/schedules/:id/employees', error500)),
       ejecutar: (arnes) => arnes.current.acciones.setEmployees(programacion(arnes, 1), [3]),
     },
     {
       accion: 'mover un empleado',
-      rechazar: () => server.use(http.put('/api/schedules/:id/employees', error500)),
+      rechazar: () => server.use(http.put('/v1/schedules/:id/employees', error500)),
       ejecutar: (arnes) => arnes.current.acciones.transferEmployee(5, programacion(arnes, 1), programacion(arnes, 3)),
     },
   ]
@@ -405,11 +431,120 @@ describe('useScheduleActions: si el servidor rechaza la acción no se apila nada
   it('un fallo no borra las entradas que ya había en la pila', async () => {
     const arnes = await montar()
     await ejecutar(() => arnes.current.acciones.setStartTime(programacion(arnes, 1), '10:30'))
-    server.use(http.delete('/api/schedules/:id', error500))
+    server.use(http.delete('/v1/schedules/:id', error500))
 
     await ejecutar(() => arnes.current.acciones.remove(programacion(arnes, 4)))
 
     expect(arnes.current.deshacer.stack.map((entrada) => entrada.label)).toEqual(['Start time changed'])
+  })
+})
+
+describe('comentario (tareas 12.2 y 12.3)', () => {
+  // La programación 1 de la semilla tiene el comentario "Llevar escalera"; la 2, ninguno.
+
+  it('agregar un comentario: PATCH con scheduleComment, aviso "Comment updated" e inversa con el comentario anterior (null)', async () => {
+    const arnes = await montar()
+
+    await ejecutar(async () => arnes.current.acciones.setComment(programacion(arnes, 2), 'Llevar escalera'))
+
+    expect(peticiones).toEqual([
+      { metodo: 'PATCH', ruta: '/v1/schedules/2', cuerpo: { scheduleComment: 'Llevar escalera' } },
+    ])
+    expect(arnes.current.deshacer.stack).toEqual([
+      { label: 'Comment updated', ops: [{ kind: 'patch', id: 2, changes: { scheduleComment: null } }] },
+    ])
+    expect(arnes.current.deshacer.toast).toEqual({ message: 'Comment updated', kind: 'action' })
+    await waitFor(() => expect(programacion(arnes, 2).scheduleComment).toBe('Llevar escalera'))
+  })
+
+  it('conserva el texto tal cual, con sus saltos de línea', async () => {
+    const arnes = await montar()
+
+    await ejecutar(async () => arnes.current.acciones.setComment(programacion(arnes, 2), 'Llevar escalera\nY rodillos'))
+
+    expect(peticiones).toEqual([
+      { metodo: 'PATCH', ruta: '/v1/schedules/2', cuerpo: { scheduleComment: 'Llevar escalera\nY rodillos' } },
+    ])
+  })
+
+  it.each([
+    ['vacío', ''],
+    ['solo espacios', '   '],
+    ['solo saltos de línea', '\n \n'],
+  ])('borrar el comentario: con el texto %s envía scheduleComment null', async (_descripcion, texto) => {
+    const arnes = await montar()
+
+    await ejecutar(async () => arnes.current.acciones.setComment(programacion(arnes, 1), texto))
+
+    expect(peticiones).toEqual([{ metodo: 'PATCH', ruta: '/v1/schedules/1', cuerpo: { scheduleComment: null } }])
+    expect(arnes.current.deshacer.stack).toEqual([
+      { label: 'Comment updated', ops: [{ kind: 'patch', id: 1, changes: { scheduleComment: 'Llevar escalera' } }] },
+    ])
+    await waitFor(() => expect(programacion(arnes, 1).scheduleComment).toBeNull())
+  })
+
+  it.each<[string, number, string]>([
+    ['el mismo comentario', 1, 'Llevar escalera'],
+    ['vacío en una programación sin comentario', 2, ''],
+    ['solo espacios en una programación sin comentario', 2, '   '],
+  ])('sin cambios (%s): no envía nada ni apila nada', async (_descripcion, id, texto) => {
+    const arnes = await montar()
+
+    await ejecutar(async () => arnes.current.acciones.setComment(programacion(arnes, id), texto))
+
+    expect(peticiones).toEqual([])
+    expect(arnes.current.deshacer.stack).toEqual([])
+    expect(arnes.current.deshacer.toast).toBeNull()
+  })
+
+  it('escenario "Deshacer un cambio de comentario": de "Llevar escalera" a "Llevar andamio" y deshacer vuelve a "Llevar escalera"', async () => {
+    const arnes = await montar()
+    await ejecutar(async () => arnes.current.acciones.setComment(programacion(arnes, 1), 'Llevar andamio'))
+    await waitFor(() => expect(programacion(arnes, 1).scheduleComment).toBe('Llevar andamio'))
+
+    await deshacer(arnes)
+
+    expect(peticiones).toEqual([
+      { metodo: 'PATCH', ruta: '/v1/schedules/1', cuerpo: { scheduleComment: 'Llevar escalera' } },
+    ])
+    await waitFor(() => expect(programacion(arnes, 1).scheduleComment).toBe('Llevar escalera'))
+    expect(programacion(arnes, 1)).toMatchObject({ date: LUNES, startTime: '07:00', employeesIds: [3, 5] })
+    expect(arnes.current.deshacer.stack).toEqual([])
+  })
+
+  it('deshacer el borrado de un comentario lo vuelve a poner', async () => {
+    const arnes = await montar()
+    await ejecutar(async () => arnes.current.acciones.setComment(programacion(arnes, 1), ''))
+    await waitFor(() => expect(programacion(arnes, 1).scheduleComment).toBeNull())
+
+    await deshacer(arnes)
+
+    await waitFor(() => expect(programacion(arnes, 1).scheduleComment).toBe('Llevar escalera'))
+  })
+
+  it('deshacer un quitar de una programación con comentario la recrea con ese comentario', async () => {
+    const arnes = await montar()
+    await ejecutar(() => arnes.current.acciones.remove(programacion(arnes, 1)))
+    await waitFor(() => expect(programacion(arnes, 1)).toBeUndefined())
+
+    await deshacer(arnes)
+
+    expect(peticiones).toEqual([
+      expect.objectContaining({ metodo: 'POST', cuerpo: expect.objectContaining({ scheduleComment: 'Llevar escalera' }) }),
+    ])
+    await waitFor(() => expect(programacion(arnes, 5)?.scheduleComment).toBe('Llevar escalera'))
+  })
+
+  it('escenario "Duplicar no copia el comentario": la copia no tiene comentario y la original conserva "Llevar escalera"', async () => {
+    const arnes = await montar()
+
+    await ejecutar(() => arnes.current.acciones.duplicate(programacion(arnes, 1), LUNES))
+
+    expect(peticiones).toHaveLength(1)
+    expect(peticiones[0].cuerpo).not.toHaveProperty('scheduleComment')
+    await waitFor(() => expect(programacion(arnes, 5)).toBeDefined())
+    expect(programacion(arnes, 5).scheduleComment).toBeNull()
+    expect(programacion(arnes, 1).scheduleComment).toBe('Llevar escalera')
   })
 })
 
@@ -440,12 +575,12 @@ describe('UndoProvider: undo()', () => {
 
     await deshacer(arnes)
     expect(peticiones).toEqual([
-      { metodo: 'PUT', ruta: '/api/schedules/3/employees', cuerpo: { employee_ids: [8] } },
+      { metodo: 'PUT', ruta: '/v1/schedules/3/employees', cuerpo: { employeesIds: [8] } },
     ])
 
     await deshacer(arnes)
     expect(peticiones).toEqual([
-      { metodo: 'PATCH', ruta: '/api/schedules/4', cuerpo: { date: JUEVES, start_time: '09:30' } },
+      { metodo: 'PATCH', ruta: '/v1/schedules/4', cuerpo: { date: JUEVES, startTime: '09:30' } },
     ])
     expect(arnes.current.deshacer.stack).toEqual([])
   })
@@ -456,10 +591,10 @@ describe('UndoProvider: undo()', () => {
     await ejecutar(() => arnes.current.acciones.move(programacion(arnes, 4), SABADO))
     // 2) Cambiar la hora a 10:30 (inversa: PATCH de la programación 1).
     await ejecutar(() => arnes.current.acciones.setStartTime(programacion(arnes, 1), '10:30'))
-    await waitFor(() => expect(programacion(arnes, 1).start_time).toBe('10:30'))
+    await waitFor(() => expect(programacion(arnes, 1).startTime).toBe('10:30'))
     // 3) Quitar a Ana de la programación 1 (inversa: PUT de la programación 1).
     await ejecutar(() => arnes.current.acciones.setEmployees(programacion(arnes, 1), [5]))
-    await waitFor(() => expect(programacion(arnes, 1).employee_ids).toEqual([5]))
+    await waitFor(() => expect(programacion(arnes, 1).employeesIds).toEqual([5]))
     // 4) Quitar la programación 1.
     await ejecutar(() => arnes.current.acciones.remove(programacion(arnes, 1)))
 
@@ -467,30 +602,34 @@ describe('UndoProvider: undo()', () => {
     await deshacer(arnes)
 
     expect(peticiones).toEqual([
-      { metodo: 'POST', ruta: '/api/schedules', cuerpo: { job_id: 7, date: LUNES, start_time: '10:30', employee_ids: [5] } },
+      {
+        metodo: 'POST',
+        ruta: '/v1/schedules',
+        cuerpo: { jobsId: 7, date: LUNES, startTime: '10:30', employeesIds: [5], scheduleComment: 'Llevar escalera' },
+      },
     ])
     expect(arnes.current.deshacer.stack).toEqual([
-      { label: 'Job moved', ops: [{ kind: 'patch', id: 4, changes: { date: JUEVES, start_time: '09:30' } }] },
-      { label: 'Start time changed', ops: [{ kind: 'patch', id: 5, changes: { date: LUNES, start_time: '07:00' } }] },
-      { label: 'Employees updated', ops: [{ kind: 'put', id: 5, employee_ids: [3, 5] }] },
+      { label: 'Job moved', ops: [{ kind: 'patch', id: 4, changes: { date: JUEVES, startTime: '09:30' } }] },
+      { label: 'Start time changed', ops: [{ kind: 'patch', id: 5, changes: { date: LUNES, startTime: '07:00' } }] },
+      { label: 'Employees updated', ops: [{ kind: 'put', id: 5, employeesIds: [3, 5] }] },
     ])
 
     // Las inversas siguientes van ya a la programación nueva.
     await waitFor(() => expect(programacion(arnes, 5)).toBeDefined())
     await deshacer(arnes)
     expect(peticiones).toEqual([
-      { metodo: 'PUT', ruta: '/api/schedules/5/employees', cuerpo: { employee_ids: [3, 5] } },
+      { metodo: 'PUT', ruta: '/v1/schedules/5/employees', cuerpo: { employeesIds: [3, 5] } },
     ])
     await deshacer(arnes)
     expect(peticiones).toEqual([
-      { metodo: 'PATCH', ruta: '/api/schedules/5', cuerpo: { date: LUNES, start_time: '07:00' } },
+      { metodo: 'PATCH', ruta: '/v1/schedules/5', cuerpo: { date: LUNES, startTime: '07:00' } },
     ])
     await waitFor(() =>
-      expect(programacion(arnes, 5)).toMatchObject({ date: LUNES, start_time: '07:00', employee_ids: [3, 5] }),
+      expect(programacion(arnes, 5)).toMatchObject({ date: LUNES, startTime: '07:00', employeesIds: [3, 5] }),
     )
     await deshacer(arnes)
     expect(peticiones).toEqual([
-      { metodo: 'PATCH', ruta: '/api/schedules/4', cuerpo: { date: JUEVES, start_time: '09:30' } },
+      { metodo: 'PATCH', ruta: '/v1/schedules/4', cuerpo: { date: JUEVES, startTime: '09:30' } },
     ])
     expect(arnes.current.deshacer.stack).toEqual([])
   })
@@ -499,7 +638,7 @@ describe('UndoProvider: undo()', () => {
     const arnes = await montar()
     await ejecutar(() => arnes.current.acciones.move(programacion(arnes, 1), JUEVES))
     const entrada = arnes.current.deshacer.stack[0]
-    server.use(http.patch('/api/schedules/:id', error500, { once: true }))
+    server.use(http.patch('/v1/schedules/:id', error500, { once: true }))
 
     await deshacer(arnes)
 
@@ -510,7 +649,7 @@ describe('UndoProvider: undo()', () => {
     await deshacer(arnes)
 
     expect(peticiones).toEqual([
-      { metodo: 'PATCH', ruta: '/api/schedules/1', cuerpo: { date: LUNES, start_time: '07:00' } },
+      { metodo: 'PATCH', ruta: '/v1/schedules/1', cuerpo: { date: LUNES, startTime: '07:00' } },
     ])
     expect(arnes.current.deshacer.stack).toEqual([])
     await waitFor(() => expect(programacion(arnes, 1).date).toBe(LUNES))
@@ -519,10 +658,10 @@ describe('UndoProvider: undo()', () => {
   it('si falla la inversa de un quitar, la entrada vuelve a la pila sin reasignar ids', async () => {
     const arnes = await montar()
     await ejecutar(() => arnes.current.acciones.setStartTime(programacion(arnes, 1), '10:30'))
-    await waitFor(() => expect(programacion(arnes, 1).start_time).toBe('10:30'))
+    await waitFor(() => expect(programacion(arnes, 1).startTime).toBe('10:30'))
     await ejecutar(() => arnes.current.acciones.remove(programacion(arnes, 1)))
     const pila = arnes.current.deshacer.stack
-    server.use(http.post('/api/schedules', error500, { once: true }))
+    server.use(http.post('/v1/schedules', error500, { once: true }))
 
     await deshacer(arnes)
 
@@ -541,12 +680,12 @@ describe('empleados inactivos', () => {
     expect(peticiones).toEqual([
       {
         metodo: 'POST',
-        ruta: '/api/schedules',
-        cuerpo: { job_id: 14, date: JUEVES, start_time: '07:00', employee_ids: [3] },
+        ruta: '/v1/schedules',
+        cuerpo: { jobsId: 14, date: JUEVES, startTime: '07:00', employeesIds: [3] },
       },
     ])
     expect(arnes.current.deshacer.stack).toEqual([{ label: 'Job duplicated', ops: [{ kind: 'delete', id: 11 }] }])
-    await waitFor(() => expect(programacion(arnes, 11).employee_ids).toEqual([3]))
+    await waitFor(() => expect(programacion(arnes, 11).employeesIds).toEqual([3]))
   })
 
   it('escenario "Deshacer un quitar con un empleado inactivo": vuelve con Ana y sin Raúl', async () => {
@@ -554,20 +693,20 @@ describe('empleados inactivos', () => {
     const arnes = await montar()
     await ejecutar(() => arnes.current.acciones.remove(programacion(arnes, 10)))
     // La inversa guarda los empleados tal como estaban; el filtrado se hace al ejecutarla.
-    expect(arnes.current.deshacer.stack[0].ops[0]).toMatchObject({ kind: 'create', employee_ids: [3, RAUL] })
+    expect(arnes.current.deshacer.stack[0].ops[0]).toMatchObject({ kind: 'create', employeesIds: [3, RAUL] })
 
     await deshacer(arnes)
 
     expect(peticiones).toEqual([
       {
         metodo: 'POST',
-        ruta: '/api/schedules',
-        cuerpo: { job_id: 14, date: MIERCOLES, start_time: '07:00', employee_ids: [3] },
+        ruta: '/v1/schedules',
+        cuerpo: { jobsId: 14, date: MIERCOLES, startTime: '07:00', employeesIds: [3], scheduleComment: null },
       },
     ])
     expect(arnes.current.deshacer.toast).toBeNull()
     await waitFor(() =>
-      expect(programacion(arnes, 11)).toMatchObject({ date: MIERCOLES, start_time: '07:00', employee_ids: [3] }),
+      expect(programacion(arnes, 11)).toMatchObject({ date: MIERCOLES, startTime: '07:00', employeesIds: [3] }),
     )
   })
 
@@ -576,15 +715,15 @@ describe('empleados inactivos', () => {
     const arnes = await montar()
     // Se retira a Raúl: la inversa guarda [3, 9].
     await ejecutar(() => arnes.current.acciones.setEmployees(programacion(arnes, 10), [3]))
-    await waitFor(() => expect(programacion(arnes, 10).employee_ids).toEqual([3]))
+    await waitFor(() => expect(programacion(arnes, 10).employeesIds).toEqual([3]))
 
     await deshacer(arnes)
 
     expect(peticiones).toEqual([
-      { metodo: 'PUT', ruta: '/api/schedules/10/employees', cuerpo: { employee_ids: [3] } },
+      { metodo: 'PUT', ruta: '/v1/schedules/10/employees', cuerpo: { employeesIds: [3] } },
     ])
     expect(arnes.current.deshacer.toast).toBeNull()
-    await waitFor(() => expect(programacion(arnes, 10).employee_ids).toEqual([3]))
+    await waitFor(() => expect(programacion(arnes, 10).employeesIds).toEqual([3]))
   })
 
   it('la inversa PUT mantiene a un inactivo que sigue asignado', async () => {
@@ -592,13 +731,13 @@ describe('empleados inactivos', () => {
     const arnes = await montar()
     // Se retira a Ana; Raúl sigue en la programación. La inversa guarda [3, 9].
     await ejecutar(() => arnes.current.acciones.setEmployees(programacion(arnes, 10), [RAUL]))
-    await waitFor(() => expect(programacion(arnes, 10).employee_ids).toEqual([RAUL]))
+    await waitFor(() => expect(programacion(arnes, 10).employeesIds).toEqual([RAUL]))
 
     await deshacer(arnes)
 
     expect(peticiones).toEqual([
-      { metodo: 'PUT', ruta: '/api/schedules/10/employees', cuerpo: { employee_ids: [3, RAUL] } },
+      { metodo: 'PUT', ruta: '/v1/schedules/10/employees', cuerpo: { employeesIds: [3, RAUL] } },
     ])
-    await waitFor(() => expect(programacion(arnes, 10).employee_ids).toEqual([3, RAUL]))
+    await waitFor(() => expect(programacion(arnes, 10).employeesIds).toEqual([3, RAUL]))
   })
 })

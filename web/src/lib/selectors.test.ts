@@ -4,13 +4,14 @@
 // de `specs/weekly-schedule-board/spec.md`, e "Indicador de carga al arrastrar" de
 // `specs/employee-assignment/spec.md`.
 import { describe, expect, it } from 'vitest'
+import { trabajo } from '../test/fabricas'
 import type { Job, Schedule } from '../api/types'
 import { getWeekDays } from './dates'
 import { compareSchedules, employeeDayCounts, jobWeekCounts, schedulesByDay } from './selectors'
 
-const PINTAR_OFICINA: Job = { id: 7, number: 'J-1024', name: 'Pintar oficina' }
-const JARDIN_PEREZ: Job = { id: 14, number: 'J-1031', name: 'Jardín Pérez' }
-const MUDANZA_LOPEZ: Job = { id: 23, number: 'J-1040', name: 'Mudanza López' }
+const PINTAR_OFICINA: Job = trabajo(7, 'J-1024', 'Pintar oficina')
+const JARDIN_PEREZ: Job = trabajo(14, 'J-1031', 'Jardín Pérez')
+const MUDANZA_LOPEZ: Job = trabajo(23, 'J-1040', 'Mudanza López')
 
 /** Semana del domingo 2026-11-01 al sábado 2026-11-07. */
 const DIAS = getWeekDays('2026-11-01')
@@ -24,15 +25,15 @@ const LUIS = 5
 function programacion(
   id: number,
   date: string,
-  start_time: string,
+  startTime: string,
   job: Job = PINTAR_OFICINA,
-  employee_ids: number[] = [],
+  employeesIds: number[] = [],
 ): Schedule {
-  return { id, job, date, start_time, employee_ids }
+  return { jobSchedulesId: id, job, date, startTime, employeesIds, scheduleComment: null }
 }
 
-const horas = (programaciones: Schedule[]) => programaciones.map((item) => item.start_time)
-const ids = (programaciones: Schedule[]) => programaciones.map((item) => item.id)
+const horas = (programaciones: Schedule[]) => programaciones.map((item) => item.startTime)
+const ids = (programaciones: Schedule[]) => programaciones.map((item) => item.jobSchedulesId)
 
 describe('schedulesByDay', () => {
   it('ordena el lunes con 09:00, 07:00 y 08:00 como 07:00, 08:00, 09:00', () => {
@@ -120,14 +121,14 @@ describe('jobWeekCounts', () => {
 
     const contadores = jobWeekCounts(programaciones)
 
-    expect(contadores.get(PINTAR_OFICINA.id)).toBe(2)
-    expect(contadores.get(JARDIN_PEREZ.id)).toBe(1)
+    expect(contadores.get(PINTAR_OFICINA.jobsId)).toBe(2)
+    expect(contadores.get(JARDIN_PEREZ.jobsId)).toBe(1)
   })
 
   it('un trabajo sin programar no aparece', () => {
     const contadores = jobWeekCounts([programacion(1, LUNES, '07:00', PINTAR_OFICINA)])
 
-    expect(contadores.has(MUDANZA_LOPEZ.id)).toBe(false)
+    expect(contadores.has(MUDANZA_LOPEZ.jobsId)).toBe(false)
   })
 
   it('sin programaciones devuelve un mapa vacío', () => {

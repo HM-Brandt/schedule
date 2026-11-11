@@ -14,25 +14,27 @@ describe('createSeed', () => {
     const { employees } = createSeed(HOY)
 
     expect(employees).toHaveLength(10)
-    expect(new Set(employees.map((empleado) => empleado.id)).size).toBe(10)
+    expect(new Set(employees.map((empleado) => empleado.employeesId)).size).toBe(10)
   })
 
-  it('tiene exactamente 2 empleados inactivos y el resto activos', () => {
+  it('tiene exactamente 2 empleados Terminated (el 9 y el 10) y el resto Active', () => {
     const { employees } = createSeed(HOY)
 
-    expect(employees.filter((empleado) => empleado.status === 'inactivo')).toHaveLength(2)
-    expect(employees.filter((empleado) => empleado.status === 'activo')).toHaveLength(8)
+    const inactivos = employees.filter((empleado) => empleado.status === 'Terminated')
+    expect(inactivos).toHaveLength(2)
+    expect(inactivos.map((empleado) => empleado.employeesId).sort((a, b) => a - b)).toEqual([9, 10])
+    expect(employees.filter((empleado) => empleado.status === 'Active')).toHaveLength(8)
   })
 
-  it('los empleados tienen la forma {id, first_name, last_name, title, status}', () => {
+  it('los empleados tienen la forma {employeesId, legalName, employeeNumber, firstName, lastName, status, title, user}', () => {
     const { employees } = createSeed(HOY)
 
     for (const empleado of employees) {
       expect(Object.keys(empleado).sort()).toEqual(
-        ['first_name', 'id', 'last_name', 'status', 'title'].sort(),
+        ['employeesId', 'legalName', 'employeeNumber', 'firstName', 'lastName', 'status', 'title', 'user'].sort(),
       )
-      expect(empleado.first_name).not.toBe('')
-      expect(empleado.last_name).not.toBe('')
+      expect(empleado.firstName).not.toBe('')
+      expect(empleado.lastName).not.toBe('')
     }
   })
 
@@ -41,17 +43,35 @@ describe('createSeed', () => {
 
     expect(jobs.length).toBeGreaterThanOrEqual(25)
     expect(jobs.length).toBeLessThanOrEqual(35)
-    expect(new Set(jobs.map((trabajo) => trabajo.id)).size).toBe(jobs.length)
+    expect(new Set(jobs.map((trabajo) => trabajo.jobsId)).size).toBe(jobs.length)
     expect(new Set(jobs.map((trabajo) => trabajo.number)).size).toBe(jobs.length)
   })
 
-  it('incluye el trabajo 7 "J-1024 Pintar oficina" del spec', () => {
+  it('los trabajos tienen la forma {jobsId, number, type, name, address, contractor, contact, status, user}', () => {
     const { jobs } = createSeed(HOY)
 
-    expect(jobs.find((trabajo) => trabajo.id === 7)).toEqual({
-      id: 7,
+    for (const trabajo of jobs) {
+      expect(Object.keys(trabajo).sort()).toEqual(
+        ['jobsId', 'number', 'type', 'name', 'address', 'contractor', 'contact', 'status', 'user'].sort(),
+      )
+    }
+  })
+
+  it('tiene al menos un trabajo con status "Done" y el resto "Open"', () => {
+    const { jobs } = createSeed(HOY)
+
+    expect(jobs.filter((trabajo) => trabajo.status === 'Done').length).toBeGreaterThanOrEqual(1)
+    expect(jobs.every((trabajo) => trabajo.status === 'Done' || trabajo.status === 'Open')).toBe(true)
+  })
+
+  it('incluye el trabajo 7 "J-1024 Pintar oficina" del spec, abierto', () => {
+    const { jobs } = createSeed(HOY)
+
+    expect(jobs.find((trabajo) => trabajo.jobsId === 7)).toMatchObject({
+      jobsId: 7,
       number: 'J-1024',
       name: 'Pintar oficina',
+      status: 'Open',
     })
   })
 
@@ -84,16 +104,16 @@ describe('createSeed', () => {
   it('las programaciones tienen ids distintos, hora HH:mm y un trabajo del catálogo', () => {
     const { jobs, schedules } = createSeed(HOY)
 
-    expect(new Set(schedules.map((programacion) => programacion.id)).size).toBe(schedules.length)
+    expect(new Set(schedules.map((programacion) => programacion.jobSchedulesId)).size).toBe(schedules.length)
     for (const programacion of schedules) {
-      expect(programacion.start_time).toMatch(/^([01]\d|2[0-3]):[0-5]\d$/)
+      expect(programacion.startTime).toMatch(/^([01]\d|2[0-3]):[0-5]\d$/)
       expect(jobs).toContainEqual(programacion.job)
     }
   })
 
   it('hay un trabajo repetido el mismo día', () => {
     const { schedules } = createSeed(HOY)
-    const claves = schedules.map((programacion) => `${programacion.job.id}|${programacion.date}`)
+    const claves = schedules.map((programacion) => `${programacion.job.jobsId}|${programacion.date}`)
 
     expect(new Set(claves).size).toBeLessThan(claves.length)
   })
@@ -102,7 +122,7 @@ describe('createSeed', () => {
     const { schedules } = createSeed(HOY)
     const cuenta = new Map<string, number>()
     for (const programacion of schedules) {
-      for (const id of programacion.employee_ids) {
+      for (const id of programacion.employeesIds) {
         const clave = `${id}|${programacion.date}`
         cuenta.set(clave, (cuenta.get(clave) ?? 0) + 1)
       }
@@ -111,13 +131,13 @@ describe('createSeed', () => {
     expect(Math.max(0, ...cuenta.values())).toBeGreaterThanOrEqual(2)
   })
 
-  it('los employee_ids de las programaciones existen y no se repiten', () => {
+  it('los employeesIds de las programaciones existen y no se repiten', () => {
     const { employees, schedules } = createSeed(HOY)
-    const ids = new Set(employees.map((empleado) => empleado.id))
+    const ids = new Set(employees.map((empleado) => empleado.employeesId))
 
     for (const programacion of schedules) {
-      expect(new Set(programacion.employee_ids).size).toBe(programacion.employee_ids.length)
-      for (const id of programacion.employee_ids) {
+      expect(new Set(programacion.employeesIds).size).toBe(programacion.employeesIds.length)
+      for (const id of programacion.employeesIds) {
         expect(ids.has(id)).toBe(true)
       }
     }

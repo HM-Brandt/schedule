@@ -64,7 +64,7 @@ function envoltorio({ children }: { children: ReactNode }) {
 
 const semana = (clave: readonly unknown[]) => client.getQueryData<Schedule[]>(clave)
 
-const ids = (clave: readonly unknown[]) => semana(clave)?.map((item) => item.id)
+const ids = (clave: readonly unknown[]) => semana(clave)?.map((item) => item.jobSchedulesId)
 
 /** Copia de las dos semanas cacheadas, para comparar tras revertir. */
 function estadoCache() {
@@ -98,18 +98,18 @@ const MENSAJE_ESPERADO = `Couldn't save the change. ${MENSAJE_500}`
 
 describe('useCreateSchedule', () => {
   it('muestra la programación con id temporal antes de la respuesta y luego la sustituye por la real', async () => {
-    const liberar = pausar('post', '/api/schedules')
+    const liberar = pausar('post', '/v1/schedules')
     const trabajo = semilla.jobs[13]
     const { result } = renderHook(() => useCreateSchedule(), { wrapper: envoltorio })
 
     act(() => {
-      result.current.mutate({ job: trabajo, date: '2026-11-05', start_time: '07:00', employee_ids: [1] })
+      result.current.mutate({ job: trabajo, date: '2026-11-05', startTime: '07:00', employeesIds: [1] })
     })
 
     await waitFor(() => expect(semana(SEMANA_1)).toHaveLength(5))
-    const temporal = semana(SEMANA_1)?.find((item) => item.job.id === trabajo.id)
-    expect(temporal?.id).toBeLessThan(0)
-    expect(temporal).toMatchObject({ job: trabajo, date: '2026-11-05', start_time: '07:00', employee_ids: [1] })
+    const temporal = semana(SEMANA_1)?.find((item) => item.job.jobsId === trabajo.jobsId)
+    expect(temporal?.jobSchedulesId).toBeLessThan(0)
+    expect(temporal).toMatchObject({ job: trabajo, date: '2026-11-05', startTime: '07:00', employeesIds: [1] })
     expect(semana(SEMANA_2)).toEqual([])
     expect(result.current.isPending).toBe(true)
 
@@ -119,34 +119,66 @@ describe('useCreateSchedule', () => {
     expect(ids(SEMANA_1)?.every((id) => id > 0)).toBe(true)
     expect(semana(SEMANA_1)).toHaveLength(5)
     expect(semana(SEMANA_1)).toContainEqual({
-      id: 5,
+      jobSchedulesId: 5,
       job: trabajo,
       date: '2026-11-05',
-      start_time: '07:00',
-      employee_ids: [1],
+      startTime: '07:00',
+      employeesIds: [1],
+      scheduleComment: null,
     })
     expect(onMutationError).not.toHaveBeenCalled()
   })
 
-  it('sin employee_ids la programación optimista tiene la lista vacía', async () => {
-    const liberar = pausar('post', '/api/schedules')
+  it('sin employeesIds la programación optimista tiene la lista vacía', async () => {
+    const liberar = pausar('post', '/v1/schedules')
     const { result } = renderHook(() => useCreateSchedule(), { wrapper: envoltorio })
 
     act(() => {
-      result.current.mutate({ job: semilla.jobs[0], date: '2026-11-06', start_time: '07:00' })
+      result.current.mutate({ job: semilla.jobs[0], date: '2026-11-06', startTime: '07:00' })
     })
 
     await waitFor(() => expect(semana(SEMANA_1)).toHaveLength(5))
-    expect(semana(SEMANA_1)?.find((item) => item.id < 0)?.employee_ids).toEqual([])
+    expect(semana(SEMANA_1)?.find((item) => item.jobSchedulesId < 0)?.employeesIds).toEqual([])
     liberar()
     await waitFor(() => expect(result.current.isSuccess).toBe(true))
+  })
+
+  it('sin scheduleComment la programación optimista y la real tienen scheduleComment null', async () => {
+    const liberar = pausar('post', '/v1/schedules')
+    const { result } = renderHook(() => useCreateSchedule(), { wrapper: envoltorio })
+
+    act(() => {
+      result.current.mutate({ job: semilla.jobs[0], date: '2026-11-06', startTime: '07:00' })
+    })
+
+    await waitFor(() => expect(semana(SEMANA_1)).toHaveLength(5))
+    expect(semana(SEMANA_1)?.find((item) => item.jobSchedulesId < 0)?.scheduleComment).toBeNull()
+    liberar()
+    await waitFor(() => expect(result.current.isSuccess).toBe(true))
+    expect(semana(SEMANA_1)?.find((item) => item.jobSchedulesId === 5)?.scheduleComment).toBeNull()
+  })
+
+  it('con scheduleComment la programación optimista lo muestra y el servidor lo guarda', async () => {
+    const liberar = pausar('post', '/v1/schedules')
+    const { result } = renderHook(() => useCreateSchedule(), { wrapper: envoltorio })
+
+    act(() => {
+      result.current.mutate({ job: semilla.jobs[0], date: '2026-11-06', startTime: '07:00', scheduleComment: 'Llevar escalera' })
+    })
+
+    await waitFor(() => expect(semana(SEMANA_1)).toHaveLength(5))
+    expect(semana(SEMANA_1)?.find((item) => item.jobSchedulesId < 0)?.scheduleComment).toBe('Llevar escalera')
+    liberar()
+    await waitFor(() => expect(result.current.isSuccess).toBe(true))
+    expect(result.current.data?.scheduleComment).toBe('Llevar escalera')
+    expect(semana(SEMANA_1)?.find((item) => item.jobSchedulesId === 5)?.scheduleComment).toBe('Llevar escalera')
   })
 
   it('pone la programación en la semana cacheada que contiene su fecha', async () => {
     const { result } = renderHook(() => useCreateSchedule(), { wrapper: envoltorio })
 
     act(() => {
-      result.current.mutate({ job: semilla.jobs[0], date: '2026-11-12', start_time: '07:00' })
+      result.current.mutate({ job: semilla.jobs[0], date: '2026-11-12', startTime: '07:00' })
     })
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true))
@@ -156,11 +188,11 @@ describe('useCreateSchedule', () => {
 
   it('ante un 500 la caché vuelve al estado anterior y se emite el mensaje de error', async () => {
     const antes = estadoCache()
-    const liberar = pausar('post', '/api/schedules', error500)
+    const liberar = pausar('post', '/v1/schedules', error500)
     const { result } = renderHook(() => useCreateSchedule(), { wrapper: envoltorio })
 
     act(() => {
-      result.current.mutate({ job: semilla.jobs[13], date: '2026-11-05', start_time: '07:00' })
+      result.current.mutate({ job: semilla.jobs[13], date: '2026-11-05', startTime: '07:00' })
     })
 
     await waitFor(() => expect(semana(SEMANA_1)).toHaveLength(5))
@@ -176,7 +208,7 @@ describe('useCreateSchedule', () => {
     const { result } = renderHook(() => useCreateSchedule(), { wrapper: envoltorio })
 
     act(() => {
-      result.current.mutate({ job: semilla.jobs[0], date: '2026-11-05', start_time: '07:00' })
+      result.current.mutate({ job: semilla.jobs[0], date: '2026-11-05', startTime: '07:00' })
     })
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true))
@@ -187,17 +219,17 @@ describe('useCreateSchedule', () => {
 
 describe('useUpdateSchedule', () => {
   it('mueve la programación de día antes de la respuesta y conserva sus empleados', async () => {
-    const liberar = pausar('patch', '/api/schedules/:id')
+    const liberar = pausar('patch', '/v1/schedules/:id')
     const { result } = renderHook(() => useUpdateSchedule(), { wrapper: envoltorio })
 
     act(() => {
       result.current.mutate({ id: 1, changes: { date: '2026-11-05' } })
     })
 
-    await waitFor(() => expect(semana(SEMANA_1)?.find((item) => item.id === 1)?.date).toBe('2026-11-05'))
-    expect(semana(SEMANA_1)?.find((item) => item.id === 1)).toMatchObject({
-      start_time: '07:00',
-      employee_ids: [3, 5],
+    await waitFor(() => expect(semana(SEMANA_1)?.find((item) => item.jobSchedulesId === 1)?.date).toBe('2026-11-05'))
+    expect(semana(SEMANA_1)?.find((item) => item.jobSchedulesId === 1)).toMatchObject({
+      startTime: '07:00',
+      employeesIds: [3, 5],
     })
     expect(semana(SEMANA_1)).toHaveLength(4)
     expect(result.current.isPending).toBe(true)
@@ -205,34 +237,73 @@ describe('useUpdateSchedule', () => {
     liberar()
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true))
-    expect(semana(SEMANA_1)?.find((item) => item.id === 1)?.date).toBe('2026-11-05')
+    expect(semana(SEMANA_1)?.find((item) => item.jobSchedulesId === 1)?.date).toBe('2026-11-05')
     expect(onMutationError).not.toHaveBeenCalled()
   })
 
   it('cambia la hora de inicio antes de la respuesta', async () => {
-    const liberar = pausar('patch', '/api/schedules/:id')
+    const liberar = pausar('patch', '/v1/schedules/:id')
     const { result } = renderHook(() => useUpdateSchedule(), { wrapper: envoltorio })
 
     act(() => {
-      result.current.mutate({ id: 2, changes: { start_time: '10:30' } })
+      result.current.mutate({ id: 2, changes: { startTime: '10:30' } })
     })
 
-    await waitFor(() => expect(semana(SEMANA_1)?.find((item) => item.id === 2)?.start_time).toBe('10:30'))
+    await waitFor(() => expect(semana(SEMANA_1)?.find((item) => item.jobSchedulesId === 2)?.startTime).toBe('10:30'))
     liberar()
     await waitFor(() => expect(result.current.isSuccess).toBe(true))
   })
 
-  it('mover a una fecha de otra semana cacheada la quita de una y la pone en la otra', async () => {
-    const liberar = pausar('patch', '/api/schedules/:id')
+  it('cambia el comentario antes de la respuesta y conserva la fecha, la hora y los empleados', async () => {
+    const liberar = pausar('patch', '/v1/schedules/:id')
     const { result } = renderHook(() => useUpdateSchedule(), { wrapper: envoltorio })
 
     act(() => {
-      result.current.mutate({ id: 1, changes: { date: '2026-11-10', start_time: '08:00' } })
+      result.current.mutate({ id: 1, changes: { scheduleComment: 'Llevar andamio' } })
+    })
+
+    await waitFor(() =>
+      expect(semana(SEMANA_1)?.find((item) => item.jobSchedulesId === 1)?.scheduleComment).toBe('Llevar andamio'),
+    )
+    expect(semana(SEMANA_1)?.find((item) => item.jobSchedulesId === 1)).toMatchObject({
+      date: '2026-11-02',
+      startTime: '07:00',
+      employeesIds: [3, 5],
+    })
+    liberar()
+    await waitFor(() => expect(result.current.isSuccess).toBe(true))
+    expect(result.current.data?.scheduleComment).toBe('Llevar andamio')
+  })
+
+  it('ante un 500 al cambiar el comentario vuelve el comentario anterior y se emite el mensaje de error', async () => {
+    const antes = estadoCache()
+    const liberar = pausar('patch', '/v1/schedules/:id', error500)
+    const { result } = renderHook(() => useUpdateSchedule(), { wrapper: envoltorio })
+
+    act(() => {
+      result.current.mutate({ id: 1, changes: { scheduleComment: null } })
+    })
+
+    await waitFor(() => expect(semana(SEMANA_1)?.find((item) => item.jobSchedulesId === 1)?.scheduleComment).toBeNull())
+    liberar()
+
+    await waitFor(() => expect(result.current.isError).toBe(true))
+    expect(semana(SEMANA_1)?.find((item) => item.jobSchedulesId === 1)?.scheduleComment).toBe('Llevar escalera')
+    expect(estadoCache()).toEqual(antes)
+    expect(onMutationError).toHaveBeenCalledWith(MENSAJE_ESPERADO)
+  })
+
+  it('mover a una fecha de otra semana cacheada la quita de una y la pone en la otra', async () => {
+    const liberar = pausar('patch', '/v1/schedules/:id')
+    const { result } = renderHook(() => useUpdateSchedule(), { wrapper: envoltorio })
+
+    act(() => {
+      result.current.mutate({ id: 1, changes: { date: '2026-11-10', startTime: '08:00' } })
     })
 
     await waitFor(() => expect(ids(SEMANA_2)).toEqual([1]))
     expect(ids(SEMANA_1)).toEqual([2, 3, 4])
-    expect(semana(SEMANA_2)?.[0]).toMatchObject({ date: '2026-11-10', start_time: '08:00', employee_ids: [3, 5] })
+    expect(semana(SEMANA_2)?.[0]).toMatchObject({ date: '2026-11-10', startTime: '08:00', employeesIds: [3, 5] })
 
     liberar()
 
@@ -243,18 +314,18 @@ describe('useUpdateSchedule', () => {
 
   it('fallo al mover: ante un 500 vuelve a su día original y se emite el mensaje de error', async () => {
     const antes = estadoCache()
-    const liberar = pausar('patch', '/api/schedules/:id', error500)
+    const liberar = pausar('patch', '/v1/schedules/:id', error500)
     const { result } = renderHook(() => useUpdateSchedule(), { wrapper: envoltorio })
 
     act(() => {
       result.current.mutate({ id: 1, changes: { date: '2026-11-05' } })
     })
 
-    await waitFor(() => expect(semana(SEMANA_1)?.find((item) => item.id === 1)?.date).toBe('2026-11-05'))
+    await waitFor(() => expect(semana(SEMANA_1)?.find((item) => item.jobSchedulesId === 1)?.date).toBe('2026-11-05'))
     liberar()
 
     await waitFor(() => expect(result.current.isError).toBe(true))
-    expect(semana(SEMANA_1)?.find((item) => item.id === 1)?.date).toBe('2026-11-02')
+    expect(semana(SEMANA_1)?.find((item) => item.jobSchedulesId === 1)?.date).toBe('2026-11-02')
     expect(estadoCache()).toEqual(antes)
     expect(onMutationError).toHaveBeenCalledTimes(1)
     expect(onMutationError).toHaveBeenCalledWith(MENSAJE_ESPERADO)
@@ -262,7 +333,7 @@ describe('useUpdateSchedule', () => {
 
   it('ante un 500 al mover a otra semana, las dos semanas vuelven al estado anterior', async () => {
     const antes = estadoCache()
-    const liberar = pausar('patch', '/api/schedules/:id', error500)
+    const liberar = pausar('patch', '/v1/schedules/:id', error500)
     const { result } = renderHook(() => useUpdateSchedule(), { wrapper: envoltorio })
 
     act(() => {
@@ -280,7 +351,7 @@ describe('useUpdateSchedule', () => {
   it('con una semana visible montada, tras guardar vuelve a pedirla al servidor', async () => {
     const pedidas: string[] = []
     server.use(
-      http.get('/api/schedules', ({ request }) => {
+      http.get('/v1/schedules', ({ request }) => {
         pedidas.push(new URL(request.url).search)
       }),
     )
@@ -298,13 +369,13 @@ describe('useUpdateSchedule', () => {
     await waitFor(() => expect(result.current.mover.isSuccess).toBe(true))
     await waitFor(() => expect(pedidas.length).toBeGreaterThan(peticionesPrevias))
     await waitFor(() => expect(result.current.semanaVisible.isFetching).toBe(false))
-    expect(result.current.semanaVisible.data?.find((item) => item.id === 1)?.date).toBe('2026-11-05')
+    expect(result.current.semanaVisible.data?.find((item) => item.jobSchedulesId === 1)?.date).toBe('2026-11-05')
   })
 })
 
 describe('useDeleteSchedule', () => {
   it('quita la programación antes de la respuesta', async () => {
-    const liberar = pausar('delete', '/api/schedules/:id')
+    const liberar = pausar('delete', '/v1/schedules/:id')
     const { result } = renderHook(() => useDeleteSchedule(), { wrapper: envoltorio })
 
     act(() => {
@@ -323,7 +394,7 @@ describe('useDeleteSchedule', () => {
 
   it('ante un 500 la programación vuelve y se emite el mensaje de error', async () => {
     const antes = estadoCache()
-    const liberar = pausar('delete', '/api/schedules/:id', error500)
+    const liberar = pausar('delete', '/v1/schedules/:id', error500)
     const { result } = renderHook(() => useDeleteSchedule(), { wrapper: envoltorio })
 
     act(() => {
@@ -342,38 +413,38 @@ describe('useDeleteSchedule', () => {
 
 describe('useReplaceEmployees', () => {
   it('reemplaza los empleados antes de la respuesta', async () => {
-    const liberar = pausar('put', '/api/schedules/:id/employees')
+    const liberar = pausar('put', '/v1/schedules/:id/employees')
     const { result } = renderHook(() => useReplaceEmployees(), { wrapper: envoltorio })
 
     act(() => {
-      result.current.mutate({ id: 3, employee_ids: [1, 2] })
+      result.current.mutate({ id: 3, employeesIds: [1, 2] })
     })
 
-    await waitFor(() => expect(semana(SEMANA_1)?.find((item) => item.id === 3)?.employee_ids).toEqual([1, 2]))
-    expect(semana(SEMANA_1)?.find((item) => item.id === 3)).toMatchObject({ date: '2026-11-03', start_time: '07:00' })
+    await waitFor(() => expect(semana(SEMANA_1)?.find((item) => item.jobSchedulesId === 3)?.employeesIds).toEqual([1, 2]))
+    expect(semana(SEMANA_1)?.find((item) => item.jobSchedulesId === 3)).toMatchObject({ date: '2026-11-03', startTime: '07:00' })
     expect(result.current.isPending).toBe(true)
 
     liberar()
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true))
-    expect(semana(SEMANA_1)?.find((item) => item.id === 3)?.employee_ids).toEqual([1, 2])
+    expect(semana(SEMANA_1)?.find((item) => item.jobSchedulesId === 3)?.employeesIds).toEqual([1, 2])
     expect(onMutationError).not.toHaveBeenCalled()
   })
 
   it('ante un 500 los empleados vuelven a los anteriores y se emite el mensaje de error', async () => {
     const antes = estadoCache()
-    const liberar = pausar('put', '/api/schedules/:id/employees', error500)
+    const liberar = pausar('put', '/v1/schedules/:id/employees', error500)
     const { result } = renderHook(() => useReplaceEmployees(), { wrapper: envoltorio })
 
     act(() => {
-      result.current.mutate({ id: 1, employee_ids: [] })
+      result.current.mutate({ id: 1, employeesIds: [] })
     })
 
-    await waitFor(() => expect(semana(SEMANA_1)?.find((item) => item.id === 1)?.employee_ids).toEqual([]))
+    await waitFor(() => expect(semana(SEMANA_1)?.find((item) => item.jobSchedulesId === 1)?.employeesIds).toEqual([]))
     liberar()
 
     await waitFor(() => expect(result.current.isError).toBe(true))
-    expect(semana(SEMANA_1)?.find((item) => item.id === 1)?.employee_ids).toEqual([3, 5])
+    expect(semana(SEMANA_1)?.find((item) => item.jobSchedulesId === 1)?.employeesIds).toEqual([3, 5])
     expect(estadoCache()).toEqual(antes)
     expect(onMutationError).toHaveBeenCalledTimes(1)
     expect(onMutationError).toHaveBeenCalledWith(MENSAJE_ESPERADO)

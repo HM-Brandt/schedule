@@ -18,7 +18,7 @@ export function AssignSheet({
   onClose: () => void
 }) {
   const actions = useScheduleActions(schedules)
-  const current = schedules.find((item) => item.id === schedule.id)
+  const current = schedules.find((item) => item.jobSchedulesId === schedule.jobSchedulesId)
 
   useEffect(() => {
     if (!current) onClose()
@@ -30,14 +30,14 @@ export function AssignSheet({
     <BottomSheet title="Assign employees" onClose={onClose}>
       <ul className={styles.list}>
         {employees
-          .filter((employee) => employee.status === 'activo')
+          .filter((employee) => employee.status === 'Active')
           .map((employee) => {
-            const assigned = current.employee_ids.includes(employee.id)
+            const assigned = current.employeesIds.includes(employee.employeesId)
             const load = schedules.filter(
-              (item) => item.date === current.date && item.employee_ids.includes(employee.id),
+              (item) => item.date === current.date && item.employeesIds.includes(employee.employeesId),
             ).length
             return (
-              <li key={employee.id} className={styles.row}>
+              <li key={employee.employeesId} className={styles.row}>
                 <label className={styles.label}>
                   <input
                     type="checkbox"
@@ -47,12 +47,12 @@ export function AssignSheet({
                       actions.setEmployees(
                         current,
                         assigned
-                          ? current.employee_ids.filter((id) => id !== employee.id)
-                          : [...current.employee_ids, employee.id],
+                          ? current.employeesIds.filter((id) => id !== employee.employeesId)
+                          : [...current.employeesIds, employee.employeesId],
                       )
                     }
                   />
-                  <span className={styles.avatar} data-hue={employeeHue(employee.id)}>
+                  <span className={styles.avatar} data-hue={employeeHue(employee.employeesId)}>
                     {initials(employee)}
                   </span>
                   {fullName(employee)}

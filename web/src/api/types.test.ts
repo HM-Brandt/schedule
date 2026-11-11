@@ -13,101 +13,189 @@ import type {
   UpdateScheduleBody,
 } from './types'
 
+const TRABAJO_7 = {
+  jobsId: 7,
+  number: 'J-1024',
+  type: 'Interior',
+  name: 'Pintar oficina',
+  address: 'Calle Mayor 1',
+  contractor: 'Contratista',
+  contact: 'Contacto',
+  status: 'Open',
+  user: 'admin',
+} satisfies Job
+
 describe('tipos del contrato schedule-api', () => {
   describe('Schedule', () => {
     it('acepta la representación del spec "Programación con dos empleados"', () => {
       const programacion = {
-        id: 101,
-        job: { id: 7, number: 'J-1024', name: 'Pintar oficina' },
+        jobSchedulesId: 101,
+        job: TRABAJO_7,
         date: '2026-11-02',
-        start_time: '08:00',
-        employee_ids: [3, 5],
+        startTime: '08:00',
+        employeesIds: [3, 5],
+        scheduleComment: null,
       } satisfies Schedule
 
-      expect(programacion.employee_ids).toEqual([3, 5])
+      expect(programacion.employeesIds).toEqual([3, 5])
     })
 
-    it('rechaza una programación sin employee_ids', () => {
-      // @ts-expect-error falta employee_ids
-      const sinEmpleados: Schedule = { id: 101, job: { id: 7, number: 'J-1024', name: 'Pintar oficina' }, date: '2026-11-02', start_time: '08:00' }
+    it('acepta una programación con comentario', () => {
+      const programacion = {
+        jobSchedulesId: 101,
+        job: TRABAJO_7,
+        date: '2026-11-02',
+        startTime: '08:00',
+        employeesIds: [3, 5],
+        scheduleComment: 'Llevar escalera',
+      } satisfies Schedule
 
-      expect(sinEmpleados.id).toBe(101)
+      expect(programacion.scheduleComment).toBe('Llevar escalera')
+    })
+
+    it('rechaza una programación sin scheduleComment', () => {
+      // @ts-expect-error falta scheduleComment (null si no tiene comentario)
+      const sinComentario: Schedule = { jobSchedulesId: 101, job: TRABAJO_7, date: '2026-11-02', startTime: '08:00', employeesIds: [] }
+
+      expect(sinComentario.jobSchedulesId).toBe(101)
+    })
+
+    it('rechaza una programación sin employeesIds', () => {
+      // @ts-expect-error falta employeesIds
+      const sinEmpleados: Schedule = { jobSchedulesId: 101, job: TRABAJO_7, date: '2026-11-02', startTime: '08:00' }
+
+      expect(sinEmpleados.jobSchedulesId).toBe(101)
+    })
+
+    it('rechaza una programación con los nombres viejos id, start_time y employee_ids', () => {
+      // @ts-expect-error los campos se llaman jobSchedulesId, startTime y employeesIds
+      const vieja: Schedule = { id: 101, job: TRABAJO_7, date: '2026-11-02', start_time: '08:00', employee_ids: [] }
+
+      expect(vieja.date).toBe('2026-11-02')
     })
   })
 
   describe('Employee y EmployeeStatus', () => {
     it('acepta un empleado activo', () => {
       const activo = {
-        id: 3,
-        first_name: 'Ana',
-        last_name: 'Ruiz',
+        employeesId: 3,
+        legalName: 'Ana Ruiz',
+        employeeNumber: 'E-3',
+        firstName: 'Ana',
+        lastName: 'Ruiz',
         title: 'Pintora',
-        status: 'activo',
+        status: 'Active',
+        user: 'admin',
       } satisfies Employee
 
-      expect(activo.status).toBe('activo')
+      expect(activo.status).toBe('Active')
     })
 
     it('acepta un empleado inactivo', () => {
       const inactivo = {
-        id: 9,
-        first_name: 'Luis',
-        last_name: 'Gómez',
+        employeesId: 9,
+        legalName: 'Luis Gómez',
+        employeeNumber: 'E-9',
+        firstName: 'Luis',
+        lastName: 'Gómez',
         title: 'Ayudante',
-        status: 'inactivo',
+        status: 'Terminated',
+        user: 'admin',
       } satisfies Employee
 
-      expect(inactivo.status).toBe('inactivo')
+      expect(inactivo.status).toBe('Terminated')
     })
 
-    it('rechaza un EmployeeStatus fuera de "activo" | "inactivo"', () => {
-      // @ts-expect-error 'baja' no es un EmployeeStatus
-      const estado: EmployeeStatus = 'baja'
+    it('rechaza un EmployeeStatus fuera de "Active" | "Terminated"', () => {
+      // @ts-expect-error 'activo' (el valor viejo) no es un EmployeeStatus
+      const estado: EmployeeStatus = 'activo'
 
-      expect(estado).toBe('baja')
+      expect(estado).toBe('activo')
     })
 
-    it('rechaza un Employee.status fuera de "activo" | "inactivo"', () => {
-      // @ts-expect-error 'baja' no es un EmployeeStatus
-      const empleado: Employee = { id: 4, first_name: 'Eva', last_name: 'Soto', title: 'Pintora', status: 'baja' }
+    it('rechaza un Employee.status fuera de "Active" | "Terminated"', () => {
+      const empleado: Employee = {
+        employeesId: 4,
+        legalName: 'Eva Soto',
+        employeeNumber: 'E-4',
+        firstName: 'Eva',
+        lastName: 'Soto',
+        title: 'Pintora',
+        // @ts-expect-error 'baja' no es un EmployeeStatus
+        status: 'baja',
+        user: 'admin',
+      }
 
       expect(empleado.status).toBe('baja')
     })
   })
 
   describe('Job', () => {
-    it('acepta un trabajo del catálogo', () => {
-      const trabajo = { id: 7, number: 'J-1024', name: 'Pintar oficina' } satisfies Job
+    it('acepta un trabajo del catálogo con todos sus campos', () => {
+      const trabajo = { ...TRABAJO_7 } satisfies Job
 
       expect(trabajo.number).toBe('J-1024')
+    })
+
+    it('acepta un trabajo con status "Done"', () => {
+      const terminado = { ...TRABAJO_7, status: 'Done' } satisfies Job
+
+      expect(terminado.status).toBe('Done')
+    })
+
+    it('rechaza un trabajo con solo { id, number, name }', () => {
+      // @ts-expect-error faltan jobsId y el resto de campos
+      const viejo: Job = { id: 7, number: 'J-1024', name: 'Pintar oficina' }
+
+      expect(viejo.number).toBe('J-1024')
     })
   })
 
   describe('CreateScheduleBody', () => {
-    it('acepta el cuerpo de "Creación válida", sin employee_ids', () => {
+    it('acepta el cuerpo de "Creación válida", sin employeesIds', () => {
       const cuerpo = {
-        job_id: 7,
+        jobsId: 7,
         date: '2026-11-02',
-        start_time: '07:00',
+        startTime: '07:00',
       } satisfies CreateScheduleBody
 
-      expect(cuerpo).not.toHaveProperty('employee_ids')
+      expect(cuerpo).not.toHaveProperty('employeesIds')
     })
 
-    it('acepta un cuerpo con employee_ids', () => {
+    it('acepta un cuerpo con employeesIds', () => {
       const cuerpo = {
-        job_id: 7,
+        jobsId: 7,
         date: '2026-11-02',
-        start_time: '07:00',
-        employee_ids: [3, 5],
+        startTime: '07:00',
+        employeesIds: [3, 5],
       } satisfies CreateScheduleBody
 
-      expect(cuerpo.employee_ids).toEqual([3, 5])
+      expect(cuerpo.employeesIds).toEqual([3, 5])
     })
 
-    it('rechaza un cuerpo sin job_id', () => {
-      // @ts-expect-error falta job_id
-      const sinTrabajo: CreateScheduleBody = { date: '2026-11-02', start_time: '07:00' }
+    it('acepta el cuerpo de "Creación con comentario" y scheduleComment null', () => {
+      const conComentario = {
+        jobsId: 7,
+        date: '2026-11-02',
+        startTime: '07:00',
+        scheduleComment: 'Llevar escalera',
+      } satisfies CreateScheduleBody
+      const sinComentario = { ...conComentario, scheduleComment: null } satisfies CreateScheduleBody
+
+      expect(conComentario.scheduleComment).toBe('Llevar escalera')
+      expect(sinComentario.scheduleComment).toBeNull()
+    })
+
+    it('rechaza un scheduleComment que no es texto ni null', () => {
+      // @ts-expect-error scheduleComment es string | null
+      const numerico: CreateScheduleBody = { jobsId: 7, date: '2026-11-02', startTime: '07:00', scheduleComment: 5 }
+
+      expect(numerico.jobsId).toBe(7)
+    })
+
+    it('rechaza un cuerpo sin jobsId', () => {
+      // @ts-expect-error falta jobsId
+      const sinTrabajo: CreateScheduleBody = { date: '2026-11-02', startTime: '07:00' }
 
       expect(sinTrabajo.date).toBe('2026-11-02')
     })
@@ -120,20 +208,40 @@ describe('tipos del contrato schedule-api', () => {
       expect(cuerpo.date).toBe('2026-11-04')
     })
 
-    it('acepta solo start_time', () => {
-      const cuerpo = { start_time: '09:30' } satisfies UpdateScheduleBody
+    it('acepta solo startTime', () => {
+      const cuerpo = { startTime: '09:30' } satisfies UpdateScheduleBody
 
-      expect(cuerpo.start_time).toBe('09:30')
+      expect(cuerpo.startTime).toBe('09:30')
     })
 
-    it('acepta date y start_time a la vez', () => {
-      const cuerpo = { date: '2026-11-04', start_time: '09:30' } satisfies UpdateScheduleBody
+    it('acepta date y startTime a la vez', () => {
+      const cuerpo = { date: '2026-11-04', startTime: '09:30' } satisfies UpdateScheduleBody
 
-      expect(cuerpo).toEqual({ date: '2026-11-04', start_time: '09:30' })
+      expect(cuerpo).toEqual({ date: '2026-11-04', startTime: '09:30' })
     })
 
-    it('rechaza un cuerpo vacío', () => {
-      // @ts-expect-error debe llevar date, start_time o ambos
+    it('acepta solo scheduleComment ("Cambiar el comentario") y scheduleComment null', () => {
+      const cambiar = { scheduleComment: 'Entrar por la puerta trasera' } satisfies UpdateScheduleBody
+      const borrar = { scheduleComment: null } satisfies UpdateScheduleBody
+
+      expect(cambiar.scheduleComment).toBe('Entrar por la puerta trasera')
+      expect(borrar.scheduleComment).toBeNull()
+    })
+
+    it('acepta date, startTime y scheduleComment a la vez', () => {
+      const cuerpo = { date: '2026-11-04', startTime: '09:30', scheduleComment: 'Llevar andamio' } satisfies UpdateScheduleBody
+
+      expect(cuerpo.scheduleComment).toBe('Llevar andamio')
+    })
+
+    it('rechaza un scheduleComment que no es texto ni null', () => {
+      // @ts-expect-error scheduleComment es string | null
+      const numerico: UpdateScheduleBody = { scheduleComment: 5 }
+
+      expect(numerico.scheduleComment).toBe(5)
+    })
+
+    it('el tipo admite un cuerpo vacío: el 422 lo da el servidor (ver mocks/handlers.test.ts)', () => {
       const vacio: UpdateScheduleBody = {}
 
       expect(vacio).toEqual({})
@@ -142,13 +250,13 @@ describe('tipos del contrato schedule-api', () => {
 
   describe('ReplaceEmployeesBody', () => {
     it('acepta el cuerpo de "Reemplazo"', () => {
-      const cuerpo = { employee_ids: [5, 8] } satisfies ReplaceEmployeesBody
+      const cuerpo = { employeesIds: [5, 8] } satisfies ReplaceEmployeesBody
 
-      expect(cuerpo.employee_ids).toEqual([5, 8])
+      expect(cuerpo.employeesIds).toEqual([5, 8])
     })
 
-    it('rechaza un cuerpo sin employee_ids', () => {
-      // @ts-expect-error falta employee_ids
+    it('rechaza un cuerpo sin employeesIds', () => {
+      // @ts-expect-error falta employeesIds
       const vacio: ReplaceEmployeesBody = {}
 
       expect(vacio).toEqual({})

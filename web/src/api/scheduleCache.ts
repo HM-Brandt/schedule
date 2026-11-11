@@ -16,20 +16,20 @@ export function restoreSchedules(client: QueryClient, snapshot: ReturnType<typeo
 export function findCachedSchedule(client: QueryClient, id: number) {
   return snapshotSchedules(client)
     .flatMap(([, data]) => data ?? [])
-    .find((schedule) => schedule.id === id)
+    .find((schedule) => schedule.jobSchedulesId === id)
 }
 
-export function putSchedule(client: QueryClient, schedule: Schedule, replaceId = schedule.id) {
+export function putSchedule(client: QueryClient, schedule: Schedule, replaceId = schedule.jobSchedulesId) {
   for (const [key, data] of snapshotSchedules(client)) {
     if (!data) continue
     const [, from, to] = key as [string, IsoDate, IsoDate]
-    const rest = data.filter((item) => item.id !== replaceId)
+    const rest = data.filter((item) => item.jobSchedulesId !== replaceId)
     client.setQueryData(key, from <= schedule.date && schedule.date <= to ? [...rest, schedule] : rest)
   }
 }
 
 export function removeCachedSchedule(client: QueryClient, id: number) {
-  client.setQueriesData<Schedule[]>(schedulesFilter, (data) => data?.filter((schedule) => schedule.id !== id))
+  client.setQueriesData<Schedule[]>(schedulesFilter, (data) => data?.filter((schedule) => schedule.jobSchedulesId !== id))
 }
 
 export function nextTempId() {

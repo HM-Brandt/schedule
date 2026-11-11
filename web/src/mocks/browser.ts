@@ -5,7 +5,7 @@ import { createHandlers } from './handlers'
 import { createSeed } from './seed'
 
 export const worker = setupWorker(
-  http.all('/api/*', async () => {
+  http.all('*/v1/*', async () => {
     await delay(config.mockDelay)
   }),
   ...createHandlers(createSeed(new Date())),

@@ -33,12 +33,25 @@ const rollbackAndRefetch = {
 
 export function useCreateSchedule() {
   return useMutation({
-    mutationFn: ({ job, ...body }: { job: Job; date: IsoDate; start_time: StartTime; employee_ids?: number[] }) =>
-      api.createSchedule({ job_id: job.id, ...body }),
+    mutationFn: ({
+      job,
+      ...body
+    }: {
+      job: Job
+      date: IsoDate
+      startTime: StartTime
+      employeesIds?: number[]
+      scheduleComment?: string | null
+    }) => api.createSchedule({ jobsId: job.jobsId, ...body }),
     onMutate: async (variables, context) => {
       const result = await startOptimistic(context)
       const tempId = nextTempId()
-      putSchedule(context.client, { ...variables, id: tempId, employee_ids: variables.employee_ids ?? [] })
+      putSchedule(context.client, {
+        ...variables,
+        jobSchedulesId: tempId,
+        employeesIds: variables.employeesIds ?? [],
+        scheduleComment: variables.scheduleComment ?? null,
+      })
       return { ...result, tempId }
     },
     onSuccess: (schedule, _variables, result, context) => putSchedule(context.client, schedule, result.tempId),
@@ -73,12 +86,12 @@ export function useDeleteSchedule() {
 
 export function useReplaceEmployees() {
   return useMutation({
-    mutationFn: ({ id, employee_ids }: { id: number; employee_ids: number[] }) =>
-      api.replaceScheduleEmployees(id, { employee_ids }),
-    onMutate: async ({ id, employee_ids }, context) => {
+    mutationFn: ({ id, employeesIds }: { id: number; employeesIds: number[] }) =>
+      api.replaceScheduleEmployees(id, { employeesIds }),
+    onMutate: async ({ id, employeesIds }, context) => {
       const result = await startOptimistic(context)
       const schedule = findCachedSchedule(context.client, id)
-      if (schedule) putSchedule(context.client, { ...schedule, employee_ids })
+      if (schedule) putSchedule(context.client, { ...schedule, employeesIds })
       return result
     },
     ...rollbackAndRefetch,

@@ -26,7 +26,7 @@ export function DayColumn({
   const { ref, isDropTarget } = useDroppable({ id: `day-${date}`, type: 'day', accept: ACCEPTS.day, data: { kind: 'day', date } })
   const accepting = useAcceptsDrag('day')
   const employeeId = useDraggedEmployeeId()
-  const load = employeeId === null ? 0 : schedules.filter((schedule) => schedule.employee_ids.includes(employeeId)).length
+  const load = employeeId === null ? 0 : schedules.filter((schedule) => schedule.employeesIds.includes(employeeId)).length
 
   return (
     <div
@@ -46,7 +46,7 @@ export function DayColumn({
       <div className={styles.cards}>
         {schedules.map((schedule) => (
           <ScheduleCard
-            key={schedule.id}
+            key={schedule.jobSchedulesId}
             schedule={schedule}
             employeesById={employeesById}
             onOpen={onOpenSchedule}

@@ -3,7 +3,8 @@
 ## Context
 
 - El repositorio solo contiene la configuración de OpenSpec; no hay código previo. El frontend se crea desde cero en `web/`.
-- La base de datos MySQL ya tiene `jobs (id, number, name)` y `employees (id, first_name, last_name, title, status)`, con `status` igual a `activo` o `inactivo`. `jobs` no tiene fecha ni hora, así que la programación necesita tablas propias.
+- La base de datos MySQL ya tiene `jobs` (clave primaria `jobs_id INT`) y `employees` (clave primaria `employees_id INT`). El `status` de un empleado es `Active` o `Terminated`. `jobs` no tiene fecha ni hora, así que la programación necesita tablas propias.
+- Los nombres de los campos JSON del contrato siguen la convención del backend: camelCase, con los ids como `<entidad>Id` (`employeesId`, `jobsId`, `jobSchedulesId`).
 - El backend lo implementa el usuario por separado. Este cambio entrega el frontend, el esquema SQL y el contrato HTTP (ver `specs/schedule-api/spec.md`).
 - Planifica una sola persona, así que no hay edición concurrente que resolver.
 - Los requisitos de comportamiento están en `specs/weekly-schedule-board/spec.md` y `specs/employee-assignment/spec.md`; este documento no los repite.
@@ -32,67 +33,70 @@ jobs 1 ──── N job_schedules 1 ──── N job_schedule_employees N �
 
 ```sql
 CREATE TABLE job_schedules (
-  id             INT UNSIGNED NOT NULL AUTO_INCREMENT,
-  job_id         INT UNSIGNED NOT NULL,        -- mismo tipo EXACTO que jobs.id
-  scheduled_date DATE         NOT NULL,
-  start_time     TIME         NOT NULL,        -- solo hora de inicio
-  created_at     TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  updated_at     TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  PRIMARY KEY (id),
+  job_schedules_id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  jobs_id          INT          NOT NULL,        -- mismo tipo EXACTO que jobs.jobs_id
+  scheduled_date   DATE         NOT NULL,
+  start_time       TIME         NOT NULL,        -- solo hora de inicio
+  schedule_comment TEXT         NULL,
+  created_at       TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at       TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (job_schedules_id),
   KEY idx_job_schedules_date (scheduled_date, start_time),
-  CONSTRAINT fk_job_schedules_job FOREIGN KEY (job_id) REFERENCES jobs (id)
+  CONSTRAINT fk_job_schedules_job FOREIGN KEY (jobs_id) REFERENCES jobs (jobs_id)
 );
 
 CREATE TABLE job_schedule_employees (
-  job_schedule_id INT UNSIGNED NOT NULL,
-  employee_id     INT UNSIGNED NOT NULL,       -- mismo tipo EXACTO que employees.id
-  PRIMARY KEY (job_schedule_id, employee_id),
-  KEY idx_jse_employee (employee_id),
-  CONSTRAINT fk_jse_schedule FOREIGN KEY (job_schedule_id)
-    REFERENCES job_schedules (id) ON DELETE CASCADE,
-  CONSTRAINT fk_jse_employee FOREIGN KEY (employee_id) REFERENCES employees (id)
+  job_schedules_id INT UNSIGNED NOT NULL,
+  employees_id     INT          NOT NULL,        -- mismo tipo EXACTO que employees.employees_id
+  PRIMARY KEY (job_schedules_id, employees_id),
+  KEY idx_jse_employee (employees_id),
+  CONSTRAINT fk_jse_schedule FOREIGN KEY (job_schedules_id)
+    REFERENCES job_schedules (job_schedules_id) ON DELETE CASCADE,
+  CONSTRAINT fk_jse_employee FOREIGN KEY (employees_id) REFERENCES employees (employees_id)
 );
 ```
 
 - `start_time` es `NOT NULL` porque siempre hay una hora por defecto.
-- **Sin restricción única en `(job_id, scheduled_date)`:** un trabajo puede repetirse el mismo día.
+- `schedule_comment` es `NULL` porque la mayoría de las programaciones no tienen comentario. El backend guarda `NULL` en lugar de un texto vacío o solo con espacios.
+- **Sin restricción única en `(jobs_id, scheduled_date)`:** un trabajo puede repetirse el mismo día.
 - **La clave primaria compuesta** de `job_schedule_employees` impide asignar dos veces al mismo empleado a una programación.
 - **`ON DELETE CASCADE`** borra las asignaciones al eliminar una programación.
 - El índice `(scheduled_date, start_time)` cubre la consulta por semana y su orden.
-- **Supuesto:** `jobs.id` y `employees.id` son `INT UNSIGNED`. Si son otro tipo, hay que ajustar las dos columnas de clave foránea, porque MySQL exige el mismo tipo.
+- `jobs.jobs_id` y `employees.employees_id` son `INT` con signo; las dos columnas de clave foránea usan ese mismo tipo, porque MySQL lo exige.
 - **Alternativa descartada:** añadir `date` y `start_time` a `jobs`. Obligaría a duplicar filas del catálogo para repetir un trabajo y modificaría una tabla existente.
 
 ### 2. Contrato HTTP orientado a recursos
 
-Los siete endpoints de `specs/schedule-api/spec.md`:
+Los siete endpoints de `specs/schedule-api/spec.md`. Las rutas son relativas a `VITE_API_URL`, que ya incluye el prefijo del backend (por ejemplo `https://…/api`):
 
 | Método | Ruta | Uso |
 |---|---|---|
-| GET | `/api/employees[?status=activo]` | Panel de empleados (activos) y nombres de los ya asignados (todos) |
-| GET | `/api/jobs[?search=]` | Catálogo |
-| GET | `/api/schedules?from&to` | Semana visible |
-| POST | `/api/schedules` | Programar o duplicar |
-| PATCH | `/api/schedules/{id}` | Mover de día o cambiar hora |
-| DELETE | `/api/schedules/{id}` | Quitar |
-| PUT | `/api/schedules/{id}/employees` | Reemplazar empleados |
+| GET | `v1/employee[?status=Active]` | Panel de empleados (activos) y nombres de los ya asignados (todos) |
+| GET | `v1/job[?search=]` | Catálogo |
+| GET | `v1/schedules?from&to` | Semana visible |
+| POST | `v1/schedules` | Programar o duplicar |
+| PATCH | `v1/schedules/{id}` | Mover de día, cambiar hora o cambiar comentario |
+| DELETE | `v1/schedules/{id}` | Quitar |
+| PUT | `v1/schedules/{id}/employees` | Reemplazar empleados |
 
-- **El frontend pide `GET /api/employees` sin filtro y filtra en el cliente.** Así puede mostrar el nombre de un empleado inactivo que sigue asignado.
-- **`GET /api/schedules` incluye el objeto `job`** dentro de cada programación, para pintar la semana con una sola llamada y sin cruzar datos en el cliente.
+- **El frontend pide `GET v1/employee` sin filtro y filtra en el cliente.** Así puede mostrar el nombre de un empleado inactivo que sigue asignado.
+- **`GET v1/schedules` incluye el objeto `job`** dentro de cada programación, para pintar la semana con una sola llamada y sin cruzar datos en el cliente. Es el mismo objeto que devuelve `GET v1/job`, para que el backend reutilice el DTO.
+- **El comentario se edita con el mismo `PATCH`** que la fecha y la hora, en lugar de un endpoint propio. El backend sigue con siete endpoints.
 - **Empleados: `PUT` del conjunto completo** en lugar de `POST`/`DELETE` por empleado. Un solo endpoint idempotente sirve para el arrastre (añadir o quitar uno), para la lista de casillas del teléfono y para deshacer (restaurar el conjunto anterior). Mover un empleado entre dos programaciones son dos `PUT`. Con un único usuario no hay riesgo de que se pisen.
 - **Alternativa descartada:** GraphQL o un endpoint de "guardar semana". Son más complejos para el backend y peores para las actualizaciones optimistas.
 
 ### 3. La hora por defecto se calcula en el frontend
 
-El frontend calcula `start_time` antes del `POST`, o antes del `PATCH` al mover. El cálculo usa las programaciones de la semana visible, que ya tiene cargadas:
+El frontend calcula `startTime` antes del `POST`, o antes del `PATCH` al mover. El cálculo usa las programaciones de la semana visible, que ya tiene cargadas:
 
 ```
-horas = start_time de las programaciones con ese job_id en ese día (excluyendo la que se mueve)
+horas = startTime de las programaciones con ese jobsId en ese día (excluyendo la que se mueve)
 si horas está vacío -> 07:00
 si no              -> min(23, hora_entera(max(horas)) + 1):00
 ```
 
 - **Por qué en el frontend:** el backend solo guarda y valida; la regla es de interfaz y el usuario puede editar la hora después.
-- **Alternativa descartada:** calcular la hora en el backend cuando `start_time` no llega. Repartiría la lógica entre dos sitios y complicaría los datos de prueba.
+- **Alternativa descartada:** calcular la hora en el backend cuando `startTime` no llega. Repartiría la lógica entre dos sitios y complicaría los datos de prueba.
 
 ### 4. Stack del frontend
 
@@ -114,6 +118,7 @@ si no              -> min(23, hora_entera(max(horas)) + 1):00
   - Soltar un `employee` que venía de una tarjeta fuera de cualquier destino lo retira de ella.
 - **Duplicar:** se lee `altKey` del evento al soltar. En táctil no hay Alt, así que se usa la acción "Duplicate" del detalle.
 - Mientras se arrastra un empleado, cada día muestra su número de programaciones ese día. Se calcula en el cliente con los datos de la semana.
+- Los siete recuadros de días con trabajo de cada empleado (requisito "Días con trabajo en la semana visible") usan el mismo cálculo por empleado y día, sobre las programaciones de la semana visible ya cargadas. No necesitan ningún endpoint nuevo.
 - **Alternativa descartada:** la API nativa HTML5 de drag and drop. Su soporte táctil es pobre y no permite personalizar el elemento arrastrado.
 - **Versión:** se fija una versión concreta de `@dnd-kit/react` en `package.json`, porque la API de la versión 0.x aún puede cambiar.
 
@@ -124,9 +129,10 @@ Cada acción guarda en una pila en memoria su operación inversa (como máximo 2
 | Acción | Inversa |
 |---|---|
 | Programar (POST) | DELETE de la nueva programación |
-| Mover / cambiar hora (PATCH) | PATCH con `date` y `start_time` anteriores |
+| Mover / cambiar hora (PATCH) | PATCH con `date` y `startTime` anteriores |
+| Cambiar comentario (PATCH) | PATCH con el `scheduleComment` anterior |
 | Duplicar (POST) | DELETE de la copia |
-| Quitar (DELETE) | POST con el mismo `job_id`, `date`, `start_time` y `employee_ids` |
+| Quitar (DELETE) | POST con el mismo `jobsId`, `date`, `startTime`, `employeesIds` y `scheduleComment` |
 | Cambiar empleados (PUT) | PUT con el conjunto anterior |
 | Mover empleado entre tarjetas (2 PUT) | 2 PUT con los conjuntos anteriores, como una sola entrada |
 
@@ -135,8 +141,9 @@ Cada acción guarda en una pila en memoria su operación inversa (como máximo 2
 
 ### 7. Datos de prueba con MSW
 
-- `web/src/mocks/` contiene una base en memoria con datos semilla: 10 empleados (2 inactivos), unos 30 trabajos y una semana actual ya armada. También contiene manejadores MSW para los siete endpoints, con las mismas validaciones y códigos de estado que el contrato (422/404, formato `HH:mm`, inactivos), para que el frontend se pruebe contra el comportamiento real esperado.
+- `web/src/mocks/` contiene una base en memoria con datos semilla: 10 empleados (2 con `status` `Terminated`), unos 30 trabajos con la forma completa del contrato y una semana actual ya armada, con al menos una programación con comentario. También contiene manejadores MSW para los siete endpoints, con las mismas validaciones y códigos de estado que el contrato (422/404, formato `HH:mm`, inactivos), para que el frontend se pruebe contra el comportamiento real esperado.
 - Con `VITE_USE_MOCKS=true` se arranca el service worker antes de montar la app. Con `false`, las llamadas van a `VITE_API_URL`.
+- Los manejadores usan un comodín de origen y prefijo (`*/v1/employee`, `*/v1/schedules/:id`…), para interceptar las peticiones sea cual sea `VITE_API_URL`: vacía, `localhost` o el backend desplegado. Así los tests e2e y el desarrollo con datos de prueba funcionan aunque `.env.local` apunte al backend real.
 - Los mocks añaden una latencia corta y configurable, para que se noten los estados de carga y las actualizaciones optimistas.
 - **Alternativa descartada:** json-server o un mock aparte. Exige otro proceso y no reproduce las validaciones del contrato.
 
@@ -153,8 +160,7 @@ Los componentes de tarjeta, catálogo y empleado se comparten. Solo cambia el co
 ## Risks / Trade-offs
 
 - **[El backend convierte fechas a UTC y los trabajos cambian de día]** → El contrato exige cadenas `YYYY-MM-DD`/`HH:mm` sin conversión, y los mocks validan el formato. Conviene probar la integración con una programación de domingo y otra de sábado.
-- **[Tipos de clave foránea distintos de `INT UNSIGNED`]** → Revisar `SHOW CREATE TABLE jobs` y `SHOW CREATE TABLE employees` antes de aplicar el DDL.
-- **[Catálogo muy grande, más de unos miles de trabajos]** → La búsqueda se hace en el servidor con `search`, pero sin paginación `GET /api/jobs` devuelve todo. Si crece, añadir `limit` es compatible con el contrato actual.
+- **[Catálogo muy grande, más de unos miles de trabajos]** → La búsqueda se hace en el servidor con `search`, pero sin paginación `GET v1/job` devuelve todo. Si crece, añadir `limit` es compatible con el contrato actual.
 - **[API de @dnd-kit/react en 0.x]** → Versión fijada. El arrastre queda aislado en un módulo propio para poder cambiar a `@dnd-kit/core` si hace falta.
 - **[La misma persona abre dos pestañas]** → Gana la última escritura. Se acepta, porque solo hay una persona planificando. Al volver a enfocar la pestaña, TanStack Query vuelve a pedir los datos.
 - **[Soltar con precisión en la tira de días del teléfono]** → Destinos grandes, resaltados durante el arrastre. El detalle ofrece además "Move to…" como alternativa sin arrastre.
@@ -162,7 +168,7 @@ Los componentes de tarjeta, catálogo y empleado se comparten. Solo cambia el co
 
 ## Migration Plan
 
-1. Verificar los tipos de `jobs.id` y `employees.id` y aplicar el DDL de las dos tablas nuevas.
+1. Aplicar el DDL de las dos tablas nuevas.
 2. Desarrollar y probar el frontend con `VITE_USE_MOCKS=true`.
 3. Cuando el backend implemente el contrato: `VITE_USE_MOCKS=false` y `VITE_API_URL` apuntando al backend. Si el backend está en otro origen, debe habilitar CORS (en desarrollo se puede usar el proxy de Vite).
 4. Build estático (`vite build`) y publicación en el hosting.
@@ -170,6 +176,5 @@ Los componentes de tarjeta, catálogo y empleado se comparten. Solo cambia el co
 
 ## Open Questions
 
-- Tipos exactos de `jobs.id` y `employees.id`. Solo afecta al DDL.
 - Hosting y origen del backend en producción. Solo afecta a la configuración de despliegue y a CORS.
 - Color de acento y tipografía finales. Se pueden ajustar en las variables CSS sin tocar componentes.

@@ -4,43 +4,52 @@ export type IsoDate = string
 export type StartTime = string
 
 /** Estado del empleado. Contrato: "Listar empleados". */
-export type EmployeeStatus = 'activo' | 'inactivo'
+export type EmployeeStatus = 'Active' | 'Terminated'
 
 export interface Employee {
-  id: number
-  first_name: string
-  last_name: string
-  title: string
+  employeesId: number
+  legalName: string
+  employeeNumber: string
+  firstName: string
+  lastName: string
   status: EmployeeStatus
+  title: string
+  user: string
 }
 
 export interface Job {
-  id: number
+  jobsId: number
   number: string
+  type: string
   name: string
+  address: string
+  contractor: string
+  contact: string
+  status: string
+  user: string
 }
 
 export interface Schedule {
-  id: number
+  jobSchedulesId: number
   job: Job
   date: IsoDate
-  start_time: StartTime
-  employee_ids: number[]
+  startTime: StartTime
+  employeesIds: number[]
+  scheduleComment: string | null
 }
 
 export interface CreateScheduleBody {
-  job_id: number
+  jobsId: number
   date: IsoDate
-  start_time: StartTime
-  employee_ids?: number[]
+  startTime: StartTime
+  employeesIds?: number[]
+  scheduleComment?: string | null
 }
 
-export type UpdateScheduleBody =
-  | { date: IsoDate; start_time?: StartTime }
-  | { date?: IsoDate; start_time: StartTime }
+export type UpdateScheduleBody = { date?: IsoDate; startTime?: StartTime; scheduleComment?: string | null }
 
 export interface ReplaceEmployeesBody {
-  employee_ids: number[]
+  employeesIds: number[]
 }
 
 export interface ApiErrorBody {

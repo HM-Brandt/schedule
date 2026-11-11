@@ -21,70 +21,79 @@ export function useScheduleActions(schedules: Schedule[]) {
     )
   const restoreTime = (schedule: Schedule): InverseOp => ({
     kind: 'patch',
-    id: schedule.id,
-    changes: { date: schedule.date, start_time: schedule.start_time },
+    id: schedule.jobSchedulesId,
+    changes: { date: schedule.date, startTime: schedule.startTime },
   })
   const restoreEmployees = (schedule: Schedule): InverseOp => ({
     kind: 'put',
-    id: schedule.id,
-    employee_ids: schedule.employee_ids,
+    id: schedule.jobSchedulesId,
+    employeesIds: schedule.employeesIds,
   })
 
   return {
     create: (job: Job, date: IsoDate) =>
       run('Job scheduled', async () => {
-        const created = await createSchedule.mutateAsync({ job, date, start_time: defaultStartTime(schedules, job.id, date) })
-        return [{ kind: 'delete', id: created.id }]
+        const created = await createSchedule.mutateAsync({ job, date, startTime: defaultStartTime(schedules, job.jobsId, date) })
+        return [{ kind: 'delete', id: created.jobSchedulesId }]
       }),
     move: (schedule: Schedule, date: IsoDate) =>
       run('Job moved', async () => {
         await updateSchedule.mutateAsync({
-          id: schedule.id,
-          changes: { date, start_time: startTimeForMove(schedules, schedule, date) },
+          id: schedule.jobSchedulesId,
+          changes: { date, startTime: startTimeForMove(schedules, schedule, date) },
         })
         return [restoreTime(schedule)]
       }),
-    setStartTime: (schedule: Schedule, start_time: StartTime) =>
+    setStartTime: (schedule: Schedule, startTime: StartTime) =>
       run('Start time changed', async () => {
-        await updateSchedule.mutateAsync({ id: schedule.id, changes: { start_time } })
+        await updateSchedule.mutateAsync({ id: schedule.jobSchedulesId, changes: { startTime } })
         return [restoreTime(schedule)]
       }),
+    setComment: (schedule: Schedule, text: string) => {
+      const scheduleComment = text.trim() ? text : null
+      if (scheduleComment === schedule.scheduleComment) return
+      return run('Comment updated', async () => {
+        await updateSchedule.mutateAsync({ id: schedule.jobSchedulesId, changes: { scheduleComment } })
+        return [{ kind: 'patch', id: schedule.jobSchedulesId, changes: { scheduleComment: schedule.scheduleComment } }]
+      })
+    },
     duplicate: (schedule: Schedule, date: IsoDate) =>
       run('Job duplicated', async () => {
         const created = await createSchedule.mutateAsync({
           job: schedule.job,
           date,
-          start_time: defaultStartTime(schedules, schedule.job.id, date),
-          employee_ids: schedule.employee_ids.filter(
-            (id) => !employees.data?.some((employee) => employee.id === id && employee.status === 'inactivo'),
+          startTime: defaultStartTime(schedules, schedule.job.jobsId, date),
+          employeesIds: schedule.employeesIds.filter(
+            (id) => !employees.data?.some((employee) => employee.employeesId === id && employee.status === 'Terminated'),
           ),
         })
-        return [{ kind: 'delete', id: created.id }]
+        return [{ kind: 'delete', id: created.jobSchedulesId }]
       }),
     remove: (schedule: Schedule) =>
       run('Job removed', async () => {
-        await deleteSchedule.mutateAsync(schedule.id)
+        await deleteSchedule.mutateAsync(schedule.jobSchedulesId)
         return [
           {
             kind: 'create',
             job: schedule.job,
             date: schedule.date,
-            start_time: schedule.start_time,
-            employee_ids: schedule.employee_ids,
-            replacesId: schedule.id,
+            startTime: schedule.startTime,
+            employeesIds: schedule.employeesIds,
+            scheduleComment: schedule.scheduleComment,
+            replacesId: schedule.jobSchedulesId,
           },
         ]
       }),
-    setEmployees: (schedule: Schedule, employee_ids: number[]) =>
+    setEmployees: (schedule: Schedule, employeesIds: number[]) =>
       run('Employees updated', async () => {
-        await replaceEmployees.mutateAsync({ id: schedule.id, employee_ids })
+        await replaceEmployees.mutateAsync({ id: schedule.jobSchedulesId, employeesIds })
         return [restoreEmployees(schedule)]
       }),
     transferEmployee: (employeeId: number, from: Schedule, to: Schedule) =>
       run('Employee moved', async () => {
         await Promise.all([
-          replaceEmployees.mutateAsync({ id: from.id, employee_ids: from.employee_ids.filter((id) => id !== employeeId) }),
-          replaceEmployees.mutateAsync({ id: to.id, employee_ids: [...to.employee_ids, employeeId] }),
+          replaceEmployees.mutateAsync({ id: from.jobSchedulesId, employeesIds: from.employeesIds.filter((id) => id !== employeeId) }),
+          replaceEmployees.mutateAsync({ id: to.jobSchedulesId, employeesIds: [...to.employeesIds, employeeId] }),
         ])
         return [restoreEmployees(from), restoreEmployees(to)]
       }),

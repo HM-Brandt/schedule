@@ -13,9 +13,9 @@ export function EmployeePanel({ employees, error }: { employees: Employee[]; err
       )}
       <ul className={styles.list}>
         {employees
-          .filter((employee) => employee.status === 'activo')
+          .filter((employee) => employee.status === 'Active')
           .map((employee) => (
-            <EmployeeItem key={employee.id} employee={employee} />
+            <EmployeeItem key={employee.employeesId} employee={employee} />
           ))}
       </ul>
     </section>

@@ -9,6 +9,7 @@
 import { DragDropProvider, useDraggable } from '@dnd-kit/react'
 import { act, render, screen, waitFor } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
+import { trabajo } from '../test/fabricas'
 import type { Schedule } from '../api/types'
 import { CapturadorDelGestor, empezarArrastre, gestorActual, simularApisDeArrastre } from '../test/dnd'
 import type { DragData } from './dropResolution'
@@ -16,8 +17,8 @@ import { useDraggedEmployeeId } from './useDraggedEmployeeId'
 
 simularApisDeArrastre()
 
-const PINTAR_OFICINA = { id: 7, number: 'J-1024', name: 'Pintar oficina' }
-const TARJETA: Schedule = { id: 1, job: PINTAR_OFICINA, date: '2026-11-02', start_time: '07:00', employee_ids: [3, 5] }
+const PINTAR_OFICINA = trabajo(7, 'J-1024', 'Pintar oficina')
+const TARJETA: Schedule = { jobSchedulesId: 1, job: PINTAR_OFICINA, date: '2026-11-02', startTime: '07:00', employeesIds: [3, 5], scheduleComment: null }
 
 const ORIGENES: Record<string, DragData> = {
   'trabajo-del-catalogo': { kind: 'catalog-job', job: PINTAR_OFICINA },

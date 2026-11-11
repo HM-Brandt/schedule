@@ -35,7 +35,7 @@ function App() {
   const [selectedScheduleId, setSelectedScheduleId] = useState<number | null>(null)
 
   const employeesById = useMemo(
-    () => new Map((employees.data ?? []).map((employee) => [employee.id, employee])),
+    () => new Map((employees.data ?? []).map((employee) => [employee.employeesId, employee])),
     [employees.data],
   )
   const byDay = useMemo(() => schedulesByDay(schedules.data ?? [], week.days), [schedules.data, week.days])
@@ -80,7 +80,7 @@ function App() {
       )}
     </>
   )
-  const openSchedule = (schedule: Schedule) => setSelectedScheduleId(schedule.id)
+  const openSchedule = (schedule: Schedule) => setSelectedScheduleId(schedule.jobSchedulesId)
   const board = (
     <WeekBoard
       days={week.days}

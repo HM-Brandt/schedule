@@ -36,10 +36,10 @@ export function resolveDrop(source: DragData, target: DropData | null, { altKey 
     const { employeeId, fromScheduleId } = source
     const { schedule } = target
     if (fromScheduleId === undefined) {
-      return schedule.employee_ids.includes(employeeId) ? NONE : { kind: 'assign', employeeId, schedule }
+      return schedule.employeesIds.includes(employeeId) ? NONE : { kind: 'assign', employeeId, schedule }
     }
-    if (schedule.id === fromScheduleId) return NONE
-    if (schedule.employee_ids.includes(employeeId)) return { kind: 'unassign', employeeId, fromScheduleId }
+    if (schedule.jobSchedulesId === fromScheduleId) return NONE
+    if (schedule.employeesIds.includes(employeeId)) return { kind: 'unassign', employeeId, fromScheduleId }
     return { kind: 'transfer', employeeId, fromScheduleId, schedule }
   }
   if (source.kind === 'employee' && target === null && source.fromScheduleId !== undefined) {

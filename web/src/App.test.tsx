@@ -101,11 +101,12 @@ async function trabajoDelCatalogo(numero: string): Promise<HTMLElement> {
 /** Añade a la semilla una programación de "J-1031 Jardín Pérez" el martes 10 de la semana siguiente. */
 function programarEnLaSemanaSiguiente() {
   semilla.schedules.push({
-    id: 50,
+    jobSchedulesId: 50,
     job: semilla.jobs[13],
     date: '2026-11-10',
-    start_time: '10:00',
-    employee_ids: [1],
+    startTime: '10:00',
+    employeesIds: [1],
+    scheduleComment: null,
   })
   server.resetHandlers(...createHandlers(semilla))
 }
@@ -254,11 +255,11 @@ describe('App', () => {
     it('ordena por hora aunque el servidor las envíe desordenadas: 07:00, 08:00, 09:00', async () => {
       const pintar = semilla.jobs[6]
       const desordenadas: Schedule[] = [
-        { id: 1, job: pintar, date: '2026-11-02', start_time: '09:00', employee_ids: [] },
-        { id: 2, job: pintar, date: '2026-11-02', start_time: '07:00', employee_ids: [] },
-        { id: 3, job: pintar, date: '2026-11-02', start_time: '08:00', employee_ids: [] },
+        { jobSchedulesId: 1, job: pintar, date: '2026-11-02', startTime: '09:00', employeesIds: [], scheduleComment: null },
+        { jobSchedulesId: 2, job: pintar, date: '2026-11-02', startTime: '07:00', employeesIds: [], scheduleComment: null },
+        { jobSchedulesId: 3, job: pintar, date: '2026-11-02', startTime: '08:00', employeesIds: [], scheduleComment: null },
       ]
-      server.use(http.get('/api/schedules', () => HttpResponse.json(desordenadas)))
+      server.use(http.get('/v1/schedules', () => HttpResponse.json(desordenadas)))
       renderApp()
 
       await waitFor(() => expect(tarjetasDelDia('Mon')).toHaveLength(3))
@@ -270,10 +271,10 @@ describe('App', () => {
       const pintar = semilla.jobs[6]
       const jardin = semilla.jobs[13]
       server.use(
-        http.get('/api/schedules', () =>
+        http.get('/v1/schedules', () =>
           HttpResponse.json([
-            { id: 9, job: jardin, date: '2026-11-02', start_time: '07:00', employee_ids: [] },
-            { id: 4, job: pintar, date: '2026-11-02', start_time: '07:00', employee_ids: [] },
+            { jobSchedulesId: 9, job: jardin, date: '2026-11-02', startTime: '07:00', employeesIds: [] },
+            { jobSchedulesId: 4, job: pintar, date: '2026-11-02', startTime: '07:00', employeesIds: [] },
           ]),
         ),
       )
@@ -295,13 +296,13 @@ describe('App', () => {
     })
 
     it('mientras cargan los empleados la tarjeta del lunes no indica "No employees"; al cargar, muestra sus iniciales', async () => {
-      // `GET /api/employees` queda retenido hasta que el test lo libera.
+      // `GET /v1/employee` queda retenido hasta que el test lo libera.
       let liberarEmpleados!: () => void
       const empleadosRetenidos = new Promise<void>((resolve) => {
         liberarEmpleados = resolve
       })
       server.use(
-        http.get('/api/employees', async () => {
+        http.get('/v1/employee', async () => {
           await empleadosRetenidos
           return HttpResponse.json(semilla.employees)
         }),
@@ -379,9 +380,9 @@ describe('App', () => {
       expect(screen.getAllByRole('article')).toHaveLength(4)
     })
 
-    it('con un 500 en GET /api/schedules muestra el aviso "Couldn\'t load the week." con el detalle', async () => {
+    it('con un 500 en GET /v1/schedules muestra el aviso "Couldn\'t load the week." con el detalle', async () => {
       server.use(
-        http.get('/api/schedules', () => HttpResponse.json({ error: MENSAJE_500 }, { status: 500 })),
+        http.get('/v1/schedules', () => HttpResponse.json({ error: MENSAJE_500 }, { status: 500 })),
       )
       renderApp()
 
@@ -465,9 +466,9 @@ describe('App', () => {
       expect(within(panel).queryByText('Lucía Navarro')).not.toBeInTheDocument()
     })
 
-    it('con un 500 en GET /api/employees muestra "Couldn\'t load employees." con el detalle', async () => {
+    it('con un 500 en GET /v1/employee muestra "Couldn\'t load employees." con el detalle', async () => {
       server.use(
-        http.get('/api/employees', () => HttpResponse.json({ error: MENSAJE_500 }, { status: 500 })),
+        http.get('/v1/employee', () => HttpResponse.json({ error: MENSAJE_500 }, { status: 500 })),
       )
       renderApp()
 

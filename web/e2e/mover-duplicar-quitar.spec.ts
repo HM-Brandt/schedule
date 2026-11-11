@@ -72,7 +72,7 @@ async function programarDesdeElCatalogo(page: Page, numero: string, nombre: stri
 }
 
 /** Iniciales de los empleados de una tarjeta, en orden. */
-const iniciales = (tarjeta: Locator) => tarjeta.locator('[title]')
+const iniciales = (tarjeta: Locator) => tarjeta.locator('[title]:not([aria-label^="Comment:"])')
 
 test.beforeEach(async ({ page }) => {
   await page.clock.setFixedTime(new Date(2026, 10, 3, 10, 0))

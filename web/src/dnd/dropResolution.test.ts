@@ -3,20 +3,21 @@
 // Cubren cada combinación origen-destino de la decisión 5 de `design.md`: qué acción
 // produce `resolveDrop` y qué tipos acepta cada destino según `ACCEPTS`.
 import { describe, expect, it } from 'vitest'
+import { trabajo } from '../test/fabricas'
 import type { Job, Schedule } from '../api/types'
 import { ACCEPTS, resolveDrop } from './dropResolution'
 import type { DragData, DropData } from './dropResolution'
 
-const JARDIN_PEREZ: Job = { id: 14, number: 'J-1031', name: 'Jardín Pérez' }
-const PINTAR_OFICINA: Job = { id: 7, number: 'J-1024', name: 'Pintar oficina' }
+const JARDIN_PEREZ: Job = trabajo(14, 'J-1031', 'Jardín Pérez')
+const PINTAR_OFICINA: Job = trabajo(7, 'J-1024', 'Pintar oficina')
 
 const LUNES = '2026-11-02'
 const JUEVES = '2026-11-05'
 
 // Tarjeta A: lunes, con Ana López (3) y Luis Martínez (5).
-const TARJETA_A: Schedule = { id: 1, job: PINTAR_OFICINA, date: LUNES, start_time: '07:00', employee_ids: [3, 5] }
+const TARJETA_A: Schedule = { jobSchedulesId: 1, job: PINTAR_OFICINA, date: LUNES, startTime: '07:00', employeesIds: [3, 5], scheduleComment: null }
 // Tarjeta B: lunes, solo con Ana López (3).
-const TARJETA_B: Schedule = { id: 2, job: PINTAR_OFICINA, date: LUNES, start_time: '08:00', employee_ids: [3] }
+const TARJETA_B: Schedule = { jobSchedulesId: 2, job: PINTAR_OFICINA, date: LUNES, startTime: '08:00', employeesIds: [3], scheduleComment: null }
 
 const SIN_ALT = { altKey: false }
 const CON_ALT = { altKey: true }
@@ -112,34 +113,34 @@ describe('resolveDrop', () => {
   describe('empleado de una tarjeta', () => {
     it('soltado en otra tarjeta donde no está: lo pasa de la tarjeta A a la B', () => {
       // Luis Martínez (5) está en A y no en B.
-      expect(resolveDrop(empleadoDeTarjeta(5, TARJETA_A.id), tarjetaDestino(TARJETA_B), SIN_ALT)).toEqual({
+      expect(resolveDrop(empleadoDeTarjeta(5, TARJETA_A.jobSchedulesId), tarjetaDestino(TARJETA_B), SIN_ALT)).toEqual({
         kind: 'transfer',
         employeeId: 5,
-        fromScheduleId: TARJETA_A.id,
+        fromScheduleId: TARJETA_A.jobSchedulesId,
         schedule: TARJETA_B,
       })
     })
 
     it('soltado en su misma tarjeta: no hace nada', () => {
-      expect(resolveDrop(empleadoDeTarjeta(5, TARJETA_A.id), tarjetaDestino(TARJETA_A), SIN_ALT)).toEqual({
+      expect(resolveDrop(empleadoDeTarjeta(5, TARJETA_A.jobSchedulesId), tarjetaDestino(TARJETA_A), SIN_ALT)).toEqual({
         kind: 'none',
       })
     })
 
     it('soltado en otra tarjeta donde ya está: solo lo retira de la tarjeta A', () => {
       // Ana López (3) está en A y en B.
-      expect(resolveDrop(empleadoDeTarjeta(3, TARJETA_A.id), tarjetaDestino(TARJETA_B), SIN_ALT)).toEqual({
+      expect(resolveDrop(empleadoDeTarjeta(3, TARJETA_A.jobSchedulesId), tarjetaDestino(TARJETA_B), SIN_ALT)).toEqual({
         kind: 'unassign',
         employeeId: 3,
-        fromScheduleId: TARJETA_A.id,
+        fromScheduleId: TARJETA_A.jobSchedulesId,
       })
     })
 
     it('soltado fuera de cualquier destino: lo retira de su tarjeta', () => {
-      expect(resolveDrop(empleadoDeTarjeta(5, TARJETA_A.id), null, SIN_ALT)).toEqual({
+      expect(resolveDrop(empleadoDeTarjeta(5, TARJETA_A.jobSchedulesId), null, SIN_ALT)).toEqual({
         kind: 'unassign',
         employeeId: 5,
-        fromScheduleId: TARJETA_A.id,
+        fromScheduleId: TARJETA_A.jobSchedulesId,
       })
     })
   })
@@ -152,9 +153,9 @@ describe('resolveDrop', () => {
       ['tarjeta en otra tarjeta', tarjetaArrastrada(TARJETA_A), tarjetaDestino(TARJETA_B)],
       ['tarjeta fuera de cualquier destino', tarjetaArrastrada(TARJETA_A), null],
       ['empleado del panel en un día', empleadoDelPanel(4), dia(JUEVES)],
-      ['empleado de una tarjeta en un día', empleadoDeTarjeta(5, TARJETA_A.id), dia(JUEVES)],
+      ['empleado de una tarjeta en un día', empleadoDeTarjeta(5, TARJETA_A.jobSchedulesId), dia(JUEVES)],
       ['empleado del panel en el catálogo', empleadoDelPanel(4), catalogo],
-      ['empleado de una tarjeta en el catálogo', empleadoDeTarjeta(5, TARJETA_A.id), catalogo],
+      ['empleado de una tarjeta en el catálogo', empleadoDeTarjeta(5, TARJETA_A.jobSchedulesId), catalogo],
     ])('%s: no hace nada', (_caso, origen, destino) => {
       expect(resolveDrop(origen, destino, SIN_ALT)).toEqual({ kind: 'none' })
       expect(resolveDrop(origen, destino, CON_ALT)).toEqual({ kind: 'none' })

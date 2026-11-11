@@ -61,7 +61,7 @@ const panel = (page: Page) => page.getByRole('heading', { name: 'Employees' }).l
 const enElPanel = (page: Page, nombre: string) => panel(page).getByRole('listitem').filter({ hasText: nombre })
 
 /** Iniciales de los empleados de una tarjeta, en orden. */
-const iniciales = (tarjetaDelDia: Locator) => tarjetaDelDia.locator('[title]')
+const iniciales = (tarjetaDelDia: Locator) => tarjetaDelDia.locator('[title]:not([aria-label^="Comment:"])')
 
 /**
  * Programa `numero` en el día `nombre` arrastrándolo del catálogo, tras buscarlo para que quepa

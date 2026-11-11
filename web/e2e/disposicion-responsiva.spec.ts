@@ -193,7 +193,7 @@ test.describe('teléfono, 390 px', () => {
 
     await panel.getByRole('button', { name: 'Done' }).click()
     await expect(panel).toHaveCount(0)
-    await expect(lamparas.locator('[title]')).toHaveText(['AL', 'LM'])
+    await expect(lamparas.locator('[title]:not([aria-label^="Comment:"])')).toHaveText(['AL', 'LM'])
     await expect(lamparas).not.toContainText('No employees')
   })
 })
@@ -266,7 +266,7 @@ test.describe('táctil en tablet, 800 px', () => {
     // La tarjeta sigue en el lunes, igual que antes.
     await expect(columna(page, 'Mon').getByRole('article')).toHaveCount(2)
     await expect(pintar).toContainText('J-1024')
-    await expect(pintar.locator('[title]')).toHaveText(['AL', 'LM'])
+    await expect(pintar.locator('[title]:not([aria-label^="Comment:"])')).toHaveText(['AL', 'LM'])
     await expect(page.getByRole('article')).toHaveCount(4)
   })
 })

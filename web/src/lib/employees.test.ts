@@ -5,9 +5,10 @@
 import { describe, expect, it } from 'vitest'
 import type { Employee } from '../api/types'
 import { fullName, initials } from './employees'
+import { empleado as crearEmpleado } from '../test/fabricas'
 
-function empleado(first_name: string, last_name: string): Employee {
-  return { id: 1, first_name, last_name, title: 'Pintora', status: 'activo' }
+function empleado(firstName: string, lastName: string): Employee {
+  return crearEmpleado(1, firstName, lastName, 'Pintora')
 }
 
 describe('initials', () => {
@@ -43,5 +44,12 @@ describe('fullName', () => {
 
   it('conserva mayúsculas, tildes y nombres compuestos tal como llegan', () => {
     expect(fullName(empleado('María José', 'de la Fuente'))).toBe('María José de la Fuente')
+  })
+
+  it('usa firstName y lastName aunque legalName sea distinto', () => {
+    const conNombreLegal: Employee = { ...empleado('Ana', 'López'), legalName: 'Ana María López García' }
+
+    expect(fullName(conNombreLegal)).toBe('Ana López')
+    expect(initials(conNombreLegal)).toBe('AL')
   })
 })

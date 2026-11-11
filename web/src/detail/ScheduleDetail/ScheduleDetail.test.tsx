@@ -5,14 +5,15 @@
 // día), "Duplicar una programación" (escenario "Duplicar desde el detalle en el mismo día"),
 // "Mover una programación a otro día" (con "Move to") y "Quitar una programación"; y de
 // `specs/employee-assignment/spec.md`, "Retirar un empleado de una programación" (desde el
-// detalle) y "Empleados que pasan a inactivos" (el detalle lo marca como inactivo).
+// detalle) y "Empleados que pasan a inactivos" (el detalle lo marca como inactivo). También
+// cubren "Comentario de una programación" (tarea 12.2) y "Duplicar no copia el comentario".
 //
 // Se monta la aplicación completa: el detalle se abre al pulsar una tarjeta y sus cambios se
 // comprueban en el tablero y en las peticiones que llegan al servidor.
 //
 // La fecha del sistema se fija en el martes 2026-11-03. La semilla programa esa semana:
-// - lunes 2: "J-1024 Pintar oficina" (id 1) a las 07:00 con Ana López y Luis Martínez, y otra
-//   (id 2) a las 08:00 con Ana;
+// - lunes 2: "J-1024 Pintar oficina" (id 1) a las 07:00 con Ana López y Luis Martínez y el
+//   comentario "Llevar escalera", y otra (id 2) a las 08:00 con Ana y sin comentario;
 // - martes 3: "J-1019 Cambiar ventanas" (id 3) a las 07:00 con Carlos Ruiz;
 // - jueves 5: "J-1029 Instalar lámparas" (id 4) a las 09:30, sin empleados.
 // Raúl Torres (9) está inactivo.
@@ -73,10 +74,10 @@ function prepararServidor() {
     return undefined
   }
   server.resetHandlers(
-    http.post('/api/schedules', anotar),
-    http.patch('/api/schedules/:id', anotar),
-    http.delete('/api/schedules/:id', anotar),
-    http.put('/api/schedules/:id/employees', anotar),
+    http.post('/v1/schedules', anotar),
+    http.patch('/v1/schedules/:id', anotar),
+    http.delete('/v1/schedules/:id', anotar),
+    http.put('/v1/schedules/:id/employees', anotar),
     ...createHandlers(semilla),
   )
 }
@@ -111,7 +112,7 @@ const horasDelDia = (nombre: string) =>
 
 /** Iniciales de los empleados de una tarjeta, en orden. */
 const iniciales = (elemento: HTMLElement) =>
-  Array.from(elemento.querySelectorAll('[title]')).map((item) => item.textContent)
+  Array.from(elemento.querySelectorAll('[title]:not([aria-label^="Comment:"])')).map((item) => item.textContent)
 
 /** Pulsa la tarjeta y devuelve el panel de detalle que abre. */
 function abrirDetalle(elemento: HTMLElement, nombre: string): HTMLElement {
@@ -120,6 +121,17 @@ function abrirDetalle(elemento: HTMLElement, nombre: string): HTMLElement {
 }
 
 const campoHora = (detalle: HTMLElement) => within(detalle).getByLabelText('Start time') as HTMLInputElement
+
+const campoComentario = (detalle: HTMLElement) => within(detalle).getByLabelText('Comment') as HTMLTextAreaElement
+
+/** Icono de comentario de una tarjeta, o `null` si no lo tiene. */
+const iconoComentario = (elemento: HTMLElement) => within(elemento).queryByLabelText(/^Comment: /)
+
+/** Espera un momento y comprueba que no se envió ninguna petición de cambio. */
+async function sinPeticiones() {
+  await new Promise((resolve) => setTimeout(resolve, 50))
+  expect(peticiones).toEqual([])
+}
 
 describe('ScheduleDetail', () => {
   it('al pulsar una tarjeta muestra su número y nombre, la fecha, la hora, los empleados y las acciones', async () => {
@@ -168,7 +180,7 @@ describe('ScheduleDetail', () => {
       expect(iniciales(tarjetasDelDia('Mon')[1])).toEqual(['AL', 'LM'])
       expect(iniciales(tarjetasDelDia('Mon')[0])).toEqual(['AL'])
       await waitFor(() =>
-        expect(peticiones).toEqual([{ metodo: 'PATCH', ruta: '/api/schedules/1', cuerpo: { start_time: '10:30' } }]),
+        expect(peticiones).toEqual([{ metodo: 'PATCH', ruta: '/v1/schedules/1', cuerpo: { startTime: '10:30' } }]),
       )
       expect(campoHora(screen.getByRole('dialog'))).toHaveValue('10:30')
       expect(await screen.findByText('Start time changed')).toBeInTheDocument()
@@ -185,7 +197,7 @@ describe('ScheduleDetail', () => {
       fireEvent.keyDown(campo, { key: 'Enter' })
 
       await waitFor(() =>
-        expect(peticiones).toEqual([{ metodo: 'PATCH', ruta: '/api/schedules/1', cuerpo: { start_time: '10:30' } }]),
+        expect(peticiones).toEqual([{ metodo: 'PATCH', ruta: '/v1/schedules/1', cuerpo: { startTime: '10:30' } }]),
       )
       await waitFor(() => expect(horasDelDia('Mon')).toEqual(['08:00', '10:30']))
     })
@@ -213,10 +225,150 @@ describe('ScheduleDetail', () => {
     })
   })
 
+  describe('comentario', () => {
+    it('el campo "Comment" va debajo de "Start time" y muestra el comentario de la programación', async () => {
+      await renderApp()
+      const detalle = abrirDetalle(tarjeta('Mon', '07:00'), 'J-1024 Pintar oficina')
+
+      const campo = campoComentario(detalle)
+      expect(campo.tagName).toBe('TEXTAREA')
+      expect(campo).toHaveValue('Llevar escalera')
+      expect(campoHora(detalle).compareDocumentPosition(campo) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    })
+
+    it('sin comentario el campo aparece vacío', async () => {
+      await renderApp()
+      const detalle = abrirDetalle(tarjeta('Mon', '08:00'), 'J-1024 Pintar oficina')
+
+      expect(campoComentario(detalle)).toHaveValue('')
+    })
+
+    it('escenario "Agregar un comentario": escribir "Llevar escalera" y salir del campo lo guarda y la tarjeta muestra el icono', async () => {
+      await renderApp()
+      expect(iconoComentario(tarjeta('Mon', '08:00'))).toBeNull()
+      const detalle = abrirDetalle(tarjeta('Mon', '08:00'), 'J-1024 Pintar oficina')
+
+      fireEvent.change(campoComentario(detalle), { target: { value: 'Llevar escalera' } })
+      fireEvent.blur(campoComentario(detalle))
+
+      await waitFor(() =>
+        expect(peticiones).toEqual([
+          { metodo: 'PATCH', ruta: '/v1/schedules/2', cuerpo: { scheduleComment: 'Llevar escalera' } },
+        ]),
+      )
+      await waitFor(() => expect(iconoComentario(tarjeta('Mon', '08:00'))).toHaveAttribute('title', 'Llevar escalera'))
+      expect(iconoComentario(tarjeta('Mon', '08:00'))).toHaveAccessibleName('Comment: Llevar escalera')
+      expect(await screen.findByText('Comment updated')).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: 'Undo' })).toBeInTheDocument()
+      expect(campoComentario(screen.getByRole('dialog'))).toHaveValue('Llevar escalera')
+    })
+
+    it('escribir no envía nada hasta salir del campo, y Enter no lo guarda', async () => {
+      await renderApp()
+      const detalle = abrirDetalle(tarjeta('Mon', '08:00'), 'J-1024 Pintar oficina')
+      const campo = campoComentario(detalle)
+
+      act(() => campo.focus())
+      fireEvent.change(campo, { target: { value: 'Llevar escalera' } })
+      fireEvent.keyDown(campo, { key: 'Enter' })
+
+      await sinPeticiones()
+      expect(campo).toHaveFocus()
+    })
+
+    it('guarda un comentario de varias líneas tal cual', async () => {
+      await renderApp()
+      const detalle = abrirDetalle(tarjeta('Mon', '08:00'), 'J-1024 Pintar oficina')
+
+      fireEvent.change(campoComentario(detalle), { target: { value: 'Llevar escalera\nY rodillos' } })
+      fireEvent.blur(campoComentario(detalle))
+
+      await waitFor(() =>
+        expect(peticiones).toEqual([
+          { metodo: 'PATCH', ruta: '/v1/schedules/2', cuerpo: { scheduleComment: 'Llevar escalera\nY rodillos' } },
+        ]),
+      )
+      await waitFor(() =>
+        expect(iconoComentario(tarjeta('Mon', '08:00'))).toHaveAttribute('title', 'Llevar escalera\nY rodillos'),
+      )
+    })
+
+    it.each([
+      ['vaciar', ''],
+      ['dejar solo espacios en', '   '],
+    ])('escenario "Borrar el comentario": %s el campo y salir envía null y la tarjeta deja de mostrar el icono', async (_accion, texto) => {
+      await renderApp()
+      expect(iconoComentario(tarjeta('Mon', '07:00'))).not.toBeNull()
+      const detalle = abrirDetalle(tarjeta('Mon', '07:00'), 'J-1024 Pintar oficina')
+
+      fireEvent.change(campoComentario(detalle), { target: { value: texto } })
+      fireEvent.blur(campoComentario(detalle))
+
+      await waitFor(() =>
+        expect(peticiones).toEqual([{ metodo: 'PATCH', ruta: '/v1/schedules/1', cuerpo: { scheduleComment: null } }]),
+      )
+      await waitFor(() => expect(iconoComentario(tarjeta('Mon', '07:00'))).toBeNull())
+      expect(campoComentario(screen.getByRole('dialog'))).toHaveValue('')
+      expect(await screen.findByText('Comment updated')).toBeInTheDocument()
+    })
+
+    it('escenario "Salir sin cambios": entrar y salir del campo con comentario no envía nada', async () => {
+      await renderApp()
+      const detalle = abrirDetalle(tarjeta('Mon', '07:00'), 'J-1024 Pintar oficina')
+      const campo = campoComentario(detalle)
+
+      act(() => campo.focus())
+      fireEvent.blur(campo)
+
+      await sinPeticiones()
+      expect(screen.queryByText('Comment updated')).not.toBeInTheDocument()
+      expect(iconoComentario(tarjeta('Mon', '07:00'))).toHaveAttribute('title', 'Llevar escalera')
+    })
+
+    it('salir sin cambios de un campo vacío, o dejar solo espacios donde no había comentario, no envía nada', async () => {
+      await renderApp()
+      const detalle = abrirDetalle(tarjeta('Mon', '08:00'), 'J-1024 Pintar oficina')
+
+      fireEvent.blur(campoComentario(detalle))
+      fireEvent.change(campoComentario(detalle), { target: { value: '   ' } })
+      fireEvent.blur(campoComentario(detalle))
+
+      await sinPeticiones()
+      expect(iconoComentario(tarjeta('Mon', '08:00'))).toBeNull()
+    })
+
+    it('al abrir otra programación el campo muestra el comentario de esa', async () => {
+      await renderApp()
+      abrirDetalle(tarjeta('Mon', '07:00'), 'J-1024 Pintar oficina')
+      expect(campoComentario(screen.getByRole('dialog'))).toHaveValue('Llevar escalera')
+
+      fireEvent.click(tarjeta('Mon', '08:00'))
+
+      await waitFor(() => expect(campoComentario(screen.getByRole('dialog'))).toHaveValue(''))
+      expect(peticiones).toEqual([])
+    })
+  })
+
   describe('"Duplicate"', () => {
+    it('escenario "Duplicar no copia el comentario": la copia no tiene comentario y la original conserva "Llevar escalera"', async () => {
+      semilla.schedules = semilla.schedules.filter((programacion) => programacion.jobSchedulesId !== 2)
+      await renderApp(3)
+      const detalle = abrirDetalle(tarjeta('Mon', '07:00'), 'J-1024 Pintar oficina')
+
+      fireEvent.click(within(detalle).getByRole('button', { name: 'Duplicate' }))
+
+      await waitFor(() => expect(tarjetasDelDia('Mon')).toHaveLength(2))
+      await waitFor(() => expect(peticiones).toHaveLength(1))
+      expect(peticiones[0].cuerpo).not.toHaveProperty('scheduleComment')
+      await screen.findByText('Job duplicated')
+      expect(iconoComentario(tarjeta('Mon', '08:00'))).toBeNull()
+      expect(iconoComentario(tarjeta('Mon', '07:00'))).toHaveAttribute('title', 'Llevar escalera')
+      expect(campoComentario(screen.getByRole('dialog'))).toHaveValue('Llevar escalera')
+    })
+
     it('escenario "Duplicar desde el detalle en el mismo día": "J-1024" (07:00) del lunes tiene una segunda a las 08:00', async () => {
       // El lunes solo tiene "J-1024 Pintar oficina" a las 07:00, con Ana y Luis.
-      semilla.schedules = semilla.schedules.filter((programacion) => programacion.id !== 2)
+      semilla.schedules = semilla.schedules.filter((programacion) => programacion.jobSchedulesId !== 2)
       await renderApp(3)
       const detalle = abrirDetalle(tarjeta('Mon', '07:00'), 'J-1024 Pintar oficina')
 
@@ -233,8 +385,8 @@ describe('ScheduleDetail', () => {
         expect(peticiones).toEqual([
           {
             metodo: 'POST',
-            ruta: '/api/schedules',
-            cuerpo: { job_id: 7, date: LUNES, start_time: '08:00', employee_ids: [3, 5] },
+            ruta: '/v1/schedules',
+            cuerpo: { jobsId: 7, date: LUNES, startTime: '08:00', employeesIds: [3, 5] },
           },
         ]),
       )
@@ -244,7 +396,7 @@ describe('ScheduleDetail', () => {
     })
 
     it('la copia no lleva a los empleados inactivos', async () => {
-      semilla.schedules.push({ id: 10, job: semilla.jobs[13], date: MIERCOLES, start_time: '07:00', employee_ids: [3, 9] })
+      semilla.schedules.push({ jobSchedulesId: 10, job: semilla.jobs[13], date: MIERCOLES, startTime: '07:00', employeesIds: [3, 9], scheduleComment: null })
       await renderApp(5)
       const detalle = abrirDetalle(tarjeta('Wed', 'J-1031'), 'J-1031 Jardín Pérez')
 
@@ -256,8 +408,8 @@ describe('ScheduleDetail', () => {
         expect(peticiones).toEqual([
           {
             metodo: 'POST',
-            ruta: '/api/schedules',
-            cuerpo: { job_id: 14, date: MIERCOLES, start_time: '08:00', employee_ids: [3] },
+            ruta: '/v1/schedules',
+            cuerpo: { jobsId: 14, date: MIERCOLES, startTime: '08:00', employeesIds: [3] },
           },
         ]),
       )
@@ -277,7 +429,7 @@ describe('ScheduleDetail', () => {
     expect(horasDelDia('Mon')).toEqual(['08:00'])
     await waitFor(() =>
       expect(peticiones).toEqual([
-        { metodo: 'PATCH', ruta: '/api/schedules/1', cuerpo: { date: JUEVES, start_time: '07:00' } },
+        { metodo: 'PATCH', ruta: '/v1/schedules/1', cuerpo: { date: JUEVES, startTime: '07:00' } },
       ]),
     )
     // El detalle sigue abierto y muestra la nueva fecha.
@@ -296,7 +448,7 @@ describe('ScheduleDetail', () => {
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
     await waitFor(() => expect(tarjetasDelDia('Thu')).toHaveLength(0))
     await waitFor(() =>
-      expect(peticiones).toEqual([{ metodo: 'DELETE', ruta: '/api/schedules/4', cuerpo: null }]),
+      expect(peticiones).toEqual([{ metodo: 'DELETE', ruta: '/v1/schedules/4', cuerpo: null }]),
     )
     expect(await screen.findByText('Job removed')).toBeInTheDocument()
     expect(screen.getAllByRole('article')).toHaveLength(3)
@@ -315,7 +467,7 @@ describe('ScheduleDetail', () => {
       expect(within(abierto).getByText('Luis Martínez')).toBeInTheDocument()
       await waitFor(() =>
         expect(peticiones).toEqual([
-          { metodo: 'PUT', ruta: '/api/schedules/1/employees', cuerpo: { employee_ids: [5] } },
+          { metodo: 'PUT', ruta: '/v1/schedules/1/employees', cuerpo: { employeesIds: [5] } },
         ]),
       )
       // La otra programación de Ana ese día no cambia.
@@ -334,7 +486,7 @@ describe('ScheduleDetail', () => {
     })
 
     it('un empleado inactivo aparece con "(inactive)" y se puede retirar', async () => {
-      semilla.schedules.push({ id: 10, job: semilla.jobs[13], date: MIERCOLES, start_time: '07:00', employee_ids: [3, 9] })
+      semilla.schedules.push({ jobSchedulesId: 10, job: semilla.jobs[13], date: MIERCOLES, startTime: '07:00', employeesIds: [3, 9], scheduleComment: null })
       await renderApp(5)
       const detalle = abrirDetalle(tarjeta('Wed', 'J-1031'), 'J-1031 Jardín Pérez')
 
@@ -346,7 +498,7 @@ describe('ScheduleDetail', () => {
 
       await waitFor(() =>
         expect(peticiones).toEqual([
-          { metodo: 'PUT', ruta: '/api/schedules/10/employees', cuerpo: { employee_ids: [3] } },
+          { metodo: 'PUT', ruta: '/v1/schedules/10/employees', cuerpo: { employeesIds: [3] } },
         ]),
       )
       await waitFor(() =>

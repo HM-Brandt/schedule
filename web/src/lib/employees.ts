@@ -1,9 +1,9 @@
 import type { Employee } from '../api/types'
 
 export function initials(employee: Employee): string {
-  return `${employee.first_name.charAt(0)}${employee.last_name.charAt(0)}`.toUpperCase()
+  return `${employee.firstName.charAt(0)}${employee.lastName.charAt(0)}`.toUpperCase()
 }
 
 export function fullName(employee: Employee): string {
-  return `${employee.first_name} ${employee.last_name}`
+  return `${employee.firstName} ${employee.lastName}`
 }

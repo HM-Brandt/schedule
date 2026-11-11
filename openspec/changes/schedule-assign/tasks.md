@@ -69,9 +69,30 @@
 
 ## 10. Integración
 
-- [ ] 10.1 Recorrer con datos de prueba el flujo completo a 1280, 800 y 390 px (programar, repetir el mismo trabajo, asignar, mover, duplicar, quitar, deshacer, cambiar de semana) y verificar que todos los escenarios de `weekly-schedule-board` y `employee-assignment` se cumplen
-- [ ] 10.2 Con `VITE_USE_MOCKS=false` y un `VITE_API_URL` sin backend, verificar que la app muestra errores de carga claros y que los cambios se revierten con mensaje
-- [ ] 10.3 Ejecutar `npm test`, `tsc --noEmit` y `npm run build` y verificar que los tres terminan sin errores
+- [x] 10.1 Recorrer con datos de prueba el flujo completo a 1280, 800 y 390 px (programar, repetir el mismo trabajo, asignar, mover, duplicar, quitar, deshacer, cambiar de semana) y verificar que todos los escenarios de `weekly-schedule-board` y `employee-assignment` se cumplen
+- [x] 10.2 Con `VITE_USE_MOCKS=false` y un `VITE_API_URL` sin backend, verificar que la app muestra errores de carga claros y que los cambios se revierten con mensaje
+- [x] 10.3 Ejecutar `npm test`, `tsc --noEmit` y `npm run build` y verificar que los tres terminan sin errores
+
+## 11. Alinear con el backend real
+
+- [x] 11.1 Actualizar los tipos `Employee`, `Job`, `Schedule` y los cuerpos de petición a los nombres del backend (`employeesId`, `firstName`, `lastName`, `jobsId`, `jobSchedulesId`, `startTime`, `employeesIds`; `status` `Active`/`Terminated`) y verificar que `tsc --noEmit` pasa
+- [x] 11.2 Ajustar el cliente HTTP (cuerpos y normalización de `startTime`) y verificar con sus tests
+- [x] 11.3 Ajustar la semilla y los manejadores MSW a la forma nueva (2 empleados `Terminated`, jobs con todos sus campos, validaciones 422 con `Terminated`) y verificar con tests en `msw/node`
+- [x] 11.4 Ajustar componentes, selectores, arrastre, deshacer y regla de hora a los nombres nuevos, y verificar que `npm test`, `tsc --noEmit` y `npm run build` pasan
+- [x] 11.5 Actualizar `docs/schema.sql` con el DDL de `design.md` (decisión 1)
+- [ ] 11.6 Actualizar `docs/api.md` con el contrato nuevo (lo redacta Carlos)
+- [x] 11.7 Usar en el cliente HTTP las rutas `v1/...` relativas a `VITE_API_URL` para los siete endpoints, y en los manejadores MSW (incluida la latencia) un comodín de origen, y verificar con datos de prueba que con `VITE_API_URL` vacía y con una URL absoluta con prefijo `/api` las peticiones se interceptan
+
+## 12. Comentario de una programación
+
+- [ ] 12.1 Añadir `scheduleComment` al tipo `Schedule`, a los cuerpos de POST y PATCH, a la semilla y a los manejadores MSW (vacío o solo espacios se guarda como `null`), y verificar con tests en `msw/node` los escenarios de comentario de `specs/schedule-api/spec.md`
+- [ ] 12.2 Añadir el campo "Comment" al detalle (guardar al salir del campo solo si cambió) y el icono con ayuda emergente en la tarjeta, y verificar con tests los escenarios de "Comentario de una programación"
+- [ ] 12.3 Incluir el comentario en la pila de deshacer (inversa del PATCH de comentario, restaurarlo al deshacer un quitar) y no copiarlo al duplicar, y verificar con tests los escenarios de deshacer y "Duplicar no copia el comentario"
+
+## 13. Días con trabajo por empleado
+
+- [ ] 13.1 Construir el componente de siete recuadros (vacío, tono claro, tono fuerte, borde en el día actual, texto accesible) a partir del selector de programaciones por empleado y día, y verificar con tests los escenarios de "Días con trabajo en la semana visible"
+- [ ] 13.2 Mostrarlo en el panel de empleados y en la lista de casillas del teléfono, y verificar en el navegador a 1280, 800 y 390 px
 
 ## Workflow follow-up
 

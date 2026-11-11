@@ -21,12 +21,12 @@ export function ScheduleDndProvider({ schedules, children }: { schedules: Schedu
         if (action.kind === 'duplicate') actions.duplicate(action.schedule, action.date)
         if (action.kind === 'remove') actions.remove(action.schedule)
         if (action.kind === 'assign') {
-          actions.setEmployees(action.schedule, [...action.schedule.employee_ids, action.employeeId])
+          actions.setEmployees(action.schedule, [...action.schedule.employeesIds, action.employeeId])
         }
         if (action.kind === 'transfer' || action.kind === 'unassign') {
-          const from = schedules.find((schedule) => schedule.id === action.fromScheduleId)
+          const from = schedules.find((schedule) => schedule.jobSchedulesId === action.fromScheduleId)
           if (from && action.kind === 'unassign') {
-            actions.setEmployees(from, from.employee_ids.filter((id) => id !== action.employeeId))
+            actions.setEmployees(from, from.employeesIds.filter((id) => id !== action.employeeId))
           }
           if (from && action.kind === 'transfer') actions.transferEmployee(action.employeeId, from, action.schedule)
         }

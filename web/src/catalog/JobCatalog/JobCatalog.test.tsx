@@ -229,8 +229,8 @@ describe('JobCatalog', () => {
     })
   })
 
-  it('con un 500 en GET /api/jobs muestra el aviso "Couldn\'t load jobs." con el detalle', async () => {
-    server.use(http.get('/api/jobs', () => HttpResponse.json({ error: MENSAJE_500 }, { status: 500 })))
+  it('con un 500 en GET /v1/job muestra el aviso "Couldn\'t load jobs." con el detalle', async () => {
+    server.use(http.get('/v1/job', () => HttpResponse.json({ error: MENSAJE_500 }, { status: 500 })))
     renderCatalogo()
 
     const aviso = await screen.findByRole('alert')
@@ -239,9 +239,9 @@ describe('JobCatalog', () => {
     expect(screen.queryByText('No jobs found')).not.toBeInTheDocument()
   })
 
-  it('con un 200 en HTML en GET /api/jobs (Vite sin backend) muestra el aviso de carga y no se rompe', async () => {
+  it('con un 200 en HTML en GET /v1/job (Vite sin backend) muestra el aviso de carga y no se rompe', async () => {
     server.use(
-      http.get('/api/jobs', () =>
+      http.get('/v1/job', () =>
         HttpResponse.html('<!doctype html><html><body><div id="root"></div></body></html>'),
       ),
     )

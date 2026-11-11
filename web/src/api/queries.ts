@@ -8,7 +8,7 @@ export const queryKeys = {
   schedules: (from: IsoDate, to: IsoDate) => ['schedules', from, to] as const,
 }
 
-export function useEmployees() {
+export function  useEmployees() {
   return useQuery({ queryKey: queryKeys.employees, queryFn: () => api.getEmployees() })
 }
 
