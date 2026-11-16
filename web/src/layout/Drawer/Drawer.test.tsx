@@ -1,6 +1,6 @@
-// Tests del cajón lateral de la tablet (tarea 9.2 de `schedule-assign`).
+// Tests del cajón lateral de la tablet (tareas 9.2 y 15.2 de `schedule-assign`).
 //
-// Cubren la decisión 8 de `design.md`: entre 640 y 1023 px el catálogo y los empleados van en
+// Cubren la decisión 8 de `design.md`: entre 640 y 1279 px el catálogo y los empleados van en
 // cajones laterales que se apartan durante el arrastre, para dejar a la vista el tablero.
 //
 // Se monta dentro del `DragDropProvider` real y el arrastre se maneja con las acciones del

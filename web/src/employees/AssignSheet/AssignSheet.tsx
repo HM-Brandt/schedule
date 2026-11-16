@@ -1,23 +1,30 @@
-import { useEffect } from 'react'
-import type { Employee, Schedule } from '../../api/types'
+import { useEffect, useMemo } from 'react'
+import type { Employee, IsoDate, Schedule } from '../../api/types'
 import { BottomSheet } from '../../layout/BottomSheet'
 import { employeeHue } from '../../lib/colors'
 import { fullName, initials } from '../../lib/employees'
+import { employeeDayCounts } from '../../lib/selectors'
 import { useScheduleActions } from '../../undo/useScheduleActions'
+import { WeekLoad } from '../WeekLoad'
 import styles from './AssignSheet.module.css'
 
 export function AssignSheet({
   schedule,
   employees,
   schedules,
+  days,
+  today,
   onClose,
 }: {
   schedule: Schedule
   employees: Employee[]
   schedules: Schedule[]
+  days: IsoDate[]
+  today: IsoDate
   onClose: () => void
 }) {
   const actions = useScheduleActions(schedules)
+  const counts = useMemo(() => employeeDayCounts(schedules), [schedules])
   const current = schedules.find((item) => item.jobSchedulesId === schedule.jobSchedulesId)
 
   useEffect(() => {
@@ -55,7 +62,10 @@ export function AssignSheet({
                   <span className={styles.avatar} data-hue={employeeHue(employee.employeesId)}>
                     {initials(employee)}
                   </span>
-                  {fullName(employee)}
+                  <span className={styles.name}>
+                    {fullName(employee)}
+                    <WeekLoad days={days} today={today} load={counts.get(employee.employeesId)} />
+                  </span>
                 </label>
                 {load > 0 && <span className={styles.load}>{load === 1 ? '1 job' : `${load} jobs`}</span>}
               </li>

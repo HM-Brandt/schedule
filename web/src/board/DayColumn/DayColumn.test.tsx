@@ -41,7 +41,13 @@ function renderTablero() {
         schedulesByDay={schedulesByDay(semilla.schedules, DIAS)}
         employeesById={EMPLEADOS}
       />
-      <EmployeePanel employees={semilla.employees} error={null} />
+      <EmployeePanel
+        employees={semilla.employees}
+        error={null}
+        schedules={semilla.schedules}
+        days={DIAS}
+        today="2026-11-03"
+      />
     </DragDropProvider>,
   )
 }

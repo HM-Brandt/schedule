@@ -476,5 +476,58 @@ describe('App', () => {
       expect(aviso).toHaveTextContent(`Couldn't load employees. ${MENSAJE_500}`)
       expect(within(seccion('Employees')).queryAllByRole('listitem')).toHaveLength(0)
     })
+
+    // Tarea 13.2: requisito "Días con trabajo en la semana visible". Nivel 0 = vacío,
+    // 1 = tono claro, 2 = tono fuerte.
+    describe('días con trabajo de cada empleado', () => {
+      /** Recuadros (`role="img"`) de la fila del panel con el nombre `nombre`. */
+      function recuadrosDe(nombre: string) {
+        const fila = within(seccion('Employees')).getByText(nombre).closest('li') as HTMLElement
+        const contenedor = within(fila).getByRole('img')
+        return {
+          contenedor,
+          niveles: Array.from(contenedor.children).map((recuadro) => recuadro.getAttribute('data-level')),
+          hoy: Array.from(contenedor.children).map((recuadro) => recuadro.hasAttribute('data-today')),
+        }
+      }
+
+      it('cada fila muestra los días con trabajo de la semana visible y el martes 3 como día actual', async () => {
+        renderApp()
+
+        await waitFor(() => expect(recuadrosDe('Ana López').contenedor).toHaveAccessibleName('Assigned: Mon (2)'))
+        expect(recuadrosDe('Ana López').niveles).toEqual(['0', '2', '0', '0', '0', '0', '0'])
+        expect(recuadrosDe('Luis Martínez').niveles).toEqual(['0', '1', '0', '0', '0', '0', '0'])
+        expect(recuadrosDe('Carlos Ruiz').contenedor).toHaveAccessibleName('Assigned: Tue (1)')
+        expect(recuadrosDe('Marta Gómez').contenedor).toHaveAccessibleName('Assigned: none')
+        expect(recuadrosDe('Marta Gómez').hoy).toEqual([false, false, true, false, false, false, false])
+      })
+
+      it('escenario "Cambio de semana": en la semana siguiente Ana y Carlos quedan vacíos y Marta muestra su martes 10', async () => {
+        programarEnLaSemanaSiguiente()
+        renderApp()
+        await waitFor(() => expect(recuadrosDe('Ana López').contenedor).toHaveAccessibleName('Assigned: Mon (2)'))
+
+        fireEvent.click(screen.getByRole('button', { name: 'Next week' }))
+
+        await waitFor(() => expect(recuadrosDe('Marta Gómez').contenedor).toHaveAccessibleName('Assigned: Tue (1)'))
+        expect(recuadrosDe('Ana López').niveles).toEqual(['0', '0', '0', '0', '0', '0', '0'])
+        expect(recuadrosDe('Ana López').contenedor).toHaveAccessibleName('Assigned: none')
+        expect(recuadrosDe('Carlos Ruiz').contenedor).toHaveAccessibleName('Assigned: none')
+        // La semana siguiente no contiene el día actual.
+        expect(recuadrosDe('Ana López').hoy).toEqual([false, false, false, false, false, false, false])
+      })
+
+      it('"Today" tras "Next week" vuelve a mostrar los días con trabajo de la semana actual', async () => {
+        renderApp()
+        await waitFor(() => expect(recuadrosDe('Ana López').contenedor).toHaveAccessibleName('Assigned: Mon (2)'))
+        fireEvent.click(screen.getByRole('button', { name: 'Next week' }))
+        await waitFor(() => expect(recuadrosDe('Ana López').contenedor).toHaveAccessibleName('Assigned: none'))
+
+        fireEvent.click(screen.getByRole('button', { name: 'Today' }))
+
+        await waitFor(() => expect(recuadrosDe('Ana López').contenedor).toHaveAccessibleName('Assigned: Mon (2)'))
+        expect(recuadrosDe('Ana López').hoy[2]).toBe(true)
+      })
+    })
   })
 })

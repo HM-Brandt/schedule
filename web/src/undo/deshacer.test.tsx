@@ -134,8 +134,11 @@ describe('deshacer en la página', () => {
       expect(within(tarjeta('Mon', '07:00') as HTMLElement).getByLabelText('Comment: Llevar escalera')).toBeInTheDocument(),
     )
     expect(within(tarjeta('Mon', '07:00') as HTMLElement).queryByLabelText('Comment: Llevar andamio')).not.toBeInTheDocument()
-    // El detalle, aún abierto, muestra también el comentario restaurado.
-    expect(within(screen.getByRole('dialog')).getByLabelText('Comment')).toHaveValue('Llevar escalera')
+    // Pulsar "Undo" cierra el detalle (requisito "Cerrar el detalle de una programación").
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    // Al volver a abrirlo, el campo muestra el comentario restaurado.
+    const reabierto = abrirDetalle(tarjeta('Mon', '07:00'), 'J-1024 Pintar oficina')
+    expect(within(reabierto).getByLabelText('Comment')).toHaveValue('Llevar escalera')
   })
 
   it('escenario "Deshacer un quitar con un empleado inactivo": vuelve con Ana y sin Raúl', async () => {

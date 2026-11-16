@@ -149,11 +149,14 @@ Cada acción guarda en una pila en memoria su operación inversa (como máximo 2
 
 ### 8. Diseño responsivo
 
-Hay tres disposiciones según el ancho, con cortes en 640 y 1024 px:
+Hay cuatro disposiciones según el ancho, con cortes en 640, 1024 y 1280 px:
 
-- **≥ 1024 px:** cuadrícula de 7 columnas, catálogo y panel de empleados laterales.
-- **640–1023 px:** columnas que encajan 3 o 4 días completos, con desplazamiento horizontal con ajuste por columna; catálogo y empleados en cajones laterales que se apartan durante el arrastre.
+- **≥ 1280 px:** cuadrícula de 7 columnas, catálogo y panel de empleados laterales.
+- **1024–1279 px (tablet horizontal, laptops pequeñas):** cuadrícula de 7 columnas a todo el ancho; catálogo y empleados en cajones laterales que se abren con "Jobs" y "Employees" y se apartan durante el arrastre. Con los paneles fijos, cada columna se quedaba en unos 56–63 px útiles y no cabían las iniciales ni los recuadros de días.
+- **640–1023 px (tablet vertical):** los 7 días apilados, una fila por día; dentro de cada fila, las tarjetas van una al lado de la otra y pasan a otra línea cuando no caben (sin desplazamiento horizontal dentro del día, que en táctil choca con el arrastre). Catálogo y empleados en cajones laterales, como en 1024–1279. Sustituye a las 3–4 columnas con desplazamiento horizontal, que no indicaban que hubiera más días.
 - **< 640 px:** un día con tira de días superior; catálogo y empleados en paneles inferiores; detalle a pantalla completa.
+
+Los recuadros de días con trabajo de cada empleado se adaptan al ancho de su fila para no salirse del panel ni de los cajones.
 
 Los componentes de tarjeta, catálogo y empleado se comparten. Solo cambia el contenedor de la disposición. La disposición se elige con `matchMedia` en un hook, porque la del teléfono cambia de verdad la estructura de la página y no solo los estilos.
 

@@ -91,7 +91,15 @@ function App() {
     />
   )
   const catalog = <JobCatalog counts={counts} />
-  const employeePanel = <EmployeePanel employees={employees.data ?? []} error={employees.error} />
+  const employeePanel = (
+    <EmployeePanel
+      employees={employees.data ?? []}
+      error={employees.error}
+      schedules={schedules.data ?? []}
+      days={week.days}
+      today={week.today}
+    />
+  )
 
   return (
     <UndoProvider>
@@ -172,6 +180,8 @@ function App() {
                   schedule={assigning}
                   employees={employees.data ?? []}
                   schedules={schedules.data ?? []}
+                  days={week.days}
+                  today={week.today}
                   onClose={() => setAssigning(null)}
                 />
               )}

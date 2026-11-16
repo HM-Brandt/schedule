@@ -1,6 +1,6 @@
 import { format } from 'date-fns'
 import { ArrowRightLeft, Copy, Trash2, X } from 'lucide-react'
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 import type { Employee, IsoDate, Schedule } from '../../api/types'
 import { parseIsoDate } from '../../lib/dates'
 import { employeeHue, jobHue } from '../../lib/colors'
@@ -24,11 +24,20 @@ export function ScheduleDetail({
   onClose: () => void
 }) {
   const actions = useScheduleActions(schedules)
+  const panelRef = useRef<HTMLElement>(null)
   const schedule = schedules.find((item) => item.jobSchedulesId === scheduleId)
 
   useEffect(() => {
     if (!schedule) onClose()
   }, [schedule, onClose])
+
+  useEffect(() => {
+    const closeOutside = (event: MouseEvent) => {
+      if (!panelRef.current?.contains(event.target as Node)) onClose()
+    }
+    document.addEventListener('click', closeOutside, true)
+    return () => document.removeEventListener('click', closeOutside, true)
+  }, [onClose])
 
   if (!schedule) return null
   const employees = schedule.employeesIds.flatMap((id) => employeesById.get(id) ?? [])
@@ -37,7 +46,7 @@ export function ScheduleDetail({
   }
 
   return (
-    <aside role="dialog" aria-label={`${schedule.job.number} ${schedule.job.name}`} className={styles.panel} data-hue={jobHue(schedule.job.jobsId)}>
+    <aside ref={panelRef} role="dialog" aria-label={`${schedule.job.number} ${schedule.job.name}`} className={styles.panel} data-hue={jobHue(schedule.job.jobsId)}>
       <div className={styles.number}>{schedule.job.number}</div>
       <h2 className={styles.name}>{schedule.job.name}</h2>
       <div className={styles.date}>{formatDate(schedule.date)}</div>

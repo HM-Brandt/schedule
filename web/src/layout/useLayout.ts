@@ -1,7 +1,7 @@
 import { useSyncExternalStore } from 'react'
 
 const PHONE = '(max-width: 639px)'
-const TABLET = '(max-width: 1023px)'
+const TABLET = '(max-width: 1279px)'
 
 function getLayout(): 'desktop' | 'tablet' | 'phone' {
   if (window.matchMedia(PHONE).matches) return 'phone'

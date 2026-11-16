@@ -118,6 +118,21 @@ Cada programación SHALL poder tener un comentario de texto libre. El detalle de
 - **WHEN** la persona entra y sale del campo "Comment" sin cambiar el texto
 - **THEN** no se envía ningún cambio al servidor
 
+### Requirement: Cerrar el detalle de una programación
+El detalle de una programación SHALL cerrarse con la acción "Close" y también al hacer click o tocar fuera del panel de detalle. Interactuar dentro del panel SHALL NOT cerrarlo. Un cambio que se estaba editando en el panel SHALL guardarse antes de cerrarse. Hacer click en otra tarjeta mientras el detalle está abierto SHALL mostrar el detalle de esa tarjeta. Pulsar "Undo" en el aviso SHALL cerrar el detalle.
+
+#### Scenario: Click fuera del panel
+- **WHEN** el detalle de "J-1024 Pintar oficina" está abierto y la persona hace click en una zona vacía del tablero
+- **THEN** el detalle se cierra
+
+#### Scenario: Click en otra tarjeta
+- **WHEN** el detalle de "J-1024 Pintar oficina" de las 07:00 está abierto y la persona hace click en la tarjeta "J-1024 Pintar oficina" de las 08:00
+- **THEN** se muestra el detalle de la programación de las 08:00
+
+#### Scenario: Guardar al cerrar
+- **WHEN** la persona escribe "Llevar andamio" en "Comment" y, sin salir antes del campo, hace click fuera del panel
+- **THEN** el comentario se guarda y el detalle se cierra
+
 ### Requirement: Orden de las programaciones dentro del día
 El sistema SHALL ordenar las programaciones de cada día por hora de inicio ascendente. Las programaciones con la misma hora SHALL ordenarse por orden de creación.
 
@@ -185,15 +200,34 @@ El sistema SHALL reflejar cada cambio en pantalla de inmediato, antes de recibir
 - **THEN** la programación vuelve a su día original y se muestra un mensaje de error que empieza por "Couldn't save the change."
 
 ### Requirement: Diseño responsivo por tamaño de pantalla
-El sistema SHALL adaptar la vista al ancho de pantalla: con 1024 px o más, los siete días a la vez con catálogo y panel de empleados; entre 640 y 1023 px, de tres a cuatro días visibles con desplazamiento horizontal y paneles plegables; con menos de 640 px, un solo día a la vez con una tira superior de los siete días.
+El sistema SHALL adaptar la vista al ancho de pantalla:
+- Con 1280 px o más: los siete días en columnas, con el catálogo y el panel de empleados fijos a los lados.
+- Entre 1024 y 1279 px: los siete días en columnas a todo el ancho; el catálogo y el panel de empleados SHALL ocultarse y abrirse como paneles plegables con las acciones "Jobs" y "Employees".
+- Entre 640 y 1023 px: los siete días apilados, un día por fila de domingo a sábado, con las programaciones de cada día una al lado de la otra y pasando a otra línea cuando no caben; el catálogo y el panel de empleados como paneles plegables con las acciones "Jobs" y "Employees".
+- Con menos de 640 px: un solo día a la vez con una tira superior de los siete días.
+
+En todas las disposiciones, el contenido del panel de empleados, incluidos los recuadros de días con trabajo, SHALL caber dentro de cada fila sin salirse.
 
 #### Scenario: Escritorio
 - **WHEN** la aplicación se muestra con 1280 px de ancho
 - **THEN** se ven los siete días, el catálogo de trabajos y el panel de empleados al mismo tiempo
 
+#### Scenario: Tablet horizontal
+- **WHEN** la aplicación se muestra con 1100 px de ancho
+- **THEN** se ven los siete días en columnas a todo el ancho, sin catálogo ni panel de empleados a los lados
+- **AND** al pulsar "Employees" se abre el panel de empleados
+
 #### Scenario: Tablet vertical
 - **WHEN** la aplicación se muestra con 800 px de ancho
-- **THEN** se ven entre tres y cuatro días y los demás se alcanzan desplazando horizontalmente
+- **THEN** se ven los siete días apilados, uno por fila, sin desplazamiento horizontal
+
+#### Scenario: Muchas programaciones en un día apilado
+- **WHEN** la aplicación se muestra con 800 px de ancho y el lunes tiene más programaciones de las que caben en una línea
+- **THEN** las programaciones del lunes que no caben pasan a la línea siguiente dentro de la fila del lunes
+
+#### Scenario: Recuadros dentro del panel
+- **WHEN** el panel de empleados se muestra en cualquier disposición
+- **THEN** los siete recuadros de días con trabajo de cada empleado quedan dentro de su fila
 
 #### Scenario: Teléfono
 - **WHEN** la aplicación se muestra con 390 px de ancho

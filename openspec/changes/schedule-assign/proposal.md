@@ -14,7 +14,7 @@ Hoy la planificación semanal de trabajos y de qué empleados van a cada uno no 
 - Cada empleado del panel muestra siete recuadros (domingo a sábado) con los días de la semana visible en los que ya tiene trabajo.
 - Cada trabajo programado puede llevar un comentario de texto libre, editable desde su detalle.
 - Todos los textos de la interfaz en inglés.
-- Interfaz responsiva: semana completa en escritorio y tablet horizontal, 3-4 días desplazables en tablet vertical, un día a la vez con tira de días en teléfono.
+- Interfaz responsiva: semana completa con paneles laterales en escritorio; semana completa con paneles plegables en tablet horizontal; los siete días apilados en tablet vertical; un día a la vez con tira de días en teléfono.
 - Contrato HTTP (7 endpoints REST) y esquema MySQL de dos tablas nuevas (`job_schedules`, `job_schedule_employees`) para que el backend se implemente por separado. Las tablas `jobs` y `employees` no se modifican.
 - Mientras el backend no exista, el frontend funciona con datos de prueba que implementan exactamente el mismo contrato.
 

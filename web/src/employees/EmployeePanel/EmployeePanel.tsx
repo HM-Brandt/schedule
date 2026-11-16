@@ -1,8 +1,24 @@
-import type { Employee } from '../../api/types'
+import { useMemo } from 'react'
+import type { Employee, IsoDate, Schedule } from '../../api/types'
+import { employeeDayCounts } from '../../lib/selectors'
 import { EmployeeItem } from '../EmployeeItem'
 import styles from './EmployeePanel.module.css'
 
-export function EmployeePanel({ employees, error }: { employees: Employee[]; error: Error | null }) {
+export function EmployeePanel({
+  employees,
+  error,
+  schedules,
+  days,
+  today,
+}: {
+  employees: Employee[]
+  error: Error | null
+  schedules: Schedule[]
+  days: IsoDate[]
+  today: IsoDate
+}) {
+  const counts = useMemo(() => employeeDayCounts(schedules), [schedules])
+
   return (
     <section className={styles.panel}>
       <h2 className={styles.title}>Employees</h2>
@@ -15,7 +31,13 @@ export function EmployeePanel({ employees, error }: { employees: Employee[]; err
         {employees
           .filter((employee) => employee.status === 'Active')
           .map((employee) => (
-            <EmployeeItem key={employee.employeesId} employee={employee} />
+            <EmployeeItem
+              key={employee.employeesId}
+              employee={employee}
+              days={days}
+              today={today}
+              load={counts.get(employee.employeesId)}
+            />
           ))}
       </ul>
     </section>

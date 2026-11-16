@@ -115,7 +115,13 @@ function Tablero() {
       <CapturadorDelGestor />
       <JobCatalog counts={new Map()} />
       <WeekBoard days={DIAS} today={MARTES} schedulesByDay={byDay} employeesById={employeesById} />
-      <EmployeePanel employees={employees.data ?? []} error={employees.error} />
+      <EmployeePanel
+        employees={employees.data ?? []}
+        error={employees.error}
+        schedules={schedules.data ?? []}
+        days={DIAS}
+        today={MARTES}
+      />
     </ScheduleDndProvider>
   )
 }
@@ -473,6 +479,82 @@ describe('ScheduleDndProvider', () => {
         await sinPeticiones()
         expect(iniciales(tarjeta('Mon', '07:00'))).toEqual(['AL', 'LM'])
       })
+    })
+  })
+
+  // Tarea 13.2: los recuadros de "Días con trabajo en la semana visible" del panel de empleados
+  // (`specs/employee-assignment/spec.md`) se actualizan al asignar, mover, retirar y quitar.
+  // Nivel 0 = vacío, 1 = tono claro, 2 = tono fuerte.
+  describe('recuadros de días con trabajo del panel', () => {
+    /** Recuadros (`role="img"`) de la fila del panel de empleados con el nombre `nombre`. */
+    function recuadrosDe(nombre: string) {
+      const panel = screen.getByRole('heading', { level: 2, name: 'Employees' }).closest('section') as HTMLElement
+      const fila = within(panel).getByText(nombre).closest('li') as HTMLElement
+      const contenedor = within(fila).getByRole('img')
+      return {
+        contenedor,
+        niveles: Array.from(contenedor.children).map((recuadro) => recuadro.getAttribute('data-level')),
+      }
+    }
+
+    it('escenario "Asignar actualiza los recuadros": Pedro sin trabajo el jueves; asignarlo a la tarjeta del jueves pinta su jueves', async () => {
+      await renderTablero()
+      expect(recuadrosDe('Pedro Sánchez').niveles).toEqual(['0', '0', '0', '0', '0', '0', '0'])
+      expect(recuadrosDe('Pedro Sánchez').contenedor).toHaveAccessibleName('Assigned: none')
+
+      await arrastrar('employee-4', 'card-4')
+
+      await waitFor(() => expect(recuadrosDe('Pedro Sánchez').contenedor).toHaveAccessibleName('Assigned: Thu (1)'))
+      expect(recuadrosDe('Pedro Sánchez').niveles).toEqual(['0', '0', '0', '0', '1', '0', '0'])
+    })
+
+    it('asignar a Luis a la segunda tarjeta del lunes pasa su lunes de tono claro a tono fuerte', async () => {
+      await renderTablero()
+      expect(recuadrosDe('Luis Martínez').niveles[1]).toBe('1')
+
+      await arrastrar('employee-5', 'card-2')
+
+      await waitFor(() => expect(recuadrosDe('Luis Martínez').niveles[1]).toBe('2'))
+      expect(recuadrosDe('Luis Martínez').contenedor).toHaveAccessibleName('Assigned: Mon (2)')
+    })
+
+    it('mover a Luis de la tarjeta del lunes a la del martes mueve su recuadro del lunes al martes', async () => {
+      await renderTablero()
+      expect(recuadrosDe('Luis Martínez').contenedor).toHaveAccessibleName('Assigned: Mon (1)')
+
+      await arrastrar('employee-5-in-1', 'card-3')
+
+      await waitFor(() => expect(recuadrosDe('Luis Martínez').contenedor).toHaveAccessibleName('Assigned: Tue (1)'))
+      expect(recuadrosDe('Luis Martínez').niveles).toEqual(['0', '0', '1', '0', '0', '0', '0'])
+    })
+
+    it('retirar a Ana de una tarjeta del lunes (soltándola fuera) baja su lunes de tono fuerte a tono claro', async () => {
+      await renderTablero()
+      expect(recuadrosDe('Ana López').niveles[1]).toBe('2')
+
+      await arrastrar('employee-3-in-1', null)
+
+      await waitFor(() => expect(recuadrosDe('Ana López').niveles[1]).toBe('1'))
+      expect(recuadrosDe('Ana López').contenedor).toHaveAccessibleName('Assigned: Mon (1)')
+    })
+
+    it('mover la tarjeta del martes de Carlos al sábado mueve su recuadro al sábado', async () => {
+      await renderTablero()
+
+      await arrastrar('schedule-3', `day-${SABADO}`)
+
+      await waitFor(() => expect(recuadrosDe('Carlos Ruiz').contenedor).toHaveAccessibleName('Assigned: Sat (1)'))
+      expect(recuadrosDe('Carlos Ruiz').niveles).toEqual(['0', '0', '0', '0', '0', '0', '1'])
+    })
+
+    it('quitar la tarjeta del lunes con Ana y Luis (soltándola en el catálogo) actualiza los recuadros de ambos', async () => {
+      await renderTablero()
+
+      await arrastrar('schedule-1', 'catalog')
+
+      await waitFor(() => expect(recuadrosDe('Luis Martínez').contenedor).toHaveAccessibleName('Assigned: none'))
+      expect(recuadrosDe('Luis Martínez').niveles).toEqual(['0', '0', '0', '0', '0', '0', '0'])
+      expect(recuadrosDe('Ana López').contenedor).toHaveAccessibleName('Assigned: Mon (1)')
     })
   })
 })

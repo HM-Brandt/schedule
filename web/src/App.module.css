@@ -26,12 +26,6 @@
   align-items: start;
 }
 
-@media (min-width: 1024px) and (max-width: 1279px) {
-  .layout {
-    grid-template-columns: 200px 1fr 170px;
-  }
-}
-
 .layout > aside {
   position: sticky;
   top: var(--space-4);

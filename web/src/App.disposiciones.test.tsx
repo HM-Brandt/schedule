@@ -1,15 +1,17 @@
-// Tests de las disposiciones de tablet y teléfono de la página inicial (tareas 9.2, 9.3 y 9.4 de
-// `schedule-assign`) con `msw/node`.
+// Tests de las disposiciones de tablet y teléfono de la página inicial (tareas 9.2, 9.3, 9.4,
+// 15.1 y 15.2 de `schedule-assign`) con `msw/node`.
 //
 // Cubren de `specs/weekly-schedule-board/spec.md` los requisitos "Diseño responsivo por tamaño de
-// pantalla" (escenarios "Tablet vertical" y "Teléfono") y "Tira de días en teléfono" (escenario
-// "Cambiar de día"); de `specs/employee-assignment/spec.md`, que el "+" de la tarjeta abre la
-// asignación por lista; y la decisión 8 de `design.md`: cajones laterales en tablet y paneles
-// inferiores en teléfono. jsdom no aplica el CSS, así que el desplazamiento horizontal de la
-// tablet y lo que cabe en pantalla se comprueban en los e2e (`e2e/disposicion-responsiva.spec.ts`).
+// pantalla" (escenarios "Tablet horizontal", "Tablet vertical" y "Teléfono") y "Tira de días en
+// teléfono" (escenario "Cambiar de día"); de `specs/employee-assignment/spec.md`, que el "+" de la
+// tarjeta abre la asignación por lista; y la decisión 8 de `design.md`: cajones laterales en
+// tablet y paneles inferiores en teléfono. jsdom no aplica el CSS, así que los días apilados de la
+// tablet vertical y lo que cabe en pantalla se comprueban en los e2e
+// (`e2e/disposicion-responsiva.spec.ts` y `e2e/disposiciones-tablet.spec.ts`).
 //
-// El ancho se simula con `simularAncho` (ver `src/test/viewport.ts`): 800 px para la tablet y
-// 390 px para el teléfono. La disposición de escritorio (1280 px) la cubre `App.test.tsx`.
+// El ancho se simula con `simularAncho` (ver `src/test/viewport.ts`): 1100 px para la tablet
+// horizontal, 800 px para la vertical y 390 px para el teléfono. La disposición de escritorio
+// (1280 px) la cubre `App.test.tsx`.
 //
 // La fecha del sistema se fija en el martes 2026-11-03 a las 10:00. La semilla programa esa semana:
 // - lunes 2: "J-1024 Pintar oficina" a las 07:00 (Ana López y Luis Martínez) y a las 08:00 (Ana);
@@ -86,7 +88,56 @@ const diaDeLaTira = (nombre: string) =>
 
 const tarjetas = () => screen.queryAllByRole('article')
 
-describe('App en tablet (800 px)', () => {
+/**
+ * Texto accesible de los recuadros de días con trabajo (tarea 13.2) de la fila de `nombre`
+ * dentro de `contenedor` (el panel de empleados o el de asignación).
+ */
+const recuadrosDe = (contenedor: HTMLElement, nombre: string) =>
+  within(
+    within(contenedor)
+      .getAllByRole('listitem')
+      .find((fila) => fila.textContent?.includes(nombre)) as HTMLElement,
+  ).getByRole('img')
+
+describe('App en tablet horizontal (1100 px)', () => {
+  it('escenario "Tablet horizontal": el tablero tiene las siete columnas, sin catálogo ni panel de empleados a los lados ni tira de días', async () => {
+    await renderAppCon(1100, 4)
+
+    expect(encabezadosDeDia()).toEqual(['Sun 1', 'Mon 2', 'Tue 3', 'Wed 4', 'Thu 5', 'Fri 6', 'Sat 7'])
+    expect(diasDeLaTira()).toHaveLength(0)
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    expect(screen.queryByRole('heading', { level: 2, name: 'Jobs' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('heading', { level: 2, name: 'Employees' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('searchbox', { name: 'Search jobs' })).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Jobs' })).toHaveAttribute('aria-expanded', 'false')
+    expect(screen.getByRole('button', { name: 'Employees' })).toHaveAttribute('aria-expanded', 'false')
+  })
+
+  it('escenario "Tablet horizontal": al pulsar "Employees" se abre el cajón derecho con los empleados', async () => {
+    await renderAppCon(1100, 4)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Employees' }))
+
+    const cajon = screen.getByRole('dialog', { name: 'Employees' })
+    expect(cajon).toHaveClass(/right/)
+    await waitFor(() => expect(within(cajon).getAllByRole('listitem')).toHaveLength(8))
+    expect(within(cajon).getByText('Ana López')).toBeInTheDocument()
+    expect(recuadrosDe(cajon, 'Ana López')).toHaveAccessibleName('Assigned: Mon (2)')
+    expect(screen.getByRole('button', { name: 'Employees' })).toHaveAttribute('aria-expanded', 'true')
+  })
+
+  it('"Jobs" abre el cajón izquierdo con el catálogo', async () => {
+    await renderAppCon(1100, 4)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Jobs' }))
+
+    const cajon = screen.getByRole('dialog', { name: 'Jobs' })
+    expect(cajon).toHaveClass(/left/)
+    await waitFor(() => expect(within(cajon).getAllByRole('listitem')).toHaveLength(30))
+  })
+})
+
+describe('App en tablet vertical (800 px)', () => {
   it('escenario "Tablet vertical": el tablero tiene las siete columnas y no hay tira de días', async () => {
     await renderAppCon(800, 4)
 
@@ -125,6 +176,8 @@ describe('App en tablet (800 px)', () => {
     expect(cajon).toHaveClass(/right/)
     await waitFor(() => expect(within(cajon).getAllByRole('listitem')).toHaveLength(8))
     expect(within(cajon).getByText('Ana López')).toBeInTheDocument()
+    // Tarea 13.2: también en el cajón cada fila muestra sus días con trabajo.
+    expect(recuadrosDe(cajon, 'Ana López')).toHaveAccessibleName('Assigned: Mon (2)')
     expect(screen.getByRole('button', { name: 'Employees' })).toHaveAttribute('aria-expanded', 'true')
   })
 
@@ -262,6 +315,31 @@ describe('App en teléfono (390 px)', () => {
     await waitFor(() => expect(within(panel).getAllByRole('listitem')).toHaveLength(8))
   })
 
+  it('en el panel inferior de empleados cada fila muestra sus días con trabajo de toda la semana', async () => {
+    await renderAppCon(390, 1)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Employees' }))
+
+    const panel = screen.getByRole('dialog', { name: 'Employees' })
+    await waitFor(() => expect(within(panel).getAllByRole('listitem')).toHaveLength(8))
+    // Aunque solo se ve el martes, los recuadros cubren los siete días.
+    expect(recuadrosDe(panel, 'Ana López')).toHaveAccessibleName('Assigned: Mon (2)')
+    expect(recuadrosDe(panel, 'Carlos Ruiz')).toHaveAccessibleName('Assigned: Tue (1)')
+  })
+
+  it('en "Assign employees", marcar a Pedro en la tarjeta del lunes pinta su lunes', async () => {
+    await renderAppCon(390, 1)
+    fireEvent.click(diaDeLaTira('Mon'))
+    await waitFor(() => expect(within(tarjetas()[0]).getAllByTitle(/López|Martínez/)).toHaveLength(2))
+    fireEvent.click(within(tarjetas()[0]).getByRole('button', { name: 'Assign employees' }))
+    const panel = screen.getByRole('dialog', { name: 'Assign employees' })
+    expect(recuadrosDe(panel, 'Pedro Sánchez')).toHaveAccessibleName('Assigned: none')
+
+    fireEvent.click(within(panel).getByRole('checkbox', { name: 'Pedro Sánchez' }))
+
+    await waitFor(() => expect(recuadrosDe(panel, 'Pedro Sánchez')).toHaveAccessibleName('Assigned: Mon (1)'))
+  })
+
   it('el "+" de la tarjeta abre "Assign employees" sin abrir el detalle', async () => {
     await renderAppCon(390, 1)
     fireEvent.click(diaDeLaTira('Mon'))
@@ -297,6 +375,24 @@ describe('App en teléfono (390 px)', () => {
 })
 
 describe('App al cambiar el ancho con la página abierta', () => {
+  it('de 1280 a 1279 px los paneles laterales pasan a cajones, y vuelven al ensanchar', async () => {
+    await renderAppCon(1280, 4)
+    expect(screen.getByRole('heading', { level: 2, name: 'Jobs' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { level: 2, name: 'Employees' })).toBeInTheDocument()
+
+    act(() => simularAncho(1279))
+
+    expect(encabezadosDeDia()).toHaveLength(7)
+    expect(screen.queryByRole('heading', { level: 2, name: 'Jobs' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('heading', { level: 2, name: 'Employees' })).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Employees' })).toHaveAttribute('aria-expanded', 'false')
+
+    act(() => simularAncho(1280))
+
+    expect(screen.getByRole('heading', { level: 2, name: 'Jobs' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Employees' })).not.toBeInTheDocument()
+  })
+
   it('de 1280 a 390 px pasa del tablero de siete días a un solo día con la tira, y vuelve al ensanchar', async () => {
     await renderAppCon(1280, 4)
     expect(encabezadosDeDia()).toHaveLength(7)

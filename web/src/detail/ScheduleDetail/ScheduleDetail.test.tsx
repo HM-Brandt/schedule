@@ -6,7 +6,9 @@
 // "Mover una programación a otro día" (con "Move to") y "Quitar una programación"; y de
 // `specs/employee-assignment/spec.md`, "Retirar un empleado de una programación" (desde el
 // detalle) y "Empleados que pasan a inactivos" (el detalle lo marca como inactivo). También
-// cubren "Comentario de una programación" (tarea 12.2) y "Duplicar no copia el comentario".
+// cubren "Comentario de una programación" (tarea 12.2) y "Duplicar no copia el comentario", y
+// "Cerrar el detalle de una programación" (tarea 14.1): click fuera cierra, click dentro no,
+// guardar lo que se editaba antes de cerrar, click en otra tarjeta y "Undo" cierra el detalle.
 //
 // Se monta la aplicación completa: el detalle se abre al pulsar una tarjeta y sus cambios se
 // comprueban en el tablero y en las peticiones que llegan al servidor.
@@ -27,6 +29,8 @@ import App from '../../App'
 import { createQueryClient } from '../../api/queryClient'
 import { createHandlers } from '../../mocks/handlers'
 import { createSeed } from '../../mocks/seed'
+import { UndoProvider } from '../../undo/UndoProvider'
+import { ScheduleDetail } from './ScheduleDetail'
 
 const LUNES = '2026-11-02'
 const MIERCOLES = '2026-11-04'
@@ -505,6 +509,206 @@ describe('ScheduleDetail', () => {
         expect(within(screen.getByRole('dialog')).queryByText('Raúl Torres (inactive)')).not.toBeInTheDocument(),
       )
       expect(iniciales(tarjeta('Wed', 'J-1031'))).toEqual(['AL'])
+    })
+  })
+})
+
+// Tarea 14.1: requisito "Cerrar el detalle de una programación".
+describe('ScheduleDetail: cerrar el detalle', () => {
+  const DIAS = ['2026-11-01', LUNES, '2026-11-03', MIERCOLES, JUEVES, '2026-11-06', '2026-11-07']
+
+  /**
+   * Monta solo el detalle de la programación `id` de la semilla, con un título fuera del panel,
+   * y devuelve el panel, el espía de `onClose` y el elemento de fuera.
+   */
+  function renderDetalle(id = 1) {
+    prepararServidor()
+    const onClose = vi.fn()
+    const porId = new Map(semilla.employees.map((empleado) => [empleado.employeesId, empleado]))
+    const resultado = render(
+      <QueryClientProvider client={client}>
+        <UndoProvider>
+          <h1>Tablero</h1>
+          <ScheduleDetail scheduleId={id} schedules={semilla.schedules} days={DIAS} employeesById={porId} onClose={onClose} />
+        </UndoProvider>
+      </QueryClientProvider>,
+    )
+    return {
+      detalle: screen.getByRole('dialog', { name: 'J-1024 Pintar oficina' }),
+      onClose,
+      fuera: screen.getByRole('heading', { level: 1, name: 'Tablero' }),
+      unmount: resultado.unmount,
+    }
+  }
+
+  /**
+   * Hace click en `destino` con el orden de eventos del navegador: al pulsar, el foco sale del
+   * campo que lo tenía (su `blur` se dispara antes del `click`).
+   */
+  function clickComoNavegador(destino: HTMLElement) {
+    fireEvent.mouseDown(destino)
+    act(() => (document.activeElement as HTMLElement | null)?.blur())
+    fireEvent.mouseUp(destino)
+    fireEvent.click(destino)
+  }
+
+  describe('con el componente solo', () => {
+    it('un click fuera del panel llama a onClose una vez', () => {
+      const { onClose, fuera } = renderDetalle()
+
+      fireEvent.click(fuera)
+
+      expect(onClose).toHaveBeenCalledTimes(1)
+    })
+
+    it('un click en el cuerpo del documento también llama a onClose', () => {
+      const { onClose } = renderDetalle()
+
+      fireEvent.click(document.body)
+
+      expect(onClose).toHaveBeenCalledTimes(1)
+    })
+
+    it('los clicks dentro del panel no llaman a onClose: panel, título, fecha, hora, comentario, "Move to" y sus opciones', () => {
+      const { detalle, onClose } = renderDetalle()
+
+      fireEvent.click(detalle)
+      fireEvent.click(within(detalle).getByRole('heading', { name: 'Pintar oficina' }))
+      fireEvent.click(within(detalle).getByText('Mon, Nov 2', { selector: 'div' }))
+      fireEvent.click(campoHora(detalle))
+      fireEvent.click(campoComentario(detalle))
+      fireEvent.click(within(detalle).getByRole('combobox', { name: 'Move to' }))
+      fireEvent.click(within(detalle).getAllByRole('option')[4])
+      // Icono SVG dentro de la etiqueta "Move to…".
+      fireEvent.click(within(detalle).getByText('Move to…').querySelector('svg') as SVGElement)
+
+      expect(onClose).not.toHaveBeenCalled()
+    })
+
+    it('"Close" llama a onClose una sola vez (el click no cuenta además como click fuera)', () => {
+      const { detalle, onClose } = renderDetalle()
+
+      fireEvent.click(within(detalle).getByRole('button', { name: 'Close' }))
+
+      expect(onClose).toHaveBeenCalledTimes(1)
+    })
+
+    it('al desmontarse deja de escuchar los clicks del documento', () => {
+      const { onClose, unmount } = renderDetalle()
+      unmount()
+
+      fireEvent.click(document.body)
+
+      expect(onClose).not.toHaveBeenCalled()
+    })
+  })
+
+  describe('en la aplicación', () => {
+    it('escenario "Click fuera del panel": con el detalle de "J-1024" abierto, un click en el miércoles vacío lo cierra sin enviar nada', async () => {
+      await renderApp()
+      abrirDetalle(tarjeta('Mon', '07:00'), 'J-1024 Pintar oficina')
+      expect(tarjetasDelDia('Wed')).toHaveLength(0)
+
+      fireEvent.click(columnaDelDia('Wed'))
+
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+      await sinPeticiones()
+    })
+
+    it('un click en el panel de empleados o en el catálogo también lo cierra', async () => {
+      await renderApp()
+      abrirDetalle(tarjeta('Mon', '07:00'), 'J-1024 Pintar oficina')
+      fireEvent.click(screen.getByRole('heading', { level: 2, name: 'Employees' }))
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+
+      abrirDetalle(tarjeta('Mon', '07:00'), 'J-1024 Pintar oficina')
+      fireEvent.click(screen.getByRole('searchbox', { name: 'Search jobs' }))
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    })
+
+    it('interactuar dentro (hora, "Comment", "Move to") no lo cierra', async () => {
+      await renderApp()
+      const detalle = abrirDetalle(tarjeta('Mon', '07:00'), 'J-1024 Pintar oficina')
+
+      fireEvent.click(campoHora(detalle))
+      fireEvent.click(campoComentario(detalle))
+      fireEvent.click(within(detalle).getByRole('combobox', { name: 'Move to' }))
+
+      expect(screen.getByRole('dialog', { name: 'J-1024 Pintar oficina' })).toBe(detalle)
+    })
+
+    it('escenario "Guardar al cerrar": escribir "Llevar andamio" en "Comment" y hacer click fuera guarda el comentario y cierra', async () => {
+      await renderApp()
+      const detalle = abrirDetalle(tarjeta('Mon', '07:00'), 'J-1024 Pintar oficina')
+      const campo = campoComentario(detalle)
+      act(() => campo.focus())
+      fireEvent.change(campo, { target: { value: 'Llevar andamio' } })
+
+      clickComoNavegador(columnaDelDia('Wed'))
+
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+      await waitFor(() =>
+        expect(peticiones).toEqual([
+          { metodo: 'PATCH', ruta: '/v1/schedules/1', cuerpo: { scheduleComment: 'Llevar andamio' } },
+        ]),
+      )
+      await waitFor(() => expect(iconoComentario(tarjeta('Mon', '07:00'))).toHaveAttribute('title', 'Llevar andamio'))
+      expect(await screen.findByText('Comment updated')).toBeInTheDocument()
+    })
+
+    it('cambiar la hora a 10:30 y hacer click fuera guarda la hora y cierra', async () => {
+      await renderApp()
+      const detalle = abrirDetalle(tarjeta('Mon', '07:00'), 'J-1024 Pintar oficina')
+      const campo = campoHora(detalle)
+      act(() => campo.focus())
+      fireEvent.change(campo, { target: { value: '10:30' } })
+
+      clickComoNavegador(columnaDelDia('Wed'))
+
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+      await waitFor(() =>
+        expect(peticiones).toEqual([{ metodo: 'PATCH', ruta: '/v1/schedules/1', cuerpo: { startTime: '10:30' } }]),
+      )
+      await waitFor(() => expect(horasDelDia('Mon')).toEqual(['08:00', '10:30']))
+    })
+
+    it('escenario "Click en otra tarjeta": con el de las 07:00 abierto, click en la de las 08:00 muestra el detalle de las 08:00', async () => {
+      await renderApp()
+      abrirDetalle(tarjeta('Mon', '07:00'), 'J-1024 Pintar oficina')
+
+      fireEvent.click(tarjeta('Mon', '08:00'))
+
+      const dialogos = screen.getAllByRole('dialog')
+      expect(dialogos).toHaveLength(1)
+      expect(campoHora(dialogos[0])).toHaveValue('08:00')
+      expect(campoComentario(dialogos[0])).toHaveValue('')
+      expect(within(dialogos[0]).queryByText('Luis Martínez')).not.toBeInTheDocument()
+      await sinPeticiones()
+    })
+
+    it('click en una tarjeta de otro día y otro trabajo muestra el detalle de esa', async () => {
+      await renderApp()
+      abrirDetalle(tarjeta('Mon', '07:00'), 'J-1024 Pintar oficina')
+
+      fireEvent.click(tarjeta('Tue', 'J-1019'))
+
+      const detalle = screen.getByRole('dialog', { name: 'J-1019 Cambiar ventanas' })
+      expect(within(detalle).getByText('Carlos Ruiz')).toBeInTheDocument()
+      expect(screen.queryByRole('dialog', { name: 'J-1024 Pintar oficina' })).not.toBeInTheDocument()
+    })
+
+    it('pulsar "Undo" en el aviso cierra el detalle y deshace el cambio', async () => {
+      await renderApp()
+      const detalle = abrirDetalle(tarjeta('Mon', '07:00'), 'J-1024 Pintar oficina')
+      fireEvent.change(campoHora(detalle), { target: { value: '10:30' } })
+      fireEvent.blur(campoHora(detalle))
+      await screen.findByText('Start time changed')
+      expect(screen.getByRole('dialog')).toBeInTheDocument()
+
+      fireEvent.click(screen.getByRole('button', { name: 'Undo' }))
+
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+      await waitFor(() => expect(horasDelDia('Mon')).toEqual(['07:00', '08:00']))
     })
   })
 })

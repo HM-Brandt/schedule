@@ -1,5 +1,7 @@
-// Tareas 9.1 a 9.5 de `schedule-assign`: camino feliz del diseño responsivo y del arrastre
-// táctil, con los datos de prueba de MSW (`VITE_USE_MOCKS=true`).
+// Tareas 9.1 a 9.5 y 15.3 de `schedule-assign`: camino feliz del diseño responsivo y del arrastre
+// táctil, con los datos de prueba de MSW (`VITE_USE_MOCKS=true`). La tablet horizontal, el
+// arrastre entre días apilados, las filas con muchas programaciones y los recuadros de días con
+// trabajo dentro del panel están en `disposiciones-tablet.spec.ts`.
 //
 // Cubren de `specs/weekly-schedule-board/spec.md` los requisitos "Diseño responsivo por tamaño
 // de pantalla" (escenarios "Escritorio", "Tablet vertical" y "Teléfono"), "Tira de días en
@@ -24,7 +26,7 @@ const DIAS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 /** Columna del día con nombre abreviado `nombre` ("Mon") en el tablero de escritorio o tablet. */
 const columna = (page: Page, nombre: string) => page.getByText(nombre, { exact: true }).locator('xpath=../..')
 
-/** Contenedor del tablero, el que se desplaza en horizontal en la tablet. */
+/** Contenedor del tablero: siete columnas en escritorio y tablet horizontal, siete filas en tablet vertical. */
 const tablero = (page: Page) => columna(page, 'Sun').locator('xpath=..')
 
 /** Día `nombre` de la tira de días del teléfono. */
@@ -98,24 +100,33 @@ test.describe('escritorio, 1280 px', () => {
 test.describe('tablet vertical, 800 px', () => {
   test.use({ viewport: { width: 800, height: 1100 } })
 
-  test('escenario "Tablet vertical": se ven cuatro días completos y los demás se alcanzan desplazando en horizontal', async ({
+  test('escenario "Tablet vertical": se ven los siete días apilados, uno por fila de domingo a sábado, sin desplazamiento horizontal', async ({
     page,
   }) => {
     await abrir(page, 4)
-
-    for (const nombre of ['Sun', 'Mon', 'Tue', 'Wed']) await expect(columna(page, nombre)).toBeInViewport({ ratio: 1 })
-    for (const nombre of ['Thu', 'Fri', 'Sat']) await expect(columna(page, nombre)).not.toBeInViewport()
     await expect(page.getByRole('heading', { name: 'Jobs' })).toHaveCount(0)
+    await expect(page.getByRole('heading', { name: 'Employees' })).toHaveCount(0)
 
-    // Desplazamiento horizontal con la rueda sobre el tablero hasta el final.
-    const caja = await tablero(page).boundingBox()
-    if (!caja) throw new Error('No se pudo medir el tablero')
-    await page.mouse.move(caja.x + caja.width / 2, caja.y + 100)
-    await page.mouse.wheel(1000, 0)
+    // Cada día ocupa una fila entera del tablero, debajo del anterior y alineado a la izquierda con él.
+    const tableroCaja = await tablero(page).boundingBox()
+    if (!tableroCaja) throw new Error('No se pudo medir el tablero')
+    let anterior: { x: number; y: number; width: number; height: number } | null = null
+    for (const nombre of DIAS) {
+      const caja = await columna(page, nombre).boundingBox()
+      if (!caja) throw new Error(`No se pudo medir el día ${nombre}`)
+      expect(Math.abs(caja.x - tableroCaja.x)).toBeLessThanOrEqual(1)
+      expect(Math.abs(caja.width - tableroCaja.width)).toBeLessThanOrEqual(1)
+      if (anterior) expect(caja.y).toBeGreaterThanOrEqual(anterior.y + anterior.height)
+      anterior = caja
+    }
 
-    await expect(columna(page, 'Sat')).toBeInViewport({ ratio: 1 })
-    await expect(columna(page, 'Thu')).toBeInViewport({ ratio: 1 })
-    await expect(columna(page, 'Sun')).not.toBeInViewport()
+    // Sin desplazamiento horizontal: ni la página ni el tablero son más anchos que la ventana.
+    const anchos = await page.evaluate(() => ({
+      documento: document.documentElement.scrollWidth,
+      ventana: window.innerWidth,
+    }))
+    expect(anchos.documento).toBe(anchos.ventana)
+    expect(await tablero(page).evaluate((elemento) => elemento.scrollWidth - elemento.clientWidth)).toBe(0)
   })
 
   test('"Jobs" abre el cajón del catálogo y arrastrar "J-1031 Jardín Pérez" de él al miércoles lo programa', async ({
@@ -241,27 +252,31 @@ test.describe('táctil en teléfono, 390 px', () => {
   })
 })
 
-test.describe('táctil en tablet, 800 px', () => {
-  test.use({ viewport: { width: 800, height: 1100 }, hasTouch: true, isMobile: true })
+test.describe('táctil en tablet vertical, 800 px', () => {
+  // Altura de ventana menor que la página, para que haya desplazamiento vertical.
+  test.use({ viewport: { width: 800, height: 500 }, hasTouch: true, isMobile: true })
 
-  test('escenario "Deslizar para desplazar": un deslizamiento rápido sobre una tarjeta desplaza el tablero y la tarjeta no se mueve', async ({
+  test('escenario "Deslizar para desplazar": un deslizamiento rápido sobre una tarjeta desplaza la página en vertical y la tarjeta no se mueve', async ({
     page,
   }) => {
     await abrir(page, 4)
     const pintar = columna(page, 'Mon').getByRole('article').filter({ hasText: '07:00' })
     await expect(pintar).toBeInViewport()
-    expect(await tablero(page).evaluate((elemento) => elemento.scrollLeft)).toBe(0)
+    expect(await page.evaluate(() => document.documentElement.scrollHeight > window.innerHeight)).toBe(true)
+    expect(await page.evaluate(() => window.scrollY)).toBe(0)
 
     const cdp = await page.context().newCDPSession(page)
     const desde = await centro(pintar)
-    // Deslizamiento rápido de 300 px hacia la izquierda, sin pausa tras tocar.
+    // Deslizamiento rápido de 180 px hacia arriba, sin pausa tras tocar.
     await tocar(cdp, 'touchStart', desde)
     for (let paso = 1; paso <= 6; paso++) {
-      await tocar(cdp, 'touchMove', { x: desde.x - paso * 50, y: desde.y })
+      await tocar(cdp, 'touchMove', { x: desde.x, y: desde.y - paso * 30 })
     }
     await tocar(cdp, 'touchEnd')
 
-    await expect.poll(() => tablero(page).evaluate((elemento) => elemento.scrollLeft)).toBeGreaterThan(0)
+    await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThan(0)
+    // Sin desplazamiento horizontal.
+    expect(await page.evaluate(() => window.scrollX)).toBe(0)
     await expect(page.locator('[data-dnd-dragging]')).toHaveCount(0)
     // La tarjeta sigue en el lunes, igual que antes.
     await expect(columna(page, 'Mon').getByRole('article')).toHaveCount(2)

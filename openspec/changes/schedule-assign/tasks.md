@@ -85,14 +85,27 @@
 
 ## 12. Comentario de una programación
 
-- [ ] 12.1 Añadir `scheduleComment` al tipo `Schedule`, a los cuerpos de POST y PATCH, a la semilla y a los manejadores MSW (vacío o solo espacios se guarda como `null`), y verificar con tests en `msw/node` los escenarios de comentario de `specs/schedule-api/spec.md`
-- [ ] 12.2 Añadir el campo "Comment" al detalle (guardar al salir del campo solo si cambió) y el icono con ayuda emergente en la tarjeta, y verificar con tests los escenarios de "Comentario de una programación"
-- [ ] 12.3 Incluir el comentario en la pila de deshacer (inversa del PATCH de comentario, restaurarlo al deshacer un quitar) y no copiarlo al duplicar, y verificar con tests los escenarios de deshacer y "Duplicar no copia el comentario"
+- [x] 12.1 Añadir `scheduleComment` al tipo `Schedule`, a los cuerpos de POST y PATCH, a la semilla y a los manejadores MSW (vacío o solo espacios se guarda como `null`), y verificar con tests en `msw/node` los escenarios de comentario de `specs/schedule-api/spec.md`
+- [x] 12.2 Añadir el campo "Comment" al detalle (guardar al salir del campo solo si cambió) y el icono con ayuda emergente en la tarjeta, y verificar con tests los escenarios de "Comentario de una programación"
+- [x] 12.3 Incluir el comentario en la pila de deshacer (inversa del PATCH de comentario, restaurarlo al deshacer un quitar) y no copiarlo al duplicar, y verificar con tests los escenarios de deshacer y "Duplicar no copia el comentario"
 
 ## 13. Días con trabajo por empleado
 
-- [ ] 13.1 Construir el componente de siete recuadros (vacío, tono claro, tono fuerte, borde en el día actual, texto accesible) a partir del selector de programaciones por empleado y día, y verificar con tests los escenarios de "Días con trabajo en la semana visible"
-- [ ] 13.2 Mostrarlo en el panel de empleados y en la lista de casillas del teléfono, y verificar en el navegador a 1280, 800 y 390 px
+- [x] 13.1 Construir el componente de siete recuadros (vacío, tono claro, tono fuerte, borde en el día actual, texto accesible) a partir del selector de programaciones por empleado y día, y verificar con tests los escenarios de "Días con trabajo en la semana visible"
+- [x] 13.2 Mostrarlo en el panel de empleados y en la lista de casillas del teléfono, y verificar en el navegador a 1280, 800 y 390 px
+
+## 14. Ajustes del detalle y de la tarjeta
+
+- [x] 14.1 Cerrar el detalle al hacer click fuera del panel, guardando antes lo que se estaba editando, y verificar con tests los escenarios de "Cerrar el detalle de una programación"
+- [x] 14.2 En el detalle, "Duplicate" y "Remove" del mismo tamaño en una fila a todo el ancho y "Close" debajo a todo el ancho; en la tarjeta, el icono de comentario en la esquina superior derecha, a la altura del número del trabajo (en teléfono, a la izquierda del botón de asignar), y las iniciales como antes de la sección 12, pasando a otra línea cuando no caben; verificar en el navegador a 1024, 1280, 1440 y 390 px
+- [x] 14.3 Evitar que, en pantallas táctiles de iOS, mantener pulsado un trabajo del catálogo o un empleado del panel seleccione texto o abra el menú del sistema en lugar de iniciar el arrastre, y verificarlo en un iPad real
+
+## 15. Disposiciones para tablet
+
+- [x] 15.1 Mover el corte de escritorio del hook de disposición a 1280 px (teléfono < 640, tablet 640–1279, escritorio ≥ 1280; la diferencia entre tablet vertical y horizontal es solo de CSS) y verificar con tests que 390, 800, 1100 y 1280 px devuelven teléfono, tablet, tablet y escritorio
+- [x] 15.2 Construir la disposición de tablet horizontal (7 columnas a todo el ancho, catálogo y empleados en cajones con "Jobs" y "Employees") y verificar en el navegador a 1024 y 1180 px
+- [x] 15.3 Construir la disposición de tablet vertical (7 días apilados, tarjetas una al lado de la otra que pasan a otra línea, cajones) en lugar de las 3–4 columnas con desplazamiento, y verificar en el navegador a 768 y 834 px los escenarios de "Diseño responsivo por tamaño de pantalla", incluido arrastrar entre días apilados
+- [x] 15.4 Hacer que los recuadros de días con trabajo quepan en la fila del empleado en el panel lateral y en los cajones, y verificarlo en el navegador a 1024, 1180, 1280 y 834 px
 
 ## Workflow follow-up
 

@@ -37,6 +37,8 @@ const ACTIVOS = [
   'Carlos Ruiz',
 ]
 
+const DIAS = ['2026-11-01', '2026-11-02', '2026-11-03', '2026-11-04', '2026-11-05', '2026-11-06', '2026-11-07']
+
 type Peticion = { ruta: string; cuerpo: unknown }
 
 const server = setupServer()
@@ -95,6 +97,8 @@ function Arnes({ id, onClose }: { id: number; onClose: () => void }) {
           schedule={schedule}
           employees={employees.data}
           schedules={schedules.data ?? []}
+          days={DIAS}
+          today="2026-11-03"
           onClose={() => {
             onClose()
             setAbierto(false)
@@ -259,6 +263,77 @@ describe('AssignSheet', () => {
     expect(reemplazos).toHaveLength(0)
   })
 
+  // Tareas 13.1 y 13.2: requisito "Días con trabajo en la semana visible" en la lista de casillas
+  // del teléfono. Nivel 0 = vacío, 1 = tono claro, 2 = tono fuerte.
+  describe('días con trabajo en la semana visible', () => {
+    /** Recuadros (`role="img"`) de la fila del empleado `nombre`. */
+    function recuadrosDe(panel: HTMLElement, nombre: string) {
+      const contenedor = within(fila(panel, nombre)).getByRole('img')
+      return {
+        contenedor,
+        niveles: Array.from(contenedor.children).map((recuadro) => recuadro.getAttribute('data-level')),
+      }
+    }
+
+    it('cada empleado activo tiene sus siete recuadros dentro de la etiqueta de su casilla', async () => {
+      const { panel } = await renderPanel()
+
+      for (const nombre of ACTIVOS) {
+        const { contenedor, niveles } = recuadrosDe(panel, nombre)
+        expect(niveles).toHaveLength(7)
+        expect(contenedor.closest('label')).toBe(casilla(nombre).closest('label'))
+      }
+      expect(within(panel).getAllByRole('img')).toHaveLength(8)
+    })
+
+    it('con la semilla: Ana con el lunes en tono fuerte, Luis en tono claro, Carlos el martes y Marta vacía', async () => {
+      const { panel } = await renderPanel()
+
+      expect(recuadrosDe(panel, 'Ana López').niveles).toEqual(['0', '2', '0', '0', '0', '0', '0'])
+      expect(recuadrosDe(panel, 'Ana López').contenedor).toHaveAccessibleName('Assigned: Mon (2)')
+      expect(recuadrosDe(panel, 'Luis Martínez').contenedor).toHaveAccessibleName('Assigned: Mon (1)')
+      expect(recuadrosDe(panel, 'Carlos Ruiz').niveles).toEqual(['0', '0', '1', '0', '0', '0', '0'])
+      expect(recuadrosDe(panel, 'Marta Gómez').contenedor).toHaveAccessibleName('Assigned: none')
+    })
+
+    it('marca el día actual (martes 3) en los recuadros', async () => {
+      const { panel } = await renderPanel()
+
+      const hoy = Array.from(recuadrosDe(panel, 'Marta Gómez').contenedor.children).map((recuadro) =>
+        recuadro.hasAttribute('data-today'),
+      )
+      expect(hoy).toEqual([false, false, true, false, false, false, false])
+    })
+
+    it('la etiqueta "N jobs" del día se mantiene junto a los recuadros', async () => {
+      const { panel } = await renderPanel()
+
+      expect(fila(panel, 'Ana López')).toHaveTextContent(/2 jobs$/)
+      expect(recuadrosDe(panel, 'Ana López').niveles[1]).toBe('2')
+    })
+
+    it('escenario "Asignar actualiza los recuadros": marcar a Pedro en la tarjeta del jueves pinta su jueves', async () => {
+      const { panel } = await renderPanel(4)
+      expect(recuadrosDe(panel, 'Pedro Sánchez').contenedor).toHaveAccessibleName('Assigned: none')
+
+      fireEvent.click(casilla('Pedro Sánchez'))
+
+      await waitFor(() =>
+        expect(recuadrosDe(panel, 'Pedro Sánchez').contenedor).toHaveAccessibleName('Assigned: Thu (1)'),
+      )
+      expect(recuadrosDe(panel, 'Pedro Sánchez').niveles).toEqual(['0', '0', '0', '0', '1', '0', '0'])
+    })
+
+    it('desmarcar a Ana en la tarjeta del lunes baja su lunes de tono fuerte a tono claro', async () => {
+      const { panel } = await renderPanel()
+
+      fireEvent.click(casilla('Ana López'))
+
+      await waitFor(() => expect(recuadrosDe(panel, 'Ana López').niveles[1]).toBe('1'))
+      expect(recuadrosDe(panel, 'Ana López').contenedor).toHaveAccessibleName('Assigned: Mon (1)')
+    })
+  })
+
   it('si la programación ya no está en la semana, el panel se cierra solo', async () => {
     prepararServidor()
     const onClose = vi.fn()
@@ -266,7 +341,14 @@ describe('AssignSheet', () => {
     render(
       <QueryClientProvider client={client}>
         <UndoProvider>
-          <AssignSheet schedule={desaparecida} employees={semilla.employees} schedules={semilla.schedules} onClose={onClose} />
+          <AssignSheet
+            schedule={desaparecida}
+            employees={semilla.employees}
+            schedules={semilla.schedules}
+            days={DIAS}
+            today="2026-11-03"
+            onClose={onClose}
+          />
         </UndoProvider>
       </QueryClientProvider>,
     )

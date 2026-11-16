@@ -91,6 +91,22 @@
   color: var(--color-text-muted);
 }
 
+@media (min-width: 640px) {
+  .top {
+    position: relative;
+  }
+
+  .top:has(.comment) {
+    padding-right: 18px;
+  }
+
+  .comment {
+    position: absolute;
+    top: 0;
+    right: 0;
+  }
+}
+
 .name {
   font-size: var(--font-size-sm);
   color: var(--color-text);

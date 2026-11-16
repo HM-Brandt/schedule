@@ -164,6 +164,64 @@ describe('ScheduleCard', () => {
       expect(screen.getByTitle('Luis Martínez')).toHaveTextContent('LM')
       expect(screen.queryByText('No employees')).not.toBeInTheDocument()
     })
+
+    // Tarea 14.2: el icono va en la fila superior, junto al número del trabajo, y las iniciales
+    // no cambian por tener comentario. La posición en la esquina (CSS) se comprueba en los e2e.
+    it('el icono está en la fila superior, la misma que el número y la hora, después de ellos', () => {
+      const tarjeta = renderTarjeta(programacion({ scheduleComment: 'Llevar escalera' }))
+
+      const numero = within(tarjeta).getByText('J-1024')
+      const filaSuperior = numero.parentElement as HTMLElement
+      const icono = iconoComentario(tarjeta) as HTMLElement
+      expect(icono.parentElement).toBe(filaSuperior)
+      expect(within(filaSuperior).getByText('07:00')).toBeInTheDocument()
+      expect(numero.compareDocumentPosition(icono) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+      // La fila superior es la primera de la tarjeta.
+      expect(tarjeta.firstElementChild).toBe(filaSuperior)
+    })
+
+    it('el icono no está en la fila de las iniciales ni en la del nombre', () => {
+      const tarjeta = renderTarjeta(programacion({ scheduleComment: 'Llevar escalera' }))
+
+      const filaDeIniciales = screen.getByTitle('Ana López').parentElement as HTMLElement
+      const icono = iconoComentario(tarjeta) as HTMLElement
+      expect(filaDeIniciales.contains(icono)).toBe(false)
+      expect(within(tarjeta).getByText('Pintar oficina').contains(icono)).toBe(false)
+    })
+
+    it('en teléfono el icono queda en la fila superior antes del botón de asignar', () => {
+      render(
+        <ScheduleCard
+          schedule={programacion({ scheduleComment: 'Llevar escalera' })}
+          employeesById={EMPLEADOS}
+          onAssign={vi.fn()}
+        />,
+      )
+      const tarjeta = screen.getByRole('article')
+
+      const icono = iconoComentario(tarjeta) as HTMLElement
+      const asignar = within(tarjeta).getByRole('button', { name: 'Assign employees' })
+      expect(asignar.parentElement).toBe(icono.parentElement)
+      expect(icono.compareDocumentPosition(asignar) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    })
+
+    it('la fila de iniciales es idéntica con y sin comentario', () => {
+      const { rerender } = render(<ScheduleCard schedule={programacion()} employeesById={EMPLEADOS} />)
+      const sinComentario = (screen.getByTitle('Ana López').parentElement as HTMLElement).outerHTML
+
+      rerender(<ScheduleCard schedule={programacion({ scheduleComment: 'Llevar escalera' })} employeesById={EMPLEADOS} />)
+
+      expect((screen.getByTitle('Ana López').parentElement as HTMLElement).outerHTML).toBe(sinComentario)
+    })
+
+    it('con más de cuatro empleados y comentario sigue mostrando cuatro iniciales y "+N"', () => {
+      const tarjeta = renderTarjeta(programacion({ employeesIds: [1, 2, 3, 4, 5, 6], scheduleComment: 'Llevar escalera' }))
+
+      const filaDeIniciales = screen.getByTitle('Marta Gómez').parentElement as HTMLElement
+      expect(filaDeIniciales.children).toHaveLength(5)
+      expect(within(filaDeIniciales).getByText('+2')).toBeInTheDocument()
+      expect(iconoComentario(tarjeta)).not.toBeNull()
+    })
   })
 
   describe('arrastre', () => {

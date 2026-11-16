@@ -1,10 +1,10 @@
 import { render, screen, within } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
-import type { Employee } from '../../api/types'
+import type { Employee, IsoDate, Schedule } from '../../api/types'
 import { employeeHue } from '../../lib/colors'
 import { createSeed } from '../../mocks/seed'
 import { simularApisDeArrastre } from '../../test/dnd'
-import { empleado } from '../../test/fabricas'
+import { empleado, trabajo } from '../../test/fabricas'
 import { EmployeePanel } from './EmployeePanel'
 
 simularApisDeArrastre()
@@ -12,9 +12,36 @@ simularApisDeArrastre()
 const ANA: Employee = empleado(3, 'Ana', 'López', 'Pintora')
 const PEDRO_INACTIVO: Employee = empleado(4, 'Pedro', 'Sánchez', 'Albañil', 'Terminated')
 
-function renderPanel(employees: Employee[], error: Error | null = null) {
-  render(<EmployeePanel employees={employees} error={error} />)
-  return screen.getByRole('list')
+const DIAS = ['2026-11-01', '2026-11-02', '2026-11-03', '2026-11-04', '2026-11-05', '2026-11-06', '2026-11-07']
+const SIGUIENTE = ['2026-11-08', '2026-11-09', '2026-11-10', '2026-11-11', '2026-11-12', '2026-11-13', '2026-11-14']
+const HOY = '2026-11-03'
+
+function renderPanel(employees: Employee[], error: Error | null = null, schedules: Schedule[] = [], days = DIAS) {
+  const resultado = render(
+    <EmployeePanel employees={employees} error={error} schedules={schedules} days={days} today={HOY} />,
+  )
+  return { lista: screen.getByRole('list'), rerender: resultado.rerender }
+}
+
+let siguienteId = 100
+
+/** Programación de "J-1024 Pintar oficina" el día `date` con los empleados `employeesIds`. */
+function programacion(date: IsoDate, employeesIds: number[]): Schedule {
+  return {
+    jobSchedulesId: siguienteId++,
+    job: trabajo(7, 'J-1024', 'Pintar oficina'),
+    date,
+    startTime: '07:00',
+    employeesIds,
+    scheduleComment: null,
+  }
+}
+
+/** Siete recuadros de la fila (`role="img"`) y el contenedor con su texto accesible. */
+function recuadros(fila: HTMLElement) {
+  const contenedor = within(fila).getByRole('img')
+  const niveles = Array.from(contenedor.children).map((recuadro) => recuadro.getAttribute('data-level'))
+  return { contenedor, niveles }
 }
 
 /** Fila del panel que contiene el texto `nombre`. */
@@ -28,7 +55,7 @@ describe('EmployeePanel', () => {
   })
 
   it('escenario "Empleado inactivo": con Ana (Active) y Pedro (Terminated) muestra a Ana y no a Pedro', () => {
-    const lista = renderPanel([ANA, PEDRO_INACTIVO])
+    const { lista } = renderPanel([ANA, PEDRO_INACTIVO])
 
     expect(within(lista).getAllByRole('listitem')).toHaveLength(1)
     expect(within(lista).getByText('Ana López')).toBeInTheDocument()
@@ -38,7 +65,7 @@ describe('EmployeePanel', () => {
 
   it('con la semilla muestra los 8 Active y ninguno de los 2 Terminated', () => {
     const { employees } = createSeed(new Date(2026, 10, 3))
-    const lista = renderPanel(employees)
+    const { lista } = renderPanel(employees)
 
     expect(within(lista).getAllByRole('listitem')).toHaveLength(8)
     for (const nombre of [
@@ -58,7 +85,7 @@ describe('EmployeePanel', () => {
   })
 
   it('cada fila muestra las iniciales, el nombre completo y el cargo: "AL", "Ana López", "Pintora"', () => {
-    const lista = renderPanel([ANA])
+    const { lista } = renderPanel([ANA])
 
     const ana = fila(lista, 'Ana López')
     expect(within(ana).getByText('AL')).toBeInTheDocument()
@@ -67,20 +94,20 @@ describe('EmployeePanel', () => {
   })
 
   it('las iniciales salen en mayúsculas aunque el nombre llegue en minúsculas', () => {
-    const lista = renderPanel([{ ...ANA, firstName: 'ana', lastName: 'lópez' }])
+    const { lista } = renderPanel([{ ...ANA, firstName: 'ana', lastName: 'lópez' }])
 
     expect(within(fila(lista, 'ana lópez')).getByText('AL')).toBeInTheDocument()
   })
 
   it('si todos son inactivos la lista queda vacía', () => {
-    const lista = renderPanel([PEDRO_INACTIVO])
+    const { lista } = renderPanel([PEDRO_INACTIVO])
 
     expect(within(lista).queryAllByRole('listitem')).toHaveLength(0)
   })
 
   // Tarea 9.6: el avatar de cada empleado lleva su tono, el mismo que su chip en las tarjetas.
   it('el avatar con las iniciales lleva el tono del empleado', () => {
-    const lista = renderPanel([ANA, { ...ANA, employeesId: 6, firstName: 'Elena', lastName: 'Díaz' }])
+    const { lista } = renderPanel([ANA, { ...ANA, employeesId: 6, firstName: 'Elena', lastName: 'Díaz' }])
 
     expect(within(fila(lista, 'Ana López')).getByText('AL')).toHaveAttribute('data-hue', String(employeeHue(3)))
     expect(within(fila(lista, 'Elena Díaz')).getByText('ED')).toHaveAttribute('data-hue', String(employeeHue(6)))
@@ -88,7 +115,7 @@ describe('EmployeePanel', () => {
 
   it('con la semilla los 8 activos llevan 8 tonos distintos', () => {
     const { employees } = createSeed(new Date(2026, 10, 3))
-    const lista = renderPanel(employees)
+    const { lista } = renderPanel(employees)
 
     const tonos = within(lista)
       .getAllByRole('listitem')
@@ -107,5 +134,112 @@ describe('EmployeePanel', () => {
 
     expect(screen.getByRole('alert')).toHaveTextContent("Couldn't load employees. Fallo simulado del servidor")
     expect(screen.getByRole('heading', { level: 2, name: 'Employees' })).toBeInTheDocument()
+  })
+
+  // Tareas 13.1 y 13.2: requisito "Días con trabajo en la semana visible" de
+  // `specs/employee-assignment/spec.md`. Nivel 0 = vacío, 1 = tono claro, 2 = tono fuerte.
+  describe('días con trabajo en la semana visible', () => {
+    const JUAN: Employee = empleado(11, 'Juan', 'García', 'Ayudante')
+    const LUNES = DIAS[1]
+    const MARTES = DIAS[2]
+
+    it('cada empleado muestra siete recuadros de domingo a sábado en su fila', () => {
+      const { lista } = renderPanel([ANA, JUAN])
+
+      for (const nombre of ['Ana López', 'Juan García']) {
+        const { contenedor, niveles } = recuadros(fila(lista, nombre))
+        expect(niveles).toHaveLength(7)
+        expect(Array.from(contenedor.children).map((recuadro) => recuadro.textContent)).toEqual([
+          'S',
+          'M',
+          'T',
+          'W',
+          'T',
+          'F',
+          'S',
+        ])
+      }
+    })
+
+    it('escenario "Juan asignado lunes y martes": lunes y martes en tono claro y los demás vacíos', () => {
+      const { lista } = renderPanel([ANA, JUAN], null, [programacion(LUNES, [11]), programacion(MARTES, [11])])
+
+      const { contenedor, niveles } = recuadros(fila(lista, 'Juan García'))
+      expect(niveles).toEqual(['0', '1', '1', '0', '0', '0', '0'])
+      expect(contenedor).toHaveAccessibleName('Assigned: Mon (1), Tue (1)')
+      // Ana no está en esas programaciones.
+      expect(recuadros(fila(lista, 'Ana López')).contenedor).toHaveAccessibleName('Assigned: none')
+    })
+
+    it('escenario "Dos trabajos el mismo día": con la semilla, el lunes de Ana (dos programaciones) en tono fuerte', () => {
+      const { employees, schedules } = createSeed(new Date(2026, 10, 3))
+      const { lista } = renderPanel(employees, null, schedules)
+
+      const ana = recuadros(fila(lista, 'Ana López'))
+      expect(ana.niveles).toEqual(['0', '2', '0', '0', '0', '0', '0'])
+      expect(ana.contenedor).toHaveAccessibleName('Assigned: Mon (2)')
+      // Luis tiene una el lunes y Carlos una el martes: tono claro.
+      expect(recuadros(fila(lista, 'Luis Martínez')).niveles).toEqual(['0', '1', '0', '0', '0', '0', '0'])
+      expect(recuadros(fila(lista, 'Carlos Ruiz')).contenedor).toHaveAccessibleName('Assigned: Tue (1)')
+      // Marta no tiene ninguna.
+      expect(recuadros(fila(lista, 'Marta Gómez')).niveles).toEqual(['0', '0', '0', '0', '0', '0', '0'])
+      expect(recuadros(fila(lista, 'Marta Gómez')).contenedor).toHaveAccessibleName('Assigned: none')
+    })
+
+    it('el texto accesible lista días y números en orden: "Assigned: Mon (1), Tue (2)"', () => {
+      const { lista } = renderPanel([JUAN], null, [
+        programacion(MARTES, [11]),
+        programacion(LUNES, [11]),
+        programacion(MARTES, [3, 11]),
+      ])
+
+      const { contenedor, niveles } = recuadros(fila(lista, 'Juan García'))
+      expect(contenedor).toHaveAccessibleName('Assigned: Mon (1), Tue (2)')
+      expect(niveles).toEqual(['0', '1', '2', '0', '0', '0', '0'])
+    })
+
+    it('marca el día actual (martes 3) en la fila de cada empleado', () => {
+      const { lista } = renderPanel([ANA, JUAN])
+
+      for (const nombre of ['Ana López', 'Juan García']) {
+        const hoy = Array.from(recuadros(fila(lista, nombre)).contenedor.children).map((recuadro) =>
+          recuadro.hasAttribute('data-today'),
+        )
+        expect(hoy).toEqual([false, false, true, false, false, false, false])
+      }
+    })
+
+    it('escenario "Cambio de semana": en una semana sin programaciones de Juan, sus siete recuadros quedan vacíos', () => {
+      const conTrabajo = [programacion(LUNES, [11]), programacion(MARTES, [11])]
+      const { lista, rerender } = renderPanel([JUAN], null, conTrabajo)
+      expect(recuadros(fila(lista, 'Juan García')).niveles).toEqual(['0', '1', '1', '0', '0', '0', '0'])
+
+      rerender(<EmployeePanel employees={[JUAN]} error={null} schedules={[]} days={SIGUIENTE} today={HOY} />)
+
+      const { contenedor, niveles } = recuadros(fila(screen.getByRole('list'), 'Juan García'))
+      expect(niveles).toEqual(['0', '0', '0', '0', '0', '0', '0'])
+      expect(contenedor).toHaveAccessibleName('Assigned: none')
+      // La semana siguiente no contiene el día actual.
+      expect(Array.from(contenedor.children).some((recuadro) => recuadro.hasAttribute('data-today'))).toBe(false)
+    })
+
+    it('al recibir programaciones nuevas se actualizan los recuadros (asignar a Juan el jueves)', () => {
+      const { lista, rerender } = renderPanel([JUAN], null, [programacion(LUNES, [11])])
+      expect(recuadros(fila(lista, 'Juan García')).niveles[4]).toBe('0')
+
+      rerender(
+        <EmployeePanel
+          employees={[JUAN]}
+          error={null}
+          schedules={[programacion(LUNES, [11]), programacion(DIAS[4], [11])]}
+          days={DIAS}
+          today={HOY}
+        />,
+      )
+
+      const { contenedor, niveles } = recuadros(fila(screen.getByRole('list'), 'Juan García'))
+      expect(niveles[4]).toBe('1')
+      expect(contenedor).toHaveAccessibleName('Assigned: Mon (1), Thu (1)')
+    })
   })
 })

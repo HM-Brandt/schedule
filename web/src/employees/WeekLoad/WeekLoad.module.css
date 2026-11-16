@@ -1,0 +1,37 @@
+.week {
+  display: flex;
+  max-width: 100%;
+  gap: 2px;
+}
+
+.day {
+  display: inline-flex;
+  flex: 1 1 0;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+  max-width: 14px;
+  aspect-ratio: 1;
+  box-sizing: border-box;
+  border: 1px solid var(--color-border);
+  border-radius: 3px;
+  font-size: 9px;
+  line-height: 1;
+  color: var(--color-text-muted);
+}
+
+.day[data-level="1"] {
+  border-color: var(--color-accent-light);
+  background: var(--color-accent-light);
+  color: var(--color-text);
+}
+
+.day[data-level="2"] {
+  border-color: var(--color-accent);
+  background: var(--color-accent);
+  color: var(--color-accent-contrast);
+}
+
+.day[data-today] {
+  border: 2px solid var(--color-text);
+}
