@@ -7,18 +7,24 @@ import './styles/global.css'
 import App from './App.tsx'
 import { config } from './config'
 import { createQueryClient } from './api/queryClient'
+import { goToLogin } from './auth/session'
+import { useAuthStore } from './stores/authStore'
 
 if (config.useMocks) {
   const { worker } = await import('./mocks/browser')
   await worker.start({ onUnhandledFrame: 'bypass' })
 }
 
-createRoot(document.getElementById('root')!).render(
-  <StrictMode>
-    <QueryClientProvider client={createQueryClient()}>
-      <LucideProvider size={16} strokeWidth={1.75}>
-        <App />
-      </LucideProvider>
-    </QueryClientProvider>
-  </StrictMode>,
-)
+if (!config.useMocks && !useAuthStore.getState().token) {
+  goToLogin()
+} else {
+  createRoot(document.getElementById('root')!).render(
+    <StrictMode>
+      <QueryClientProvider client={createQueryClient()}>
+        <LucideProvider size={16} strokeWidth={1.75}>
+          <App />
+        </LucideProvider>
+      </QueryClientProvider>
+    </StrictMode>,
+  )
+}

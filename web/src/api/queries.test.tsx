@@ -10,13 +10,14 @@
 import { QueryClientProvider } from '@tanstack/react-query'
 import type { QueryClient } from '@tanstack/react-query'
 import { renderHook, waitFor } from '@testing-library/react'
-import { http } from 'msw'
+import { http, HttpResponse } from 'msw'
 import { setupServer } from 'msw/node'
 import type { ReactNode } from 'react'
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import { createHandlers } from '../mocks/handlers'
 import { createSeed } from '../mocks/seed'
-import { queryKeys, useEmployees, useJobs, useWeekSchedules } from './queries'
+import { useAuthStore } from '../stores/authStore'
+import { queryKeys, useEmployees, useJobs, useMe, useWeekSchedules } from './queries'
 import { createQueryClient } from './queryClient'
 import type { Schedule } from './types'
 
@@ -82,6 +83,46 @@ describe('queryKeys', () => {
 
   it('la clave de empleados es ["employees"]', () => {
     expect(queryKeys.employees).toEqual(['employees'])
+  })
+
+  it('la clave del usuario actual es ["me"]', () => {
+    expect(queryKeys.me).toEqual(['me'])
+  })
+})
+
+describe('useMe', () => {
+  const DEMO = {
+    email: 'demo@hmbrandt.com',
+    fullName: 'Demo User',
+    id: '1',
+    roles: [{ id: 1, name: 'Admin' }],
+  }
+
+  afterEach(() => {
+    useAuthStore.getState().setUser(null)
+  })
+
+  it('pide GET /auth/me, devuelve el usuario y lo guarda en el store', async () => {
+    const urls = capturarPeticiones('*/auth/me')
+
+    const { result } = renderHook(() => useMe(), { wrapper: envoltorio })
+
+    await waitFor(() => expect(result.current.isSuccess).toBe(true))
+    expect(urls).toHaveLength(1)
+    expect(urls[0].pathname).toBe('/auth/me')
+    expect(result.current.data).toEqual(DEMO)
+    expect(useAuthStore.getState().user).toEqual(DEMO)
+    expect(client.getQueryData(queryKeys.me)).toEqual(DEMO)
+  })
+
+  it('si la petición falla no guarda ningún usuario', async () => {
+    client.setDefaultOptions({ queries: { retry: false } })
+    server.use(http.get('*/auth/me', () => HttpResponse.json({ error: 'Fallo' }, { status: 500 })))
+
+    const { result } = renderHook(() => useMe(), { wrapper: envoltorio })
+
+    await waitFor(() => expect(result.current.isError).toBe(true))
+    expect(useAuthStore.getState().user).toBeNull()
   })
 })
 

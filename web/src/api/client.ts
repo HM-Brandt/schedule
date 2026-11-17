@@ -1,7 +1,10 @@
 import axios from 'axios'
-import type { AxiosError } from 'axios'
+import type { AxiosError, InternalAxiosRequestConfig } from 'axios'
+import { goToLogin } from '../auth/session'
 import { config } from '../config'
 import { normalizeTime } from '../lib/dates'
+import { useAuthStore } from '../stores/authStore'
+import type { AuthUser } from '../types'
 import type {
   CreateScheduleBody,
   Employee,
@@ -86,6 +89,23 @@ export function createApiClient(baseURL: string) {
     timeout: 15000,
     headers: { 'Content-Type': 'application/json' },
   })
+  const refreshClient = axios.create({ baseURL: `${baseURL}/`, timeout: 15000 })
+  let refreshing: Promise<void> | null = null
+  const refresh = () =>
+    (refreshing ??= refreshClient
+      .post<{ token: string; refreshToken: string }>('auth/refresh', {
+        refreshToken: useAuthStore.getState().refreshToken,
+      })
+      .then(({ data }) => useAuthStore.getState().login(data.token, data.refreshToken))
+      .finally(() => {
+        refreshing = null
+      }))
+
+  http.interceptors.request.use((request) => {
+    const { token } = useAuthStore.getState()
+    if (token) request.headers.Authorization = `Bearer ${token}`
+    return request
+  })
 
   http.interceptors.response.use(
     (response) => {
@@ -99,11 +119,17 @@ export function createApiClient(baseURL: string) {
       }
       return response
     },
-    (error: unknown) => {
-      if (axios.isAxiosError(error)) {
-        return Promise.reject(toApiError(error))
+    async (error: unknown) => {
+      if (!axios.isAxiosError(error)) throw error
+      const request = error.config as (InternalAxiosRequestConfig & { _retry?: boolean }) | undefined
+      if (error.response?.status === 401 && request) {
+        if (!request._retry && useAuthStore.getState().refreshToken) {
+          request._retry = true
+          if (await refresh().then(() => true, () => false)) return http(request)
+        }
+        goToLogin()
       }
-      return Promise.reject(error)
+      throw toApiError(error)
     },
   )
 
@@ -151,6 +177,11 @@ export function createApiClient(baseURL: string) {
     async replaceScheduleEmployees(id: number, body: ReplaceEmployeesBody): Promise<Schedule> {
       const response = await http.put<Schedule>(`v1/schedules/${id}/employees`, body)
       return normalizeSchedule(response.data)
+    },
+
+    async getMe(): Promise<AuthUser> {
+      const response = await http.get<AuthUser>('auth/me')
+      return response.data
     },
   }
 }

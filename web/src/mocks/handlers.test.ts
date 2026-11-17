@@ -1000,6 +1000,49 @@ describe('comodín de origen: interceptan la misma ruta v1/... desde cualquier U
   })
 })
 
+describe('autenticación', () => {
+  it('GET /auth/me responde 200 con el usuario de prueba "Demo User"', async () => {
+    const respuesta = await pedir('GET', '/auth/me')
+
+    expect(respuesta.status).toBe(200)
+    expect(respuesta.cuerpo).toEqual({
+      email: 'demo@hmbrandt.com',
+      fullName: 'Demo User',
+      id: '1',
+      roles: [{ id: 1, name: 'Admin' }],
+    })
+  })
+
+  it('POST /auth/refresh responde 200 con token, refreshToken y userId', async () => {
+    const respuesta = await pedir('POST', '/auth/refresh', { refreshToken: 'r-viejo' })
+
+    expect(respuesta.status).toBe(200)
+    expect(respuesta.cuerpo).toEqual({ token: 'mock-token', refreshToken: 'mock-refresh-token', userId: '1' })
+  })
+
+  it.each([
+    ['el mismo origen de la página', ''],
+    ['otro origen con prefijo /api', 'https://api-gateway.example.com/api'],
+  ])('desde %s también responden auth/me y auth/refresh', async (_descripcion, base) => {
+    const yo = await pedir('GET', `${base}/auth/me`)
+    const refresco = await pedir('POST', `${base}/auth/refresh`, { refreshToken: 'r-viejo' })
+
+    expect(yo.status).toBe(200)
+    expect(yo.cuerpo.fullName).toBe('Demo User')
+    expect(refresco.status).toBe(200)
+    expect(refresco.cuerpo.token).toBe('mock-token')
+  })
+
+  it('el cliente obtiene el usuario de prueba con getMe', async () => {
+    const api = createApiClient('')
+
+    const usuario = await api.getMe()
+
+    expect(usuario.fullName).toBe('Demo User')
+    expect(usuario.roles).toEqual([{ id: 1, name: 'Admin' }])
+  })
+})
+
 describe('estado en memoria', () => {
   it('cada createHandlers parte de la semilla sin los cambios de otro', async () => {
     const semilla = createSeed(HOY)

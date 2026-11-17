@@ -9,13 +9,17 @@
 // axios recibe un error de red, y PATCH, PUT, DELETE y POST con JSON envían antes una
 // petición `OPTIONS`. Por eso el manejador responde como un backend con CORS
 // habilitado, igual que pide `docs/api.md`.
-import { http, HttpResponse } from 'msw'
+import { delay, http, HttpResponse } from 'msw'
 import { setupServer } from 'msw/node'
-import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
+import { LOGIN_URL } from '../auth/session'
 import { readConfig } from '../config'
+import { useAuthStore } from '../stores/authStore'
+import type { AuthUser } from '../types'
 import { ApiError, createApiClient } from './client'
 import type { Employee, Job, Schedule } from './types'
 import { empleado, trabajo } from '../test/fabricas'
+import { simularNavegacion } from '../test/navegacion'
 
 const BASE_URL = 'http://api.test'
 
@@ -615,6 +619,402 @@ describe('createApiClient', () => {
         kind: 'network',
         status: null,
         message: "Couldn't connect to the server",
+      })
+    })
+  })
+
+  // Las peticiones de este bloque van al mismo origen de jsdom (URL base vacía): así la
+  // cabecera `Authorization` no provoca la petición previa `OPTIONS` de CORS.
+  describe('autenticación', () => {
+    const USUARIO: AuthUser = {
+      email: 'demo@hmbrandt.com',
+      fullName: 'Demo User',
+      id: '1',
+      roles: [{ id: 1, name: 'Admin' }],
+    }
+
+    /** Sesión con los tokens indicados, en el store y en localStorage, como tras un login. */
+    function iniciarSesion(token: string, refreshToken: string) {
+      useAuthStore.getState().login(token, refreshToken)
+    }
+
+    /** Peticiones recibidas por los manejadores de `simularBackend`. */
+    interface Registro {
+      /** Cabecera `Authorization` de cada petición a `ruta`, o `null` si no la llevó. */
+      autorizaciones: (string | null)[]
+      /** Cuerpo y cabecera `Authorization` de cada `POST auth/refresh`. */
+      refrescos: { cuerpo: unknown; autorizacion: string | null }[]
+    }
+
+    /**
+     * Backend simulado: `GET v1/job` responde el catálogo solo si la petición lleva
+     * `Bearer <tokenValido>` y 401 en otro caso; `POST auth/refresh` responde lo que
+     * devuelva `refrescar` (por defecto, el par de tokens nuevo) tras `retrasoRefresco` ms.
+     */
+    function simularBackend({
+      tokenValido = 't-nuevo',
+      refrescar = () =>
+        HttpResponse.json({ token: 't-nuevo', refreshToken: 'r-nuevo', userId: '1' }),
+      retrasoRefresco = 0,
+    }: {
+      tokenValido?: string | null
+      refrescar?: () => Response
+      retrasoRefresco?: number
+    } = {}): Registro {
+      const registro: Registro = { autorizaciones: [], refrescos: [] }
+      server.use(
+        http.get('*/v1/job', ({ request }) => {
+          const autorizacion = request.headers.get('authorization')
+          registro.autorizaciones.push(autorizacion)
+          if (tokenValido !== null && autorizacion === `Bearer ${tokenValido}`) {
+            return HttpResponse.json([TRABAJO])
+          }
+          return HttpResponse.json({ error: 'Token expired' }, { status: 401 })
+        }),
+        http.post('*/auth/refresh', async ({ request }) => {
+          registro.refrescos.push({
+            cuerpo: await request.json(),
+            autorizacion: request.headers.get('authorization'),
+          })
+          if (retrasoRefresco > 0) await delay(retrasoRefresco)
+          return refrescar()
+        }),
+      )
+      return registro
+    }
+
+    let assign: ReturnType<typeof simularNavegacion>
+
+    beforeEach(() => {
+      assign = simularNavegacion()
+    })
+
+    afterEach(() => {
+      useAuthStore.setState({ token: null, refreshToken: null, isAuthenticated: false, user: null })
+      localStorage.clear()
+      vi.unstubAllGlobals()
+    })
+
+    /** Comprueba que se cerró la sesión y se navegó al login. */
+    function esperarIrAlLogin() {
+      expect(assign).toHaveBeenCalledTimes(1)
+      expect(assign).toHaveBeenCalledWith(LOGIN_URL)
+      expect(useAuthStore.getState()).toMatchObject({ token: null, refreshToken: null, isAuthenticated: false })
+      expect(localStorage.getItem('auth_token')).toBeNull()
+      expect(localStorage.getItem('refresh_token')).toBeNull()
+    }
+
+    describe('cabecera Authorization', () => {
+      it('con token en el store envía "Authorization: Bearer <token>"', async () => {
+        iniciarSesion('t-nuevo', 'r-nuevo')
+        const registro = simularBackend()
+        const api = createApiClient('')
+
+        const trabajos = await api.getJobs()
+
+        expect(trabajos).toEqual([TRABAJO])
+        expect(registro.autorizaciones).toEqual(['Bearer t-nuevo'])
+      })
+
+      it('sin token no envía la cabecera Authorization', async () => {
+        const autorizaciones: (string | null)[] = []
+        server.use(
+          http.get('*/v1/employee', ({ request }) => {
+            autorizaciones.push(request.headers.get('authorization'))
+            return HttpResponse.json(EMPLEADOS)
+          }),
+        )
+        const api = createApiClient('')
+
+        await api.getEmployees()
+
+        expect(autorizaciones).toEqual([null])
+      })
+
+      it('lee el token del store en cada petición, no al crear el cliente', async () => {
+        const api = createApiClient('')
+        iniciarSesion('t-nuevo', 'r-nuevo')
+        const registro = simularBackend()
+
+        await api.getJobs()
+
+        expect(registro.autorizaciones).toEqual(['Bearer t-nuevo'])
+      })
+
+      it('envía la cabecera también en POST, PATCH, PUT y DELETE', async () => {
+        iniciarSesion('t-nuevo', 'r-nuevo')
+        const autorizaciones: string[] = []
+        server.use(
+          http.all('*/v1/schedules*', ({ request }) => {
+            autorizaciones.push(`${request.method} ${request.headers.get('authorization')}`)
+            if (request.method === 'DELETE') return new HttpResponse(null, { status: 204 })
+            return HttpResponse.json(PROGRAMACION)
+          }),
+        )
+        const api = createApiClient('')
+
+        await api.createSchedule({ jobsId: 7, date: '2026-11-02', startTime: '08:00' })
+        await api.updateSchedule(101, { date: '2026-11-04' })
+        await api.replaceScheduleEmployees(101, { employeesIds: [5] })
+        await api.deleteSchedule(101)
+
+        expect(autorizaciones).toEqual([
+          'POST Bearer t-nuevo',
+          'PATCH Bearer t-nuevo',
+          'PUT Bearer t-nuevo',
+          'DELETE Bearer t-nuevo',
+        ])
+      })
+    })
+
+    describe('getMe', () => {
+      it('pide GET auth/me, sin v1/, y devuelve el usuario', async () => {
+        iniciarSesion('t-nuevo', 'r-nuevo')
+        const peticiones: { ruta: string; autorizacion: string | null }[] = []
+        server.use(
+          http.get('*', ({ request }) => {
+            peticiones.push({ ruta: new URL(request.url).pathname, autorizacion: request.headers.get('authorization') })
+            return HttpResponse.json(USUARIO)
+          }),
+        )
+        const api = createApiClient('')
+
+        const usuario = await api.getMe()
+
+        expect(usuario).toEqual(USUARIO)
+        expect(peticiones).toEqual([{ ruta: '/auth/me', autorizacion: 'Bearer t-nuevo' }])
+      })
+
+      it('con una URL base con prefijo /api pide https://host/api/auth/me', async () => {
+        const api = createApiClient('https://host/api')
+        const peticiones = capturarUrls()
+
+        await api.getMe()
+
+        expect(peticiones).toEqual([{ method: 'GET', url: 'https://host/api/auth/me' }])
+      })
+    })
+
+    describe('refresco del token ante un 401', () => {
+      it('pide POST auth/refresh con el refreshToken, guarda los tokens nuevos y reintenta la petición', async () => {
+        iniciarSesion('t-viejo', 'r-viejo')
+        const registro = simularBackend()
+        const api = createApiClient('')
+
+        const trabajos = await api.getJobs()
+
+        expect(trabajos).toEqual([TRABAJO])
+        expect(registro.refrescos).toEqual([{ cuerpo: { refreshToken: 'r-viejo' }, autorizacion: null }])
+        expect(registro.autorizaciones).toEqual(['Bearer t-viejo', 'Bearer t-nuevo'])
+        expect(useAuthStore.getState()).toMatchObject({
+          token: 't-nuevo',
+          refreshToken: 'r-nuevo',
+          isAuthenticated: true,
+        })
+        expect(localStorage.getItem('auth_token')).toBe('t-nuevo')
+        expect(localStorage.getItem('refresh_token')).toBe('r-nuevo')
+        expect(assign).not.toHaveBeenCalled()
+      })
+
+      it('el reintento conserva el método, la ruta, los parámetros y el cuerpo de la petición original', async () => {
+        iniciarSesion('t-viejo', 'r-viejo')
+        const peticiones: { autorizacion: string | null; metodo: string; ruta: string; cuerpo: unknown }[] = []
+        server.use(
+          http.patch('*/v1/schedules/:id', async ({ request }) => {
+            const autorizacion = request.headers.get('authorization')
+            peticiones.push({
+              autorizacion,
+              metodo: request.method,
+              ruta: new URL(request.url).pathname,
+              cuerpo: await request.json(),
+            })
+            if (autorizacion !== 'Bearer t-nuevo') return new HttpResponse(null, { status: 401 })
+            return HttpResponse.json({ ...PROGRAMACION, date: '2026-11-04' })
+          }),
+          http.post('*/auth/refresh', () =>
+            HttpResponse.json({ token: 't-nuevo', refreshToken: 'r-nuevo', userId: '1' }),
+          ),
+        )
+        const api = createApiClient('')
+
+        const movida = await api.updateSchedule(101, { date: '2026-11-04' })
+
+        expect(movida.date).toBe('2026-11-04')
+        expect(peticiones).toEqual([
+          { autorizacion: 'Bearer t-viejo', metodo: 'PATCH', ruta: '/v1/schedules/101', cuerpo: { date: '2026-11-04' } },
+          { autorizacion: 'Bearer t-nuevo', metodo: 'PATCH', ruta: '/v1/schedules/101', cuerpo: { date: '2026-11-04' } },
+        ])
+      })
+
+      it('varios 401 simultáneos comparten una sola petición de refresco', async () => {
+        iniciarSesion('t-viejo', 'r-viejo')
+        const registro = simularBackend({ retrasoRefresco: 50 })
+        const autorizacionesEmpleados: (string | null)[] = []
+        server.use(
+          http.get('*/v1/employee', ({ request }) => {
+            const autorizacion = request.headers.get('authorization')
+            autorizacionesEmpleados.push(autorizacion)
+            if (autorizacion !== 'Bearer t-nuevo') return new HttpResponse(null, { status: 401 })
+            return HttpResponse.json(EMPLEADOS)
+          }),
+        )
+        const api = createApiClient('')
+
+        const [trabajos, empleados, otrosTrabajos] = await Promise.all([
+          api.getJobs(),
+          api.getEmployees(),
+          api.getJobs({ search: 'pintar' }),
+        ])
+
+        expect(registro.refrescos).toHaveLength(1)
+        expect(trabajos).toEqual([TRABAJO])
+        expect(otrosTrabajos).toEqual([TRABAJO])
+        expect(empleados).toEqual(EMPLEADOS)
+        expect(autorizacionesEmpleados).toEqual(['Bearer t-viejo', 'Bearer t-nuevo'])
+        expect(assign).not.toHaveBeenCalled()
+      })
+
+      it('un 401 posterior a un refresco ya terminado pide un refresco nuevo', async () => {
+        iniciarSesion('t-viejo', 'r-viejo')
+        const registro = simularBackend()
+        const api = createApiClient('')
+        await api.getJobs()
+
+        // El token nuevo también caduca: el servidor vuelve a aceptar solo el siguiente.
+        server.use(
+          http.get('*/v1/job', ({ request }) =>
+            request.headers.get('authorization') === 'Bearer t-tercero'
+              ? HttpResponse.json([TRABAJO])
+              : new HttpResponse(null, { status: 401 }),
+          ),
+          http.post('*/auth/refresh', async ({ request }) => {
+            registro.refrescos.push({ cuerpo: await request.json(), autorizacion: null })
+            return HttpResponse.json({ token: 't-tercero', refreshToken: 'r-tercero', userId: '1' })
+          }),
+        )
+        const trabajos = await api.getJobs()
+
+        expect(trabajos).toEqual([TRABAJO])
+        expect(registro.refrescos.map((refresco) => refresco.cuerpo)).toEqual([
+          { refreshToken: 'r-viejo' },
+          { refreshToken: 'r-nuevo' },
+        ])
+        expect(useAuthStore.getState().token).toBe('t-tercero')
+        expect(assign).not.toHaveBeenCalled()
+      })
+    })
+
+    describe('sesión perdida: va al login y rechaza con ApiError', () => {
+      it('sin refreshToken no intenta refrescar', async () => {
+        useAuthStore.setState({ token: 't-viejo', refreshToken: null, isAuthenticated: true })
+        localStorage.setItem('auth_token', 't-viejo')
+        const registro = simularBackend()
+        const api = createApiClient('')
+
+        const error = await capturarError(api.getJobs())
+
+        expect(error).toBeInstanceOf(ApiError)
+        expect(error).toMatchObject({ kind: 'http', status: 401, message: 'Token expired' })
+        expect(registro.refrescos).toHaveLength(0)
+        expect(registro.autorizaciones).toEqual(['Bearer t-viejo'])
+        esperarIrAlLogin()
+      })
+
+      it('sin ninguna sesión, un 401 también va al login', async () => {
+        const registro = simularBackend()
+        const api = createApiClient('')
+
+        const error = await capturarError(api.getJobs())
+
+        expect(error).toBeInstanceOf(ApiError)
+        expect(error).toMatchObject({ status: 401 })
+        expect(registro.autorizaciones).toEqual([null])
+        expect(registro.refrescos).toHaveLength(0)
+        esperarIrAlLogin()
+      })
+
+      it.each([
+        ['responde 401', () => HttpResponse.json({ error: 'Refresh token expired' }, { status: 401 })],
+        ['responde 500', () => new HttpResponse(null, { status: 500 })],
+        ['falla por red', () => HttpResponse.error()],
+      ])('si el refresco %s, no reintenta la petición', async (_descripcion, refrescar) => {
+        iniciarSesion('t-viejo', 'r-viejo')
+        const registro = simularBackend({ refrescar })
+        const api = createApiClient('')
+
+        const error = await capturarError(api.getJobs())
+
+        expect(error).toBeInstanceOf(ApiError)
+        expect(error).toMatchObject({ kind: 'http', status: 401, message: 'Token expired' })
+        expect(registro.refrescos).toHaveLength(1)
+        expect(registro.autorizaciones).toEqual(['Bearer t-viejo'])
+        esperarIrAlLogin()
+      })
+
+      it('si el reintento vuelve a dar 401, no refresca otra vez', async () => {
+        iniciarSesion('t-viejo', 'r-viejo')
+        const registro = simularBackend({ tokenValido: null })
+        const api = createApiClient('')
+
+        const error = await capturarError(api.getJobs())
+
+        expect(error).toBeInstanceOf(ApiError)
+        expect(error).toMatchObject({ kind: 'http', status: 401 })
+        expect(registro.refrescos).toHaveLength(1)
+        expect(registro.autorizaciones).toEqual(['Bearer t-viejo', 'Bearer t-nuevo'])
+        esperarIrAlLogin()
+      })
+
+      it('si varios 401 simultáneos comparten un refresco fallido, todas las peticiones fallan con ApiError', async () => {
+        iniciarSesion('t-viejo', 'r-viejo')
+        const registro = simularBackend({
+          refrescar: () => new HttpResponse(null, { status: 401 }),
+          retrasoRefresco: 50,
+        })
+        const api = createApiClient('')
+
+        const errores = await Promise.all([
+          capturarError(api.getJobs()),
+          capturarError(api.getJobs({ search: 'pintar' })),
+        ])
+
+        expect(registro.refrescos).toHaveLength(1)
+        for (const error of errores) {
+          expect(error).toBeInstanceOf(ApiError)
+          expect(error).toMatchObject({ status: 401 })
+        }
+        expect(assign).toHaveBeenCalledWith(LOGIN_URL)
+        expect(useAuthStore.getState().token).toBeNull()
+      })
+    })
+
+    describe('otros errores no tocan la sesión', () => {
+      it.each([403, 404, 500])('un %i no refresca ni va al login', async (status) => {
+        iniciarSesion('t-nuevo', 'r-nuevo')
+        const registro = simularBackend()
+        server.use(http.get('*/v1/job', () => new HttpResponse(null, { status })))
+        const api = createApiClient('')
+
+        const error = await capturarError(api.getJobs())
+
+        expect(error).toBeInstanceOf(ApiError)
+        expect(error).toMatchObject({ status })
+        expect(registro.refrescos).toHaveLength(0)
+        expect(assign).not.toHaveBeenCalled()
+        expect(useAuthStore.getState().token).toBe('t-nuevo')
+      })
+
+      it('un error de red no refresca ni va al login', async () => {
+        iniciarSesion('t-nuevo', 'r-nuevo')
+        const registro = simularBackend()
+        server.use(http.get('*/v1/job', () => HttpResponse.error()))
+        const api = createApiClient('')
+
+        const error = await capturarError(api.getJobs())
+
+        expect(error).toMatchObject({ kind: 'network' })
+        expect(registro.refrescos).toHaveLength(0)
+        expect(assign).not.toHaveBeenCalled()
       })
     })
   })

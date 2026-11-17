@@ -40,6 +40,19 @@ export function createHandlers(seed: ReturnType<typeof createSeed>) {
   }
 
   return [
+    http.get('*/auth/me', () =>
+      HttpResponse.json({
+        email: 'demo@hmbrandt.com',
+        fullName: 'Demo User',
+        id: '1',
+        roles: [{ id: 1, name: 'Admin' }],
+      }),
+    ),
+
+    http.post('*/auth/refresh', () =>
+      HttpResponse.json({ token: 'mock-token', refreshToken: 'mock-refresh-token', userId: '1' }),
+    ),
+
     http.get('*/v1/employee', ({ request }) => {
       const status = new URL(request.url).searchParams.get('status')
       if (status !== null && status !== 'Active' && status !== 'Terminated') {

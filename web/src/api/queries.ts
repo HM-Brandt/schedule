@@ -1,11 +1,24 @@
 import { keepPreviousData, useQuery } from '@tanstack/react-query'
+import { useAuthStore } from '../stores/authStore'
 import { api } from './client'
 import type { IsoDate } from './types'
 
 export const queryKeys = {
+  me: ['me'] as const,
   employees: ['employees'] as const,
   jobs: (search: string) => ['jobs', search] as const,
   schedules: (from: IsoDate, to: IsoDate) => ['schedules', from, to] as const,
+}
+
+export function useMe() {
+  return useQuery({
+    queryKey: queryKeys.me,
+    queryFn: async () => {
+      const user = await api.getMe()
+      useAuthStore.getState().setUser(user)
+      return user
+    },
+  })
 }
 
 export function  useEmployees() {

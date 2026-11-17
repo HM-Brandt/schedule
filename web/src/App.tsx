@@ -1,4 +1,4 @@
-import { BriefcaseBusiness, CalendarDays, Users } from 'lucide-react'
+import { BriefcaseBusiness, Users } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import styles from './App.module.css'
 import { useEmployees, useWeekSchedules } from './api/queries'
@@ -13,6 +13,7 @@ import { ScheduleDetail } from './detail/ScheduleDetail'
 import { ScheduleDndProvider } from './dnd/ScheduleDndProvider'
 import { AssignSheet } from './employees/AssignSheet'
 import { EmployeePanel } from './employees/EmployeePanel'
+import { AppHeader } from './layout/AppHeader'
 import { BottomSheet } from './layout/BottomSheet'
 import { Drawer } from './layout/Drawer'
 import { useLayout } from './layout/useLayout'
@@ -105,10 +106,7 @@ function App() {
     <UndoProvider>
       <UndoShortcut />
       <main className={styles.app}>
-        <h1 className={styles.title}>
-          <CalendarDays size={18} />
-          Weekly schedule
-        </h1>
+        <AppHeader />
         <ScheduleDndProvider schedules={schedules.data ?? []}>
           {layout === 'desktop' && (
             <div className={styles.layout}>
