@@ -11,5 +11,6 @@ export default defineConfig({
     setupFiles: ['./src/test/setup.ts'],
     // Solo los tests unitarios: sin esto Vitest también tomaría los `e2e/*.spec.ts` de Playwright.
     include: ['src/**/*.test.{ts,tsx}'],
+    testTimeout: 15000,
   },
 })

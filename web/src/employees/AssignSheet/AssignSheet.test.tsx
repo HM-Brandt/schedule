@@ -72,7 +72,7 @@ afterAll(() => {
 /** Registra los manejadores de la semilla y, delante, uno que anota cada `PUT …/employees`. */
 function prepararServidor() {
   server.resetHandlers(
-    http.put('/v1/schedules/:id/employees', async ({ request }) => {
+    http.put('/v2/job-management/schedules/:id/employees', async ({ request }) => {
       reemplazos.push({ ruta: new URL(request.url).pathname, cuerpo: await request.clone().json() })
       return undefined
     }),
@@ -203,8 +203,8 @@ describe('AssignSheet', () => {
       expect(screen.getByRole('article')).not.toHaveTextContent('No employees')
       await waitFor(() => expect(reemplazos).toHaveLength(2))
       expect(reemplazos).toEqual([
-        { ruta: '/v1/schedules/1/employees', cuerpo: { employeesIds: [3] } },
-        { ruta: '/v1/schedules/1/employees', cuerpo: { employeesIds: [3, 5] } },
+        { ruta: '/v2/job-management/schedules/1/employees', cuerpo: { employeesIds: [3] } },
+        { ruta: '/v2/job-management/schedules/1/employees', cuerpo: { employeesIds: [3, 5] } },
       ])
     })
 
@@ -229,7 +229,7 @@ describe('AssignSheet', () => {
       expect(casilla('Luis Martínez')).toBeChecked()
       await waitFor(() => expect(iniciales()).toEqual(['LM']))
       await waitFor(() => expect(reemplazos).toHaveLength(1))
-      expect(reemplazos[0]).toEqual({ ruta: '/v1/schedules/1/employees', cuerpo: { employeesIds: [5] } })
+      expect(reemplazos[0]).toEqual({ ruta: '/v2/job-management/schedules/1/employees', cuerpo: { employeesIds: [5] } })
     })
 
     it('desmarcar al único empleado deja la tarjeta con "No employees"', async () => {

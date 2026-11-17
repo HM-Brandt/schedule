@@ -259,7 +259,7 @@ describe('App', () => {
         { jobSchedulesId: 2, job: pintar, date: '2026-11-02', startTime: '07:00', employeesIds: [], scheduleComment: null },
         { jobSchedulesId: 3, job: pintar, date: '2026-11-02', startTime: '08:00', employeesIds: [], scheduleComment: null },
       ]
-      server.use(http.get('/v1/schedules', () => HttpResponse.json(desordenadas)))
+      server.use(http.get('/v2/job-management/schedules', () => HttpResponse.json(desordenadas)))
       renderApp()
 
       await waitFor(() => expect(tarjetasDelDia('Mon')).toHaveLength(3))
@@ -271,7 +271,7 @@ describe('App', () => {
       const pintar = semilla.jobs[6]
       const jardin = semilla.jobs[13]
       server.use(
-        http.get('/v1/schedules', () =>
+        http.get('/v2/job-management/schedules', () =>
           HttpResponse.json([
             { jobSchedulesId: 9, job: jardin, date: '2026-11-02', startTime: '07:00', employeesIds: [] },
             { jobSchedulesId: 4, job: pintar, date: '2026-11-02', startTime: '07:00', employeesIds: [] },
@@ -380,9 +380,9 @@ describe('App', () => {
       expect(screen.getAllByRole('article')).toHaveLength(4)
     })
 
-    it('con un 500 en GET /v1/schedules muestra el aviso "Couldn\'t load the week." con el detalle', async () => {
+    it('con un 500 en GET /v2/job-management/schedules muestra el aviso "Couldn\'t load the week." con el detalle', async () => {
       server.use(
-        http.get('/v1/schedules', () => HttpResponse.json({ error: MENSAJE_500 }, { status: 500 })),
+        http.get('/v2/job-management/schedules', () => HttpResponse.json({ error: MENSAJE_500 }, { status: 500 })),
       )
       renderApp()
 

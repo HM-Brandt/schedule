@@ -166,7 +166,7 @@ describe('error al guardar en la página', () => {
   it('escenario "Fallo al mover": al jueves con un 500, vuelve al lunes y el aviso empieza por "Couldn\'t save the change."', async () => {
     await renderApp()
     server.use(
-      http.patch('/v1/schedules/:id', () =>
+      http.patch('/v2/job-management/schedules/:id', () =>
         HttpResponse.json({ error: 'Fallo simulado del servidor' }, { status: 500 }),
       ),
     )

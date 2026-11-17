@@ -98,7 +98,7 @@ const MENSAJE_ESPERADO = `Couldn't save the change. ${MENSAJE_500}`
 
 describe('useCreateSchedule', () => {
   it('muestra la programación con id temporal antes de la respuesta y luego la sustituye por la real', async () => {
-    const liberar = pausar('post', '/v1/schedules')
+    const liberar = pausar('post', '/v2/job-management/schedules')
     const trabajo = semilla.jobs[13]
     const { result } = renderHook(() => useCreateSchedule(), { wrapper: envoltorio })
 
@@ -130,7 +130,7 @@ describe('useCreateSchedule', () => {
   })
 
   it('sin employeesIds la programación optimista tiene la lista vacía', async () => {
-    const liberar = pausar('post', '/v1/schedules')
+    const liberar = pausar('post', '/v2/job-management/schedules')
     const { result } = renderHook(() => useCreateSchedule(), { wrapper: envoltorio })
 
     act(() => {
@@ -144,7 +144,7 @@ describe('useCreateSchedule', () => {
   })
 
   it('sin scheduleComment la programación optimista y la real tienen scheduleComment null', async () => {
-    const liberar = pausar('post', '/v1/schedules')
+    const liberar = pausar('post', '/v2/job-management/schedules')
     const { result } = renderHook(() => useCreateSchedule(), { wrapper: envoltorio })
 
     act(() => {
@@ -159,7 +159,7 @@ describe('useCreateSchedule', () => {
   })
 
   it('con scheduleComment la programación optimista lo muestra y el servidor lo guarda', async () => {
-    const liberar = pausar('post', '/v1/schedules')
+    const liberar = pausar('post', '/v2/job-management/schedules')
     const { result } = renderHook(() => useCreateSchedule(), { wrapper: envoltorio })
 
     act(() => {
@@ -188,7 +188,7 @@ describe('useCreateSchedule', () => {
 
   it('ante un 500 la caché vuelve al estado anterior y se emite el mensaje de error', async () => {
     const antes = estadoCache()
-    const liberar = pausar('post', '/v1/schedules', error500)
+    const liberar = pausar('post', '/v2/job-management/schedules', error500)
     const { result } = renderHook(() => useCreateSchedule(), { wrapper: envoltorio })
 
     act(() => {
@@ -219,7 +219,7 @@ describe('useCreateSchedule', () => {
 
 describe('useUpdateSchedule', () => {
   it('mueve la programación de día antes de la respuesta y conserva sus empleados', async () => {
-    const liberar = pausar('patch', '/v1/schedules/:id')
+    const liberar = pausar('patch', '/v2/job-management/schedules/:id')
     const { result } = renderHook(() => useUpdateSchedule(), { wrapper: envoltorio })
 
     act(() => {
@@ -242,7 +242,7 @@ describe('useUpdateSchedule', () => {
   })
 
   it('cambia la hora de inicio antes de la respuesta', async () => {
-    const liberar = pausar('patch', '/v1/schedules/:id')
+    const liberar = pausar('patch', '/v2/job-management/schedules/:id')
     const { result } = renderHook(() => useUpdateSchedule(), { wrapper: envoltorio })
 
     act(() => {
@@ -255,7 +255,7 @@ describe('useUpdateSchedule', () => {
   })
 
   it('cambia el comentario antes de la respuesta y conserva la fecha, la hora y los empleados', async () => {
-    const liberar = pausar('patch', '/v1/schedules/:id')
+    const liberar = pausar('patch', '/v2/job-management/schedules/:id')
     const { result } = renderHook(() => useUpdateSchedule(), { wrapper: envoltorio })
 
     act(() => {
@@ -277,7 +277,7 @@ describe('useUpdateSchedule', () => {
 
   it('ante un 500 al cambiar el comentario vuelve el comentario anterior y se emite el mensaje de error', async () => {
     const antes = estadoCache()
-    const liberar = pausar('patch', '/v1/schedules/:id', error500)
+    const liberar = pausar('patch', '/v2/job-management/schedules/:id', error500)
     const { result } = renderHook(() => useUpdateSchedule(), { wrapper: envoltorio })
 
     act(() => {
@@ -294,7 +294,7 @@ describe('useUpdateSchedule', () => {
   })
 
   it('mover a una fecha de otra semana cacheada la quita de una y la pone en la otra', async () => {
-    const liberar = pausar('patch', '/v1/schedules/:id')
+    const liberar = pausar('patch', '/v2/job-management/schedules/:id')
     const { result } = renderHook(() => useUpdateSchedule(), { wrapper: envoltorio })
 
     act(() => {
@@ -314,7 +314,7 @@ describe('useUpdateSchedule', () => {
 
   it('fallo al mover: ante un 500 vuelve a su día original y se emite el mensaje de error', async () => {
     const antes = estadoCache()
-    const liberar = pausar('patch', '/v1/schedules/:id', error500)
+    const liberar = pausar('patch', '/v2/job-management/schedules/:id', error500)
     const { result } = renderHook(() => useUpdateSchedule(), { wrapper: envoltorio })
 
     act(() => {
@@ -333,7 +333,7 @@ describe('useUpdateSchedule', () => {
 
   it('ante un 500 al mover a otra semana, las dos semanas vuelven al estado anterior', async () => {
     const antes = estadoCache()
-    const liberar = pausar('patch', '/v1/schedules/:id', error500)
+    const liberar = pausar('patch', '/v2/job-management/schedules/:id', error500)
     const { result } = renderHook(() => useUpdateSchedule(), { wrapper: envoltorio })
 
     act(() => {
@@ -351,7 +351,7 @@ describe('useUpdateSchedule', () => {
   it('con una semana visible montada, tras guardar vuelve a pedirla al servidor', async () => {
     const pedidas: string[] = []
     server.use(
-      http.get('/v1/schedules', ({ request }) => {
+      http.get('/v2/job-management/schedules', ({ request }) => {
         pedidas.push(new URL(request.url).search)
       }),
     )
@@ -375,7 +375,7 @@ describe('useUpdateSchedule', () => {
 
 describe('useDeleteSchedule', () => {
   it('quita la programación antes de la respuesta', async () => {
-    const liberar = pausar('delete', '/v1/schedules/:id')
+    const liberar = pausar('delete', '/v2/job-management/schedules/:id')
     const { result } = renderHook(() => useDeleteSchedule(), { wrapper: envoltorio })
 
     act(() => {
@@ -394,7 +394,7 @@ describe('useDeleteSchedule', () => {
 
   it('ante un 500 la programación vuelve y se emite el mensaje de error', async () => {
     const antes = estadoCache()
-    const liberar = pausar('delete', '/v1/schedules/:id', error500)
+    const liberar = pausar('delete', '/v2/job-management/schedules/:id', error500)
     const { result } = renderHook(() => useDeleteSchedule(), { wrapper: envoltorio })
 
     act(() => {
@@ -413,7 +413,7 @@ describe('useDeleteSchedule', () => {
 
 describe('useReplaceEmployees', () => {
   it('reemplaza los empleados antes de la respuesta', async () => {
-    const liberar = pausar('put', '/v1/schedules/:id/employees')
+    const liberar = pausar('put', '/v2/job-management/schedules/:id/employees')
     const { result } = renderHook(() => useReplaceEmployees(), { wrapper: envoltorio })
 
     act(() => {
@@ -433,7 +433,7 @@ describe('useReplaceEmployees', () => {
 
   it('ante un 500 los empleados vuelven a los anteriores y se emite el mensaje de error', async () => {
     const antes = estadoCache()
-    const liberar = pausar('put', '/v1/schedules/:id/employees', error500)
+    const liberar = pausar('put', '/v2/job-management/schedules/:id/employees', error500)
     const { result } = renderHook(() => useReplaceEmployees(), { wrapper: envoltorio })
 
     act(() => {

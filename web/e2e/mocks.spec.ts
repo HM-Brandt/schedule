@@ -1,5 +1,5 @@
 // Tareas 3.4 y 11.7 de `schedule-assign`: con `VITE_USE_MOCKS=true` (lo pone el `webServer`
-// de playwright.config.ts) el service worker de MSW intercepta las llamadas a `v1/...`, tanto
+// de playwright.config.ts) el service worker de MSW intercepta las llamadas a `v1/...` y `v2/...`, tanto
 // en el mismo origen como en la URL base que tenga configurada `VITE_API_URL`.
 //
 // El código de `page.evaluate` y `waitForFunction` corre en el navegador: necesita los
@@ -38,10 +38,10 @@ test('el service worker de MSW responde GET /v1/employee con los datos semilla',
   expect(resultado.cuerpo.filter((empleado) => empleado.status === 'Terminated')).toHaveLength(2)
 })
 
-test('la app pide empleados, trabajos y programaciones en v1/... de su URL base y responde el service worker', async ({
+test('la app pide empleados, trabajos y programaciones en v1/... y v2/... de su URL base y responde el service worker', async ({
   page,
 }) => {
-  const rutas = ['/v1/employee', '/v1/job', '/v1/schedules']
+  const rutas = ['/v1/employee', '/v1/job', '/v2/job-management/schedules']
   const respuestas = rutas.map((ruta) =>
     page.waitForResponse((respuesta) => new URL(respuesta.url()).pathname.endsWith(ruta)),
   )

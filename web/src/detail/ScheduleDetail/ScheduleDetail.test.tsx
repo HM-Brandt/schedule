@@ -78,10 +78,10 @@ function prepararServidor() {
     return undefined
   }
   server.resetHandlers(
-    http.post('/v1/schedules', anotar),
-    http.patch('/v1/schedules/:id', anotar),
-    http.delete('/v1/schedules/:id', anotar),
-    http.put('/v1/schedules/:id/employees', anotar),
+    http.post('/v2/job-management/schedules', anotar),
+    http.patch('/v2/job-management/schedules/:id', anotar),
+    http.delete('/v2/job-management/schedules/:id', anotar),
+    http.put('/v2/job-management/schedules/:id/employees', anotar),
     ...createHandlers(semilla),
   )
 }
@@ -184,7 +184,7 @@ describe('ScheduleDetail', () => {
       expect(iniciales(tarjetasDelDia('Mon')[1])).toEqual(['AL', 'LM'])
       expect(iniciales(tarjetasDelDia('Mon')[0])).toEqual(['AL'])
       await waitFor(() =>
-        expect(peticiones).toEqual([{ metodo: 'PATCH', ruta: '/v1/schedules/1', cuerpo: { startTime: '10:30' } }]),
+        expect(peticiones).toEqual([{ metodo: 'PATCH', ruta: '/v2/job-management/schedules/1', cuerpo: { startTime: '10:30' } }]),
       )
       expect(campoHora(screen.getByRole('dialog'))).toHaveValue('10:30')
       expect(await screen.findByText('Start time changed')).toBeInTheDocument()
@@ -201,7 +201,7 @@ describe('ScheduleDetail', () => {
       fireEvent.keyDown(campo, { key: 'Enter' })
 
       await waitFor(() =>
-        expect(peticiones).toEqual([{ metodo: 'PATCH', ruta: '/v1/schedules/1', cuerpo: { startTime: '10:30' } }]),
+        expect(peticiones).toEqual([{ metodo: 'PATCH', ruta: '/v2/job-management/schedules/1', cuerpo: { startTime: '10:30' } }]),
       )
       await waitFor(() => expect(horasDelDia('Mon')).toEqual(['08:00', '10:30']))
     })
@@ -257,7 +257,7 @@ describe('ScheduleDetail', () => {
 
       await waitFor(() =>
         expect(peticiones).toEqual([
-          { metodo: 'PATCH', ruta: '/v1/schedules/2', cuerpo: { scheduleComment: 'Llevar escalera' } },
+          { metodo: 'PATCH', ruta: '/v2/job-management/schedules/2', cuerpo: { scheduleComment: 'Llevar escalera' } },
         ]),
       )
       await waitFor(() => expect(iconoComentario(tarjeta('Mon', '08:00'))).toHaveAttribute('title', 'Llevar escalera'))
@@ -289,7 +289,7 @@ describe('ScheduleDetail', () => {
 
       await waitFor(() =>
         expect(peticiones).toEqual([
-          { metodo: 'PATCH', ruta: '/v1/schedules/2', cuerpo: { scheduleComment: 'Llevar escalera\nY rodillos' } },
+          { metodo: 'PATCH', ruta: '/v2/job-management/schedules/2', cuerpo: { scheduleComment: 'Llevar escalera\nY rodillos' } },
         ]),
       )
       await waitFor(() =>
@@ -309,7 +309,7 @@ describe('ScheduleDetail', () => {
       fireEvent.blur(campoComentario(detalle))
 
       await waitFor(() =>
-        expect(peticiones).toEqual([{ metodo: 'PATCH', ruta: '/v1/schedules/1', cuerpo: { scheduleComment: null } }]),
+        expect(peticiones).toEqual([{ metodo: 'PATCH', ruta: '/v2/job-management/schedules/1', cuerpo: { scheduleComment: null } }]),
       )
       await waitFor(() => expect(iconoComentario(tarjeta('Mon', '07:00'))).toBeNull())
       expect(campoComentario(screen.getByRole('dialog'))).toHaveValue('')
@@ -389,7 +389,7 @@ describe('ScheduleDetail', () => {
         expect(peticiones).toEqual([
           {
             metodo: 'POST',
-            ruta: '/v1/schedules',
+            ruta: '/v2/job-management/schedules',
             cuerpo: { jobsId: 7, date: LUNES, startTime: '08:00', employeesIds: [3, 5] },
           },
         ]),
@@ -412,7 +412,7 @@ describe('ScheduleDetail', () => {
         expect(peticiones).toEqual([
           {
             metodo: 'POST',
-            ruta: '/v1/schedules',
+            ruta: '/v2/job-management/schedules',
             cuerpo: { jobsId: 14, date: MIERCOLES, startTime: '08:00', employeesIds: [3] },
           },
         ]),
@@ -433,7 +433,7 @@ describe('ScheduleDetail', () => {
     expect(horasDelDia('Mon')).toEqual(['08:00'])
     await waitFor(() =>
       expect(peticiones).toEqual([
-        { metodo: 'PATCH', ruta: '/v1/schedules/1', cuerpo: { date: JUEVES, startTime: '07:00' } },
+        { metodo: 'PATCH', ruta: '/v2/job-management/schedules/1', cuerpo: { date: JUEVES, startTime: '07:00' } },
       ]),
     )
     // El detalle sigue abierto y muestra la nueva fecha.
@@ -452,7 +452,7 @@ describe('ScheduleDetail', () => {
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
     await waitFor(() => expect(tarjetasDelDia('Thu')).toHaveLength(0))
     await waitFor(() =>
-      expect(peticiones).toEqual([{ metodo: 'DELETE', ruta: '/v1/schedules/4', cuerpo: null }]),
+      expect(peticiones).toEqual([{ metodo: 'DELETE', ruta: '/v2/job-management/schedules/4', cuerpo: null }]),
     )
     expect(await screen.findByText('Job removed')).toBeInTheDocument()
     expect(screen.getAllByRole('article')).toHaveLength(3)
@@ -471,7 +471,7 @@ describe('ScheduleDetail', () => {
       expect(within(abierto).getByText('Luis Martínez')).toBeInTheDocument()
       await waitFor(() =>
         expect(peticiones).toEqual([
-          { metodo: 'PUT', ruta: '/v1/schedules/1/employees', cuerpo: { employeesIds: [5] } },
+          { metodo: 'PUT', ruta: '/v2/job-management/schedules/1/employees', cuerpo: { employeesIds: [5] } },
         ]),
       )
       // La otra programación de Ana ese día no cambia.
@@ -502,7 +502,7 @@ describe('ScheduleDetail', () => {
 
       await waitFor(() =>
         expect(peticiones).toEqual([
-          { metodo: 'PUT', ruta: '/v1/schedules/10/employees', cuerpo: { employeesIds: [3] } },
+          { metodo: 'PUT', ruta: '/v2/job-management/schedules/10/employees', cuerpo: { employeesIds: [3] } },
         ]),
       )
       await waitFor(() =>
@@ -649,7 +649,7 @@ describe('ScheduleDetail: cerrar el detalle', () => {
       expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
       await waitFor(() =>
         expect(peticiones).toEqual([
-          { metodo: 'PATCH', ruta: '/v1/schedules/1', cuerpo: { scheduleComment: 'Llevar andamio' } },
+          { metodo: 'PATCH', ruta: '/v2/job-management/schedules/1', cuerpo: { scheduleComment: 'Llevar andamio' } },
         ]),
       )
       await waitFor(() => expect(iconoComentario(tarjeta('Mon', '07:00'))).toHaveAttribute('title', 'Llevar andamio'))
@@ -667,7 +667,7 @@ describe('ScheduleDetail: cerrar el detalle', () => {
 
       expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
       await waitFor(() =>
-        expect(peticiones).toEqual([{ metodo: 'PATCH', ruta: '/v1/schedules/1', cuerpo: { startTime: '10:30' } }]),
+        expect(peticiones).toEqual([{ metodo: 'PATCH', ruta: '/v2/job-management/schedules/1', cuerpo: { startTime: '10:30' } }]),
       )
       await waitFor(() => expect(horasDelDia('Mon')).toEqual(['08:00', '10:30']))
     })

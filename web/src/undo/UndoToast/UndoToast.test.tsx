@@ -5,7 +5,7 @@
 // (el mensaje de error se muestra hasta que la persona lo cierra).
 //
 // Se monta `UndoToast` dentro de `UndoProvider` con dos botones de prueba: uno apila una acción
-// cuya inversa es `DELETE /v1/schedules/4` y otro muestra un error.
+// cuya inversa es `DELETE /v2/job-management/schedules/4` y otro muestra un error.
 import { QueryClientProvider } from '@tanstack/react-query'
 import type { QueryClient } from '@tanstack/react-query'
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
@@ -36,7 +36,7 @@ beforeEach(() => {
   client = createQueryClient()
   client.setDefaultOptions({ queries: { retry: false } })
   server.resetHandlers(
-    http.delete('/v1/schedules/:id', ({ request }) => {
+    http.delete('/v2/job-management/schedules/:id', ({ request }) => {
       peticiones.push({ metodo: request.method, ruta: new URL(request.url).pathname })
       return undefined
     }),
@@ -158,7 +158,7 @@ describe('UndoToast', () => {
       fireEvent.click(screen.getByRole('button', { name: 'Undo' }))
 
       expect(avisoDeAccion('Job moved')).toBeUndefined()
-      await waitFor(() => expect(peticiones).toEqual([{ metodo: 'DELETE', ruta: '/v1/schedules/4' }]))
+      await waitFor(() => expect(peticiones).toEqual([{ metodo: 'DELETE', ruta: '/v2/job-management/schedules/4' }]))
       expect(entradas()).toHaveTextContent('0')
     })
   })

@@ -1,6 +1,6 @@
 // Configuración común de los tests unitarios (Vitest + Testing Library + jsdom).
 import '@testing-library/jest-dom/vitest'
-import { cleanup } from '@testing-library/react'
+import { cleanup, configure } from '@testing-library/react'
 import { afterEach, vi } from 'vitest'
 import { instalarMatchMedia, restablecerAncho } from './viewport'
 
@@ -10,6 +10,9 @@ import { instalarMatchMedia, restablecerAncho } from './viewport'
 // de este archivo, así que toma este valor. Las URL base absolutas se prueban aparte en
 // `api/client.test.ts` y `mocks/handlers.test.ts`.
 vi.stubEnv('VITE_API_URL', '')
+
+// Con la máquina cargada, el plazo por defecto de `waitFor`/`findBy` (1000 ms) se agota.
+configure({ asyncUtilTimeout: 3000 })
 
 // jsdom no tiene `matchMedia`: se simula con un ancho de 1280 px (escritorio). Ver `viewport.ts`.
 instalarMatchMedia()

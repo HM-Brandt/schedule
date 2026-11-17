@@ -150,7 +150,7 @@ export function createApiClient(baseURL: string) {
 
     /** `GET /api/schedules?from&to`. Programaciones del rango, ambos días incluidos. */
     async getSchedules(params: SchedulesQuery): Promise<Schedule[]> {
-      const response = await http.get<Schedule[]>('v1/schedules', {
+      const response = await http.get<Schedule[]>('v2/job-management/schedules', {
         params: { from: params.from, to: params.to },
       })
       return response.data.map(normalizeSchedule)
@@ -158,24 +158,24 @@ export function createApiClient(baseURL: string) {
 
     /** `POST /api/schedules`. Crea una programación y la devuelve. */
     async createSchedule(body: CreateScheduleBody): Promise<Schedule> {
-      const response = await http.post<Schedule>('v1/schedules', body)
+      const response = await http.post<Schedule>('v2/job-management/schedules', body)
       return normalizeSchedule(response.data)
     },
 
     /** `PATCH /api/schedules/{id}`. Cambia la fecha, la hora o ambas, y devuelve la programación. */
     async updateSchedule(id: number, body: UpdateScheduleBody): Promise<Schedule> {
-      const response = await http.patch<Schedule>(`v1/schedules/${id}`, body)
+      const response = await http.patch<Schedule>(`v2/job-management/schedules/${id}`, body)
       return normalizeSchedule(response.data)
     },
 
     /** `DELETE /api/schedules/{id}`. Elimina la programación; el backend responde 204 sin cuerpo. */
     async deleteSchedule(id: number): Promise<void> {
-      await http.delete(`v1/schedules/${id}`)
+      await http.delete(`v2/job-management/schedules/${id}`)
     },
 
     /** `PUT /api/schedules/{id}/employees`. Reemplaza el conjunto de empleados y devuelve la programación. */
     async replaceScheduleEmployees(id: number, body: ReplaceEmployeesBody): Promise<Schedule> {
-      const response = await http.put<Schedule>(`v1/schedules/${id}/employees`, body)
+      const response = await http.put<Schedule>(`v2/job-management/schedules/${id}/employees`, body)
       return normalizeSchedule(response.data)
     },
 

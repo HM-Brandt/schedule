@@ -4,7 +4,7 @@
 // unos nuevos creados con `createHandlers(createSeed(HOY))`, que tienen su propia
 // base en memoria.
 //
-// Los manejadores usan un comodín de origen (`*/v1/...`). Casi todas las peticiones se
+// Los manejadores usan un comodín de origen (`*/v1/...` y `*/v2/...`). Casi todas las peticiones se
 // hacen con `fetch` al mismo origen de jsdom (`http://localhost:3000`), así que no hay
 // CORS de por medio; un bloque aparte comprueba que también interceptan otro origen con
 // prefijo `/api`.
@@ -97,7 +97,7 @@ async function pedir(
 
 /** Programaciones de la semana de `HOY`. */
 async function semana(): Promise<Schedule[]> {
-  const respuesta = await pedir('GET', '/v1/schedules?from=2026-11-01&to=2026-11-07')
+  const respuesta = await pedir('GET', '/v2/job-management/schedules?from=2026-11-01&to=2026-11-07')
   expect(respuesta.status).toBe(200)
   return respuesta.cuerpo
 }
@@ -296,13 +296,13 @@ describe('GET /v1/job', () => {
   })
 })
 
-describe('GET /v1/schedules', () => {
+describe('GET /v2/job-management/schedules', () => {
   it('Programación con dos empleados: la representación es la del spec', async () => {
     usarSemilla((semilla) => {
       semilla.schedules = [PROGRAMACION_101]
     })
 
-    const respuesta = await pedir('GET', '/v1/schedules?from=2026-11-01&to=2026-11-07')
+    const respuesta = await pedir('GET', '/v2/job-management/schedules?from=2026-11-01&to=2026-11-07')
 
     expect(respuesta.status).toBe(200)
     expect(respuesta.cuerpo).toHaveLength(1)
@@ -342,11 +342,11 @@ describe('GET /v1/schedules', () => {
   })
 
   it('Semana completa: incluye las del día 7 y excluye las de fuera del rango', async () => {
-    const sabado = await pedir('POST', '/v1/schedules', { jobsId: 1, date: '2026-11-07', startTime: '09:00' })
-    const antes = await pedir('POST', '/v1/schedules', { jobsId: 2, date: '2026-10-31', startTime: '09:00' })
-    const despues = await pedir('POST', '/v1/schedules', { jobsId: 3, date: '2026-11-08', startTime: '09:00' })
+    const sabado = await pedir('POST', '/v2/job-management/schedules', { jobsId: 1, date: '2026-11-07', startTime: '09:00' })
+    const antes = await pedir('POST', '/v2/job-management/schedules', { jobsId: 2, date: '2026-10-31', startTime: '09:00' })
+    const despues = await pedir('POST', '/v2/job-management/schedules', { jobsId: 3, date: '2026-11-08', startTime: '09:00' })
 
-    const respuesta = await pedir('GET', '/v1/schedules?from=2026-11-01&to=2026-11-07')
+    const respuesta = await pedir('GET', '/v2/job-management/schedules?from=2026-11-01&to=2026-11-07')
 
     expect(respuesta.status).toBe(200)
     const ids = (respuesta.cuerpo as Schedule[]).map((programacion) => programacion.jobSchedulesId)
@@ -357,7 +357,7 @@ describe('GET /v1/schedules', () => {
   })
 
   it('from igual a to devuelve solo ese día', async () => {
-    const respuesta = await pedir('GET', '/v1/schedules?from=2026-11-02&to=2026-11-02')
+    const respuesta = await pedir('GET', '/v2/job-management/schedules?from=2026-11-02&to=2026-11-02')
 
     expect(respuesta.status).toBe(200)
     expect((respuesta.cuerpo as Schedule[]).every((programacion) => programacion.date === '2026-11-02')).toBe(true)
@@ -366,9 +366,9 @@ describe('GET /v1/schedules', () => {
 
   it('ordena por fecha, hora de inicio e id', async () => {
     // La semilla tiene 1 (02, 07:00), 2 (02, 08:00), 3 (03, 07:00) y 4 (05, 09:30).
-    const temprana = await pedir('POST', '/v1/schedules', { jobsId: 1, date: '2026-11-02', startTime: '06:00' })
-    const empate = await pedir('POST', '/v1/schedules', { jobsId: 2, date: '2026-11-02', startTime: '07:00' })
-    const domingo = await pedir('POST', '/v1/schedules', { jobsId: 3, date: '2026-11-01', startTime: '23:00' })
+    const temprana = await pedir('POST', '/v2/job-management/schedules', { jobsId: 1, date: '2026-11-02', startTime: '06:00' })
+    const empate = await pedir('POST', '/v2/job-management/schedules', { jobsId: 2, date: '2026-11-02', startTime: '07:00' })
+    const domingo = await pedir('POST', '/v2/job-management/schedules', { jobsId: 3, date: '2026-11-01', startTime: '23:00' })
 
     const ids = (await semana()).map((programacion) => programacion.jobSchedulesId)
 
@@ -377,7 +377,7 @@ describe('GET /v1/schedules', () => {
 
   it('Rango invertido: 422 con el mensaje exacto', async () => {
     esperarError(
-      await pedir('GET', '/v1/schedules?from=2026-11-07&to=2026-11-01'),
+      await pedir('GET', '/v2/job-management/schedules?from=2026-11-07&to=2026-11-01'),
       422,
       'La fecha from no puede ser posterior a to',
     )
@@ -393,16 +393,16 @@ describe('GET /v1/schedules', () => {
     ['from con hora', '?from=2026-11-01T00:00&to=2026-11-07'],
   ])('422 cuando %s', async (_descripcion, query) => {
     esperarError(
-      await pedir('GET', `/v1/schedules${query}`),
+      await pedir('GET', `/v2/job-management/schedules${query}`),
       422,
       'Los parámetros from y to deben ser fechas AAAA-MM-DD',
     )
   })
 })
 
-describe('POST /v1/schedules', () => {
+describe('POST /v2/job-management/schedules', () => {
   it('Creación válida: 201 con la nueva programación y employeesIds vacío', async () => {
-    const respuesta = await pedir('POST', '/v1/schedules', {
+    const respuesta = await pedir('POST', '/v2/job-management/schedules', {
       jobsId: 7,
       date: '2026-11-02',
       startTime: '07:00',
@@ -421,13 +421,13 @@ describe('POST /v1/schedules', () => {
   })
 
   it('asigna un id nuevo, distinto de los de la semilla', async () => {
-    const respuesta = await pedir('POST', '/v1/schedules', { jobsId: 1, date: '2026-11-03', startTime: '10:00' })
+    const respuesta = await pedir('POST', '/v2/job-management/schedules', { jobsId: 1, date: '2026-11-03', startTime: '10:00' })
 
     expect([1, 2, 3, 4]).not.toContain(respuesta.cuerpo.jobSchedulesId)
   })
 
   it('crea con los employeesIds enviados', async () => {
-    const respuesta = await pedir('POST', '/v1/schedules', {
+    const respuesta = await pedir('POST', '/v2/job-management/schedules', {
       jobsId: 7,
       date: '2026-11-02',
       startTime: '10:00',
@@ -443,7 +443,7 @@ describe('POST /v1/schedules', () => {
       semilla.schedules = [PROGRAMACION_101]
     })
 
-    const respuesta = await pedir('POST', '/v1/schedules', {
+    const respuesta = await pedir('POST', '/v2/job-management/schedules', {
       jobsId: 7,
       date: '2026-11-02',
       startTime: '08:00',
@@ -458,7 +458,7 @@ describe('POST /v1/schedules', () => {
   })
 
   it('Empleado inactivo: 422 y no se crea la programación', async () => {
-    const respuesta = await pedir('POST', '/v1/schedules', {
+    const respuesta = await pedir('POST', '/v2/job-management/schedules', {
       jobsId: 7,
       date: '2026-11-02',
       startTime: '10:00',
@@ -470,7 +470,7 @@ describe('POST /v1/schedules', () => {
   })
 
   it('Empleado inactivo: el 10 (Terminated) solo también da 422', async () => {
-    const respuesta = await pedir('POST', '/v1/schedules', {
+    const respuesta = await pedir('POST', '/v2/job-management/schedules', {
       jobsId: 7,
       date: '2026-11-02',
       startTime: '10:00',
@@ -486,7 +486,7 @@ describe('POST /v1/schedules', () => {
       semilla.employees[2] = { ...semilla.employees[2], status: 'Terminated' }
     })
 
-    const respuesta = await pedir('POST', '/v1/schedules', {
+    const respuesta = await pedir('POST', '/v2/job-management/schedules', {
       jobsId: 7,
       date: '2026-11-02',
       startTime: '10:00',
@@ -497,7 +497,7 @@ describe('POST /v1/schedules', () => {
   })
 
   it('caso límite 4: ignora los ids repetidos y la respuesta no los trae', async () => {
-    const respuesta = await pedir('POST', '/v1/schedules', {
+    const respuesta = await pedir('POST', '/v2/job-management/schedules', {
       jobsId: 7,
       date: '2026-11-02',
       startTime: '10:00',
@@ -533,26 +533,26 @@ describe('POST /v1/schedules', () => {
       'El cuerpo de la petición no es válido',
     ],
   ])('422 sin crear nada cuando %s', async (_descripcion, cuerpo, mensaje) => {
-    esperarError(await pedir('POST', '/v1/schedules', cuerpo), 422, mensaje)
+    esperarError(await pedir('POST', '/v2/job-management/schedules', cuerpo), 422, mensaje)
     expect(await semana()).toHaveLength(4)
   })
 
   it('422 cuando el cuerpo no es JSON', async () => {
     esperarError(
-      await pedir('POST', '/v1/schedules', { crudo: '{"jobsId": 7,' }),
+      await pedir('POST', '/v2/job-management/schedules', { crudo: '{"jobsId": 7,' }),
       422,
       'El cuerpo de la petición no es válido',
     )
   })
 })
 
-describe('PATCH /v1/schedules/{id}', () => {
+describe('PATCH /v2/job-management/schedules/{id}', () => {
   beforeEach(() => {
     conProgramacion101()
   })
 
   it('Mover a otro día: 200 con la nueva fecha, la misma hora y los mismos empleados', async () => {
-    const respuesta = await pedir('PATCH', '/v1/schedules/101', { date: '2026-11-04' })
+    const respuesta = await pedir('PATCH', '/v2/job-management/schedules/101', { date: '2026-11-04' })
 
     expect(respuesta.status).toBe(200)
     expect({ ...respuesta.cuerpo, employeesIds: ordenados(respuesta.cuerpo.employeesIds) }).toEqual({
@@ -566,7 +566,7 @@ describe('PATCH /v1/schedules/{id}', () => {
   })
 
   it('solo startTime: cambia la hora y conserva la fecha', async () => {
-    const respuesta = await pedir('PATCH', '/v1/schedules/101', { startTime: '10:30' })
+    const respuesta = await pedir('PATCH', '/v2/job-management/schedules/101', { startTime: '10:30' })
 
     expect(respuesta.status).toBe(200)
     expect(respuesta.cuerpo).toMatchObject({ jobSchedulesId: 101, date: '2026-11-02', startTime: '10:30' })
@@ -574,7 +574,7 @@ describe('PATCH /v1/schedules/{id}', () => {
   })
 
   it('date y startTime a la vez cambian los dos', async () => {
-    const respuesta = await pedir('PATCH', '/v1/schedules/101', {
+    const respuesta = await pedir('PATCH', '/v2/job-management/schedules/101', {
       date: '2026-11-06',
       startTime: '13:15',
     })
@@ -585,7 +585,7 @@ describe('PATCH /v1/schedules/{id}', () => {
 
   it('Programación inexistente: 404 con el mensaje exacto', async () => {
     esperarError(
-      await pedir('PATCH', '/v1/schedules/99999', { date: '2026-11-04' }),
+      await pedir('PATCH', '/v2/job-management/schedules/99999', { date: '2026-11-04' }),
       404,
       'No existe la programación 99999',
     )
@@ -593,14 +593,14 @@ describe('PATCH /v1/schedules/{id}', () => {
 
   it('caso límite 7: id no numérico da 404', async () => {
     esperarError(
-      await pedir('PATCH', '/v1/schedules/abc', { date: '2026-11-04' }),
+      await pedir('PATCH', '/v2/job-management/schedules/abc', { date: '2026-11-04' }),
       404,
       'No existe la programación abc',
     )
   })
 
   it('caso límite 3: sin date, startTime ni scheduleComment da 422 y no cambia nada', async () => {
-    esperarError(await pedir('PATCH', '/v1/schedules/101', {}), 422, 'Debes enviar date, startTime o scheduleComment')
+    esperarError(await pedir('PATCH', '/v2/job-management/schedules/101', {}), 422, 'Debes enviar date, startTime o scheduleComment')
     expect(await buscarProgramacion(101)).toEqual(PROGRAMACION_101)
   })
 
@@ -615,13 +615,13 @@ describe('PATCH /v1/schedules/{id}', () => {
       'La hora debe tener el formato HH:mm',
     ],
   ])('422 sin cambios cuando %s', async (_descripcion, cuerpo, mensaje) => {
-    esperarError(await pedir('PATCH', '/v1/schedules/101', cuerpo), 422, mensaje)
+    esperarError(await pedir('PATCH', '/v2/job-management/schedules/101', cuerpo), 422, mensaje)
     expect(await buscarProgramacion(101)).toEqual(PROGRAMACION_101)
   })
 
   it('422 sin cambios cuando el cuerpo no es JSON', async () => {
     esperarError(
-      await pedir('PATCH', '/v1/schedules/101', { crudo: '{"date":' }),
+      await pedir('PATCH', '/v2/job-management/schedules/101', { crudo: '{"date":' }),
       422,
       'El cuerpo de la petición no es válido',
     )
@@ -649,14 +649,14 @@ describe('comentario de una programación (tarea 12.1)', () => {
 
   describe('POST', () => {
     it('Creación válida: sin scheduleComment la nueva programación tiene scheduleComment null', async () => {
-      const respuesta = await pedir('POST', '/v1/schedules', { jobsId: 7, date: '2026-11-02', startTime: '07:00' })
+      const respuesta = await pedir('POST', '/v2/job-management/schedules', { jobsId: 7, date: '2026-11-02', startTime: '07:00' })
 
       expect(respuesta.status).toBe(201)
       expect(respuesta.cuerpo.scheduleComment).toBeNull()
     })
 
     it('Creación con comentario: 201 con scheduleComment "Llevar escalera" y se guarda', async () => {
-      const respuesta = await pedir('POST', '/v1/schedules', {
+      const respuesta = await pedir('POST', '/v2/job-management/schedules', {
         jobsId: 7,
         date: '2026-11-02',
         startTime: '07:00',
@@ -674,7 +674,7 @@ describe('comentario de una programación (tarea 12.1)', () => {
       ['solo espacios', '   '],
       ['solo saltos de línea y tabuladores', '\n\t \n'],
     ])('con scheduleComment %s crea la programación con scheduleComment null', async (_descripcion, comentario) => {
-      const respuesta = await pedir('POST', '/v1/schedules', {
+      const respuesta = await pedir('POST', '/v2/job-management/schedules', {
         jobsId: 7,
         date: '2026-11-02',
         startTime: '07:00',
@@ -686,7 +686,7 @@ describe('comentario de una programación (tarea 12.1)', () => {
     })
 
     it('conserva los saltos de línea del comentario', async () => {
-      const respuesta = await pedir('POST', '/v1/schedules', {
+      const respuesta = await pedir('POST', '/v2/job-management/schedules', {
         jobsId: 7,
         date: '2026-11-02',
         startTime: '07:00',
@@ -703,7 +703,7 @@ describe('comentario de una programación (tarea 12.1)', () => {
       ['un booleano', true],
     ])('422 sin crear nada cuando scheduleComment es %s', async (_descripcion, comentario) => {
       esperarError(
-        await pedir('POST', '/v1/schedules', { jobsId: 7, date: '2026-11-02', startTime: '07:00', scheduleComment: comentario }),
+        await pedir('POST', '/v2/job-management/schedules', { jobsId: 7, date: '2026-11-02', startTime: '07:00', scheduleComment: comentario }),
         422,
         'El cuerpo de la petición no es válido',
       )
@@ -717,7 +717,7 @@ describe('comentario de una programación (tarea 12.1)', () => {
     })
 
     it('Cambiar el comentario: 200 con el nuevo scheduleComment y la misma fecha, hora y empleados', async () => {
-      const respuesta = await pedir('PATCH', '/v1/schedules/101', { scheduleComment: 'Entrar por la puerta trasera' })
+      const respuesta = await pedir('PATCH', '/v2/job-management/schedules/101', { scheduleComment: 'Entrar por la puerta trasera' })
 
       expect(respuesta.status).toBe(200)
       expect({ ...respuesta.cuerpo, employeesIds: ordenados(respuesta.cuerpo.employeesIds) }).toEqual({
@@ -736,7 +736,7 @@ describe('comentario de una programación (tarea 12.1)', () => {
       ['vacío', ''],
       ['null', null],
     ])('Borrar el comentario: con scheduleComment %s responde 200 con scheduleComment null', async (_descripcion, comentario) => {
-      const respuesta = await pedir('PATCH', '/v1/schedules/101', { scheduleComment: comentario })
+      const respuesta = await pedir('PATCH', '/v2/job-management/schedules/101', { scheduleComment: comentario })
 
       expect(respuesta.status).toBe(200)
       expect(respuesta.cuerpo.scheduleComment).toBeNull()
@@ -744,7 +744,7 @@ describe('comentario de una programación (tarea 12.1)', () => {
     })
 
     it('Mover a otro día: PATCH con solo date conserva el comentario, la hora y los empleados', async () => {
-      const respuesta = await pedir('PATCH', '/v1/schedules/101', { date: '2026-11-04' })
+      const respuesta = await pedir('PATCH', '/v2/job-management/schedules/101', { date: '2026-11-04' })
 
       expect(respuesta.status).toBe(200)
       expect({ ...respuesta.cuerpo, employeesIds: ordenados(respuesta.cuerpo.employeesIds) }).toEqual({
@@ -755,13 +755,13 @@ describe('comentario de una programación (tarea 12.1)', () => {
     })
 
     it('PATCH con solo startTime conserva el comentario', async () => {
-      const respuesta = await pedir('PATCH', '/v1/schedules/101', { startTime: '10:30' })
+      const respuesta = await pedir('PATCH', '/v2/job-management/schedules/101', { startTime: '10:30' })
 
       expect(respuesta.cuerpo).toMatchObject({ startTime: '10:30', scheduleComment: 'Llevar escalera' })
     })
 
     it('date, startTime y scheduleComment a la vez cambian los tres', async () => {
-      const respuesta = await pedir('PATCH', '/v1/schedules/101', {
+      const respuesta = await pedir('PATCH', '/v2/job-management/schedules/101', {
         date: '2026-11-06',
         startTime: '13:15',
         scheduleComment: 'Llevar andamio',
@@ -772,13 +772,13 @@ describe('comentario de una programación (tarea 12.1)', () => {
     })
 
     it('el PUT de empleados conserva el comentario', async () => {
-      const respuesta = await pedir('PUT', '/v1/schedules/101/employees', { employeesIds: [8] })
+      const respuesta = await pedir('PUT', '/v2/job-management/schedules/101/employees', { employeesIds: [8] })
 
       expect(respuesta.cuerpo.scheduleComment).toBe('Llevar escalera')
     })
 
     it('PATCH vacío: 422 "Debes enviar date, startTime o scheduleComment" y el comentario no cambia', async () => {
-      esperarError(await pedir('PATCH', '/v1/schedules/101', {}), 422, 'Debes enviar date, startTime o scheduleComment')
+      esperarError(await pedir('PATCH', '/v2/job-management/schedules/101', {}), 422, 'Debes enviar date, startTime o scheduleComment')
       expect((await buscarProgramacion(101))?.scheduleComment).toBe('Llevar escalera')
     })
 
@@ -788,13 +788,13 @@ describe('comentario de una programación (tarea 12.1)', () => {
       ['una lista', ['Llevar andamio']],
       ['un booleano', false],
     ])('422 "El comentario no es válido" sin cambios cuando scheduleComment es %s', async (_descripcion, comentario) => {
-      esperarError(await pedir('PATCH', '/v1/schedules/101', { scheduleComment: comentario }), 422, 'El comentario no es válido')
+      esperarError(await pedir('PATCH', '/v2/job-management/schedules/101', { scheduleComment: comentario }), 422, 'El comentario no es válido')
       expect((await buscarProgramacion(101))?.scheduleComment).toBe('Llevar escalera')
     })
 
     it('un comentario no válido junto a una fecha válida tampoco cambia la fecha', async () => {
       esperarError(
-        await pedir('PATCH', '/v1/schedules/101', { date: '2026-11-04', scheduleComment: 5 }),
+        await pedir('PATCH', '/v2/job-management/schedules/101', { date: '2026-11-04', scheduleComment: 5 }),
         422,
         'El comentario no es válido',
       )
@@ -803,7 +803,7 @@ describe('comentario de una programación (tarea 12.1)', () => {
 
     it('404 si la programación no existe', async () => {
       esperarError(
-        await pedir('PATCH', '/v1/schedules/99999', { scheduleComment: 'Llevar andamio' }),
+        await pedir('PATCH', '/v2/job-management/schedules/99999', { scheduleComment: 'Llevar andamio' }),
         404,
         'No existe la programación 99999',
       )
@@ -811,13 +811,13 @@ describe('comentario de una programación (tarea 12.1)', () => {
   })
 })
 
-describe('DELETE /v1/schedules/{id}', () => {
+describe('DELETE /v2/job-management/schedules/{id}', () => {
   beforeEach(() => {
     conProgramacion101()
   })
 
-  it('Eliminación: 204 sin cuerpo y la 101 ya no aparece en GET /v1/schedules', async () => {
-    const respuesta = await pedir('DELETE', '/v1/schedules/101')
+  it('Eliminación: 204 sin cuerpo y la 101 ya no aparece en GET /v2/job-management/schedules', async () => {
+    const respuesta = await pedir('DELETE', '/v2/job-management/schedules/101')
 
     expect(respuesta.status).toBe(204)
     expect(respuesta.texto).toBe('')
@@ -827,7 +827,7 @@ describe('DELETE /v1/schedules/{id}', () => {
   })
 
   it('no afecta al catálogo ni a otras programaciones del mismo trabajo', async () => {
-    await pedir('DELETE', '/v1/schedules/101')
+    await pedir('DELETE', '/v2/job-management/schedules/101')
 
     const { cuerpo: trabajos } = await pedir('GET', '/v1/job')
     expect(trabajos).toContainEqual(TRABAJO_7)
@@ -838,28 +838,28 @@ describe('DELETE /v1/schedules/{id}', () => {
   })
 
   it('borrar dos veces da 404 la segunda', async () => {
-    await pedir('DELETE', '/v1/schedules/101')
+    await pedir('DELETE', '/v2/job-management/schedules/101')
 
-    esperarError(await pedir('DELETE', '/v1/schedules/101'), 404, 'No existe la programación 101')
+    esperarError(await pedir('DELETE', '/v2/job-management/schedules/101'), 404, 'No existe la programación 101')
   })
 
   it('404 con el mensaje exacto si no existe', async () => {
-    esperarError(await pedir('DELETE', '/v1/schedules/99999'), 404, 'No existe la programación 99999')
+    esperarError(await pedir('DELETE', '/v2/job-management/schedules/99999'), 404, 'No existe la programación 99999')
     expect(await semana()).toHaveLength(5)
   })
 
   it('caso límite 7: id no numérico da 404', async () => {
-    esperarError(await pedir('DELETE', '/v1/schedules/abc'), 404, 'No existe la programación abc')
+    esperarError(await pedir('DELETE', '/v2/job-management/schedules/abc'), 404, 'No existe la programación abc')
   })
 })
 
-describe('PUT /v1/schedules/{id}/employees', () => {
+describe('PUT /v2/job-management/schedules/{id}/employees', () => {
   beforeEach(() => {
     conProgramacion101()
   })
 
   it('Reemplazo: [3, 5] pasa a [5, 8]', async () => {
-    const respuesta = await pedir('PUT', '/v1/schedules/101/employees', { employeesIds: [5, 8] })
+    const respuesta = await pedir('PUT', '/v2/job-management/schedules/101/employees', { employeesIds: [5, 8] })
 
     expect(respuesta.status).toBe(200)
     expect({ ...respuesta.cuerpo, employeesIds: ordenados(respuesta.cuerpo.employeesIds) }).toEqual({
@@ -872,7 +872,7 @@ describe('PUT /v1/schedules/{id}/employees', () => {
   it('Conservar un inactivo ya asignado: [9, 5] con [9, 3] da 200 con [9, 3]', async () => {
     conProgramacion101([9, 5])
 
-    const respuesta = await pedir('PUT', '/v1/schedules/101/employees', { employeesIds: [9, 3] })
+    const respuesta = await pedir('PUT', '/v2/job-management/schedules/101/employees', { employeesIds: [9, 3] })
 
     expect(respuesta.status).toBe(200)
     expect(ordenados(respuesta.cuerpo.employeesIds)).toEqual([3, 9])
@@ -880,7 +880,7 @@ describe('PUT /v1/schedules/{id}/employees', () => {
   })
 
   it('Agregar un inactivo: 422 y la asignación no cambia', async () => {
-    const respuesta = await pedir('PUT', '/v1/schedules/101/employees', { employeesIds: [9] })
+    const respuesta = await pedir('PUT', '/v2/job-management/schedules/101/employees', { employeesIds: [9] })
 
     esperarError(respuesta, 422, 'El empleado 9 está inactivo')
     expect(ordenados((await buscarProgramacion(101))?.employeesIds ?? [])).toEqual([3, 5])
@@ -889,14 +889,14 @@ describe('PUT /v1/schedules/{id}/employees', () => {
   it('un inactivo ya asignado no permite agregar otro inactivo', async () => {
     conProgramacion101([9])
 
-    const respuesta = await pedir('PUT', '/v1/schedules/101/employees', { employeesIds: [9, 10] })
+    const respuesta = await pedir('PUT', '/v2/job-management/schedules/101/employees', { employeesIds: [9, 10] })
 
     esperarError(respuesta, 422, 'El empleado 10 está inactivo')
     expect((await buscarProgramacion(101))?.employeesIds).toEqual([9])
   })
 
   it('caso límite 2: con [] deja la programación sin empleados y responde 200', async () => {
-    const respuesta = await pedir('PUT', '/v1/schedules/101/employees', { employeesIds: [] })
+    const respuesta = await pedir('PUT', '/v2/job-management/schedules/101/employees', { employeesIds: [] })
 
     expect(respuesta.status).toBe(200)
     expect(respuesta.cuerpo.employeesIds).toEqual([])
@@ -904,21 +904,21 @@ describe('PUT /v1/schedules/{id}/employees', () => {
   })
 
   it('ignora los ids repetidos', async () => {
-    const respuesta = await pedir('PUT', '/v1/schedules/101/employees', { employeesIds: [5, 8, 5, 8] })
+    const respuesta = await pedir('PUT', '/v2/job-management/schedules/101/employees', { employeesIds: [5, 8, 5, 8] })
 
     expect(respuesta.status).toBe(200)
     expect(ordenados(respuesta.cuerpo.employeesIds)).toEqual([5, 8])
   })
 
   it('no cambia la fecha, la hora ni el trabajo', async () => {
-    const respuesta = await pedir('PUT', '/v1/schedules/101/employees', { employeesIds: [1] })
+    const respuesta = await pedir('PUT', '/v2/job-management/schedules/101/employees', { employeesIds: [1] })
 
     expect(respuesta.cuerpo).toMatchObject({ jobSchedulesId: 101, job: TRABAJO_7, date: '2026-11-02', startTime: '08:00' })
   })
 
   it('422 sin cambios cuando un empleado no existe', async () => {
     esperarError(
-      await pedir('PUT', '/v1/schedules/101/employees', { employeesIds: [5, 999] }),
+      await pedir('PUT', '/v2/job-management/schedules/101/employees', { employeesIds: [5, 999] }),
       422,
       'No existe el empleado 999',
     )
@@ -931,7 +931,7 @@ describe('PUT /v1/schedules/{id}/employees', () => {
     ['el cuerpo no es JSON', { crudo: '{"employeesIds": [' }],
   ])('422 sin cambios cuando %s', async (_descripcion, cuerpo) => {
     esperarError(
-      await pedir('PUT', '/v1/schedules/101/employees', cuerpo),
+      await pedir('PUT', '/v2/job-management/schedules/101/employees', cuerpo),
       422,
       'El cuerpo de la petición no es válido',
     )
@@ -940,7 +940,7 @@ describe('PUT /v1/schedules/{id}/employees', () => {
 
   it('404 con el mensaje exacto si no existe', async () => {
     esperarError(
-      await pedir('PUT', '/v1/schedules/99999/employees', { employeesIds: [5] }),
+      await pedir('PUT', '/v2/job-management/schedules/99999/employees', { employeesIds: [5] }),
       404,
       'No existe la programación 99999',
     )
@@ -948,7 +948,7 @@ describe('PUT /v1/schedules/{id}/employees', () => {
 
   it('caso límite 7: id no numérico da 404', async () => {
     esperarError(
-      await pedir('PUT', '/v1/schedules/abc/employees', { employeesIds: [5] }),
+      await pedir('PUT', '/v2/job-management/schedules/abc/employees', { employeesIds: [5] }),
       404,
       'No existe la programación abc',
     )
@@ -972,22 +972,22 @@ describe('comodín de origen: interceptan la misma ruta v1/... desde cualquier U
     expect(trabajos.status).toBe(200)
     expect(trabajos.cuerpo).toContainEqual(TRABAJO_7)
 
-    const semanaCompleta = await pedir('GET', `${base}/v1/schedules?from=2026-11-01&to=2026-11-07`)
+    const semanaCompleta = await pedir('GET', `${base}/v2/job-management/schedules?from=2026-11-01&to=2026-11-07`)
     expect(semanaCompleta.status).toBe(200)
     expect(semanaCompleta.cuerpo).toHaveLength(5)
 
-    const creada = await pedir('POST', `${base}/v1/schedules`, { jobsId: 7, date: '2026-11-03', startTime: '07:00' })
+    const creada = await pedir('POST', `${base}/v2/job-management/schedules`, { jobsId: 7, date: '2026-11-03', startTime: '07:00' })
     expect(creada.status).toBe(201)
 
-    const movida = await pedir('PATCH', `${base}/v1/schedules/101`, { date: '2026-11-04' })
+    const movida = await pedir('PATCH', `${base}/v2/job-management/schedules/101`, { date: '2026-11-04' })
     expect(movida.status).toBe(200)
     expect(movida.cuerpo.date).toBe('2026-11-04')
 
-    const reemplazada = await pedir('PUT', `${base}/v1/schedules/101/employees`, { employeesIds: [5, 8] })
+    const reemplazada = await pedir('PUT', `${base}/v2/job-management/schedules/101/employees`, { employeesIds: [5, 8] })
     expect(reemplazada.status).toBe(200)
     expect(ordenados(reemplazada.cuerpo.employeesIds)).toEqual([5, 8])
 
-    const borrada = await pedir('DELETE', `${base}/v1/schedules/${creada.cuerpo.jobSchedulesId}`)
+    const borrada = await pedir('DELETE', `${base}/v2/job-management/schedules/${creada.cuerpo.jobSchedulesId}`)
     expect(borrada.status).toBe(204)
   })
 
@@ -1047,9 +1047,9 @@ describe('estado en memoria', () => {
   it('cada createHandlers parte de la semilla sin los cambios de otro', async () => {
     const semilla = createSeed(HOY)
     server.resetHandlers(...createHandlers(semilla))
-    await pedir('PUT', '/v1/schedules/1/employees', { employeesIds: [8] })
-    await pedir('PATCH', '/v1/schedules/1', { date: '2026-11-06' })
-    await pedir('DELETE', '/v1/schedules/2')
+    await pedir('PUT', '/v2/job-management/schedules/1/employees', { employeesIds: [8] })
+    await pedir('PATCH', '/v2/job-management/schedules/1', { date: '2026-11-06' })
+    await pedir('DELETE', '/v2/job-management/schedules/2')
 
     // La semilla original no se modificó.
     expect(semilla.schedules[0]).toMatchObject({ jobSchedulesId: 1, date: '2026-11-02', employeesIds: [3, 5] })
@@ -1063,9 +1063,9 @@ describe('estado en memoria', () => {
   })
 
   it('los cambios persisten entre peticiones del mismo servidor', async () => {
-    const creada = await pedir('POST', '/v1/schedules', { jobsId: 7, date: '2026-11-05', startTime: '11:00' })
-    await pedir('PUT', `/v1/schedules/${creada.cuerpo.jobSchedulesId}/employees`, { employeesIds: [2] })
-    await pedir('PATCH', `/v1/schedules/${creada.cuerpo.jobSchedulesId}`, { startTime: '12:00' })
+    const creada = await pedir('POST', '/v2/job-management/schedules', { jobsId: 7, date: '2026-11-05', startTime: '11:00' })
+    await pedir('PUT', `/v2/job-management/schedules/${creada.cuerpo.jobSchedulesId}/employees`, { employeesIds: [2] })
+    await pedir('PATCH', `/v2/job-management/schedules/${creada.cuerpo.jobSchedulesId}`, { startTime: '12:00' })
 
     expect(await buscarProgramacion(creada.cuerpo.jobSchedulesId)).toEqual({
       jobSchedulesId: creada.cuerpo.jobSchedulesId,

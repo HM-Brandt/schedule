@@ -80,7 +80,7 @@ export function createHandlers(seed: ReturnType<typeof createSeed>) {
       )
     }),
 
-    http.get('*/v1/schedules', ({ request }) => {
+    http.get('*/v2/job-management/schedules', ({ request }) => {
       const params = new URL(request.url).searchParams
       const from = params.get('from')
       const to = params.get('to')
@@ -100,7 +100,7 @@ export function createHandlers(seed: ReturnType<typeof createSeed>) {
       )
     }),
 
-    http.post('*/v1/schedules', async ({ request }) => {
+    http.post('*/v2/job-management/schedules', async ({ request }) => {
       const body = (await request.json().catch(() => null)) as Partial<CreateScheduleBody> | null
       if (
         !body ||
@@ -129,7 +129,7 @@ export function createHandlers(seed: ReturnType<typeof createSeed>) {
       return HttpResponse.json(schedule, { status: 201 })
     }),
 
-    http.patch('*/v1/schedules/:id', async ({ request, params }) => {
+    http.patch('*/v2/job-management/schedules/:id', async ({ request, params }) => {
       const schedule = findSchedule(String(params.id))
       if (!schedule) return error(404, `No existe la programación ${params.id}`)
       const body = (await request.json().catch(() => null)) as Partial<UpdateScheduleBody> | null
@@ -150,14 +150,14 @@ export function createHandlers(seed: ReturnType<typeof createSeed>) {
       return HttpResponse.json(schedule)
     }),
 
-    http.delete('*/v1/schedules/:id', ({ params }) => {
+    http.delete('*/v2/job-management/schedules/:id', ({ params }) => {
       const schedule = findSchedule(String(params.id))
       if (!schedule) return error(404, `No existe la programación ${params.id}`)
       schedules = schedules.filter((candidate) => candidate !== schedule)
       return new HttpResponse(null, { status: 204 })
     }),
 
-    http.put('*/v1/schedules/:id/employees', async ({ request, params }) => {
+    http.put('*/v2/job-management/schedules/:id/employees', async ({ request, params }) => {
       const schedule = findSchedule(String(params.id))
       if (!schedule) return error(404, `No existe la programación ${params.id}`)
       const body = (await request.json().catch(() => null)) as { employeesIds?: unknown } | null

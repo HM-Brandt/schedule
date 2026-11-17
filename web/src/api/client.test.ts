@@ -153,8 +153,8 @@ async function llamarLosSieteEndpoints(api: ReturnType<typeof createApiClient>) 
 }
 
 describe('createApiClient', () => {
-  describe('rutas v1/... relativas a la URL base (tarea 11.7)', () => {
-    it('escenario "URL base vacía": las siete peticiones van a /v1/... del mismo origen de la página', async () => {
+  describe('rutas v1/... y v2/... relativas a la URL base (tarea 11.7)', () => {
+    it('escenario "URL base vacía": las siete peticiones van a /v1/... y /v2/... del mismo origen de la página', async () => {
       const api = createApiClient('')
       const peticiones = capturarUrls()
 
@@ -164,15 +164,15 @@ describe('createApiClient', () => {
       expect(peticiones).toEqual([
         { method: 'GET', url: `${origen}/v1/employee` },
         { method: 'GET', url: `${origen}/v1/job` },
-        { method: 'GET', url: `${origen}/v1/schedules` },
-        { method: 'POST', url: `${origen}/v1/schedules` },
-        { method: 'PATCH', url: `${origen}/v1/schedules/101` },
-        { method: 'DELETE', url: `${origen}/v1/schedules/101` },
-        { method: 'PUT', url: `${origen}/v1/schedules/101/employees` },
+        { method: 'GET', url: `${origen}/v2/job-management/schedules` },
+        { method: 'POST', url: `${origen}/v2/job-management/schedules` },
+        { method: 'PATCH', url: `${origen}/v2/job-management/schedules/101` },
+        { method: 'DELETE', url: `${origen}/v2/job-management/schedules/101` },
+        { method: 'PUT', url: `${origen}/v2/job-management/schedules/101/employees` },
       ])
     })
 
-    it('con una URL absoluta con prefijo /api las siete peticiones van a https://host/api/v1/..., sin /api/api', async () => {
+    it('con una URL absoluta con prefijo /api las siete peticiones van a https://host/api/v1/... y https://host/api/v2/..., sin /api/api', async () => {
       const api = createApiClient('https://host/api')
       const peticiones = capturarUrls()
 
@@ -181,11 +181,11 @@ describe('createApiClient', () => {
       expect(peticiones).toEqual([
         { method: 'GET', url: 'https://host/api/v1/employee' },
         { method: 'GET', url: 'https://host/api/v1/job' },
-        { method: 'GET', url: 'https://host/api/v1/schedules' },
-        { method: 'POST', url: 'https://host/api/v1/schedules' },
-        { method: 'PATCH', url: 'https://host/api/v1/schedules/101' },
-        { method: 'DELETE', url: 'https://host/api/v1/schedules/101' },
-        { method: 'PUT', url: 'https://host/api/v1/schedules/101/employees' },
+        { method: 'GET', url: 'https://host/api/v2/job-management/schedules' },
+        { method: 'POST', url: 'https://host/api/v2/job-management/schedules' },
+        { method: 'PATCH', url: 'https://host/api/v2/job-management/schedules/101' },
+        { method: 'DELETE', url: 'https://host/api/v2/job-management/schedules/101' },
+        { method: 'PUT', url: 'https://host/api/v2/job-management/schedules/101/employees' },
       ])
       for (const { url } of peticiones) {
         expect(url).not.toContain('/api/api')
@@ -193,13 +193,13 @@ describe('createApiClient', () => {
       }
     })
 
-    it('escenario "URL base con prefijo": VITE_API_URL "https://api.ejemplo.com/api/" pide la 101 en .../api/v1/schedules/101', async () => {
+    it('escenario "URL base con prefijo": VITE_API_URL "https://api.ejemplo.com/api/" pide la 101 en .../api/v2/job-management/schedules/101', async () => {
       const api = createApiClient(readConfig({ VITE_API_URL: 'https://api.ejemplo.com/api/' }).apiUrl)
       const peticiones = capturarUrls()
 
       await api.updateSchedule(101, { date: '2026-11-04' })
 
-      expect(peticiones).toEqual([{ method: 'PATCH', url: 'https://api.ejemplo.com/api/v1/schedules/101' }])
+      expect(peticiones).toEqual([{ method: 'PATCH', url: 'https://api.ejemplo.com/api/v2/job-management/schedules/101' }])
     })
 
     it('con la URL base terminada en "/" pone una sola "/" entre la base y la ruta', async () => {
@@ -272,7 +272,7 @@ describe('createApiClient', () => {
       expect(trabajos).toEqual([TRABAJO])
     })
 
-    it('getSchedules: GET /v1/schedules con from y to', async () => {
+    it('getSchedules: GET /v2/job-management/schedules con from y to', async () => {
       const api = createApiClient(BASE_URL)
       const peticiones = capturar(() => HttpResponse.json([PROGRAMACION]))
 
@@ -280,7 +280,7 @@ describe('createApiClient', () => {
 
       expect(peticiones).toHaveLength(1)
       expect(peticiones[0].method).toBe('GET')
-      expect(peticiones[0].pathname).toBe('/v1/schedules')
+      expect(peticiones[0].pathname).toBe('/v2/job-management/schedules')
       expect(Object.fromEntries(peticiones[0].searchParams)).toEqual({
         from: '2026-11-01',
         to: '2026-11-07',
@@ -289,7 +289,7 @@ describe('createApiClient', () => {
       expect(programaciones).toEqual([PROGRAMACION])
     })
 
-    it('createSchedule: POST /v1/schedules con el cuerpo JSON de "Creación válida"', async () => {
+    it('createSchedule: POST /v2/job-management/schedules con el cuerpo JSON de "Creación válida"', async () => {
       const api = createApiClient(BASE_URL)
       const creada: Schedule = { ...PROGRAMACION, startTime: '07:00', employeesIds: [] }
       const peticiones = capturar(() => HttpResponse.json(creada, { status: 201 }))
@@ -298,7 +298,7 @@ describe('createApiClient', () => {
 
       expect(peticiones).toHaveLength(1)
       expect(peticiones[0].method).toBe('POST')
-      expect(peticiones[0].pathname).toBe('/v1/schedules')
+      expect(peticiones[0].pathname).toBe('/v2/job-management/schedules')
       expect(peticiones[0].contentType).toContain('application/json')
       expect(peticiones[0].body).toEqual({ jobsId: 7, date: '2026-11-02', startTime: '07:00' })
       expect(resultado).toEqual(creada)
@@ -318,7 +318,7 @@ describe('createApiClient', () => {
       })
     })
 
-    it('updateSchedule: PATCH /v1/schedules/101 con el cuerpo de "Mover a otro día"', async () => {
+    it('updateSchedule: PATCH /v2/job-management/schedules/101 con el cuerpo de "Mover a otro día"', async () => {
       const api = createApiClient(BASE_URL)
       const movida: Schedule = { ...PROGRAMACION, date: '2026-11-04' }
       const peticiones = capturar(() => HttpResponse.json(movida))
@@ -327,7 +327,7 @@ describe('createApiClient', () => {
 
       expect(peticiones).toHaveLength(1)
       expect(peticiones[0].method).toBe('PATCH')
-      expect(peticiones[0].pathname).toBe('/v1/schedules/101')
+      expect(peticiones[0].pathname).toBe('/v2/job-management/schedules/101')
       expect(peticiones[0].contentType).toContain('application/json')
       expect(peticiones[0].body).toEqual({ date: '2026-11-04' })
       expect(resultado).toEqual(movida)
@@ -375,7 +375,7 @@ describe('createApiClient', () => {
       expect(borrada.scheduleComment).toBeNull()
     })
 
-    it('deleteSchedule: DELETE /v1/schedules/101 y resuelve undefined con un 204', async () => {
+    it('deleteSchedule: DELETE /v2/job-management/schedules/101 y resuelve undefined con un 204', async () => {
       const api = createApiClient(BASE_URL)
       const peticiones = capturar(() => new HttpResponse(null, { status: 204 }))
 
@@ -383,12 +383,12 @@ describe('createApiClient', () => {
 
       expect(peticiones).toHaveLength(1)
       expect(peticiones[0].method).toBe('DELETE')
-      expect(peticiones[0].pathname).toBe('/v1/schedules/101')
+      expect(peticiones[0].pathname).toBe('/v2/job-management/schedules/101')
       expect(peticiones[0].body).toBeUndefined()
       expect(resultado).toBeUndefined()
     })
 
-    it('replaceScheduleEmployees: PUT /v1/schedules/101/employees con el cuerpo de "Reemplazo"', async () => {
+    it('replaceScheduleEmployees: PUT /v2/job-management/schedules/101/employees con el cuerpo de "Reemplazo"', async () => {
       const api = createApiClient(BASE_URL)
       const reemplazada: Schedule = { ...PROGRAMACION, employeesIds: [5, 8] }
       const peticiones = capturar(() => HttpResponse.json(reemplazada))
@@ -397,7 +397,7 @@ describe('createApiClient', () => {
 
       expect(peticiones).toHaveLength(1)
       expect(peticiones[0].method).toBe('PUT')
-      expect(peticiones[0].pathname).toBe('/v1/schedules/101/employees')
+      expect(peticiones[0].pathname).toBe('/v2/job-management/schedules/101/employees')
       expect(peticiones[0].contentType).toContain('application/json')
       expect(peticiones[0].body).toEqual({ employeesIds: [5, 8] })
       expect(resultado).toEqual(reemplazada)
@@ -466,7 +466,7 @@ describe('createApiClient', () => {
   })
 
   describe('errores tipados', () => {
-    it('404 con {"error": "No existe"} (PATCH /v1/schedules/99999) da ApiError not_found', async () => {
+    it('404 con {"error": "No existe"} (PATCH /v2/job-management/schedules/99999) da ApiError not_found', async () => {
       const api = createApiClient(BASE_URL)
       capturar(() => HttpResponse.json({ error: 'No existe' }, { status: 404 }))
 
@@ -579,7 +579,7 @@ describe('createApiClient', () => {
       })
     })
 
-    it('un 201 con HTML en POST /v1/schedules también da ApiError invalid_response', async () => {
+    it('un 201 con HTML en POST /v2/job-management/schedules también da ApiError invalid_response', async () => {
       const api = createApiClient(BASE_URL)
       capturar(() => HttpResponse.html('<html></html>', { status: 201 }))
 
@@ -745,7 +745,7 @@ describe('createApiClient', () => {
         iniciarSesion('t-nuevo', 'r-nuevo')
         const autorizaciones: string[] = []
         server.use(
-          http.all('*/v1/schedules*', ({ request }) => {
+          http.all('*/v2/job-management/schedules*', ({ request }) => {
             autorizaciones.push(`${request.method} ${request.headers.get('authorization')}`)
             if (request.method === 'DELETE') return new HttpResponse(null, { status: 204 })
             return HttpResponse.json(PROGRAMACION)
@@ -820,7 +820,7 @@ describe('createApiClient', () => {
         iniciarSesion('t-viejo', 'r-viejo')
         const peticiones: { autorizacion: string | null; metodo: string; ruta: string; cuerpo: unknown }[] = []
         server.use(
-          http.patch('*/v1/schedules/:id', async ({ request }) => {
+          http.patch('*/v2/job-management/schedules/:id', async ({ request }) => {
             const autorizacion = request.headers.get('authorization')
             peticiones.push({
               autorizacion,
@@ -841,8 +841,8 @@ describe('createApiClient', () => {
 
         expect(movida.date).toBe('2026-11-04')
         expect(peticiones).toEqual([
-          { autorizacion: 'Bearer t-viejo', metodo: 'PATCH', ruta: '/v1/schedules/101', cuerpo: { date: '2026-11-04' } },
-          { autorizacion: 'Bearer t-nuevo', metodo: 'PATCH', ruta: '/v1/schedules/101', cuerpo: { date: '2026-11-04' } },
+          { autorizacion: 'Bearer t-viejo', metodo: 'PATCH', ruta: '/v2/job-management/schedules/101', cuerpo: { date: '2026-11-04' } },
+          { autorizacion: 'Bearer t-nuevo', metodo: 'PATCH', ruta: '/v2/job-management/schedules/101', cuerpo: { date: '2026-11-04' } },
         ])
       })
 

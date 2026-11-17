@@ -8,5 +8,8 @@ export const worker = setupWorker(
   http.all('*/v1/*', async () => {
     await delay(config.mockDelay)
   }),
+  http.all('*/v2/*', async () => {
+    await delay(config.mockDelay)
+  }),
   ...createHandlers(createSeed(new Date())),
 )

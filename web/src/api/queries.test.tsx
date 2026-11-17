@@ -127,20 +127,20 @@ describe('useMe', () => {
 })
 
 describe('useWeekSchedules', () => {
-  it('pide GET /v1/schedules con from y to de la semana', async () => {
-    const urls = capturarPeticiones('/v1/schedules')
+  it('pide GET /v2/job-management/schedules con from y to de la semana', async () => {
+    const urls = capturarPeticiones('/v2/job-management/schedules')
 
     const { result } = renderHook(() => useWeekSchedules('2026-11-01', '2026-11-07'), { wrapper: envoltorio })
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true))
     expect(urls).toHaveLength(1)
-    expect(urls[0].pathname).toBe('/v1/schedules')
+    expect(urls[0].pathname).toBe('/v2/job-management/schedules')
     expect(parametros(urls[0])).toEqual({ from: '2026-11-01', to: '2026-11-07' })
     expect(result.current.data?.map((item) => item.jobSchedulesId)).toEqual([1, 2, 3, 4])
   })
 
   it('al cambiar de semana pide el nuevo rango y devuelve sus datos', async () => {
-    const urls = capturarPeticiones('/v1/schedules')
+    const urls = capturarPeticiones('/v2/job-management/schedules')
     const { result, rerender } = renderHook(({ from, to }) => useWeekSchedules(from, to), {
       wrapper: envoltorio,
       initialProps: { from: '2026-11-01', to: '2026-11-07' },
