@@ -62,12 +62,6 @@ export interface EmployeesQuery {
   status?: EmployeeStatus
 }
 
-/** Parámetros de `GET /api/jobs`. Contrato: "Listar y buscar trabajos". */
-export interface JobsQuery {
-  /** Texto que debe contener el número o el nombre del trabajo, sin distinguir mayúsculas. */
-  search?: string
-}
-
 /** Parámetros de `GET /api/schedules`. Contrato: "Listar programaciones de un rango de fechas". */
 export interface SchedulesQuery {
   /** Primer día del rango, incluido. */

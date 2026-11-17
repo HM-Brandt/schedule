@@ -2,7 +2,7 @@ import { useEffect, useMemo } from 'react'
 import type { Employee, IsoDate, Schedule } from '../../api/types'
 import { BottomSheet } from '../../layout/BottomSheet'
 import { employeeHue } from '../../lib/colors'
-import { fullName, initials } from '../../lib/employees'
+import { fullName, initials, panelEmployees } from '../../lib/employees'
 import { employeeDayCounts } from '../../lib/selectors'
 import { useScheduleActions } from '../../undo/useScheduleActions'
 import { WeekLoad } from '../WeekLoad'
@@ -36,8 +36,7 @@ export function AssignSheet({
   return (
     <BottomSheet title="Assign employees" onClose={onClose}>
       <ul className={styles.list}>
-        {employees
-          .filter((employee) => employee.status === 'Active')
+        {panelEmployees(employees)
           .map((employee) => {
             const assigned = current.employeesIds.includes(employee.employeesId)
             const load = schedules.filter(

@@ -10,7 +10,6 @@ import type {
   Employee,
   EmployeesQuery,
   Job,
-  JobsQuery,
   ReplaceEmployeesBody,
   Schedule,
   SchedulesQuery,
@@ -141,10 +140,9 @@ export function createApiClient(baseURL: string) {
       return response.data
     },
 
-    /** `GET /api/jobs`. Envía `search` solo si viene. */
-    async getJobs(params?: JobsQuery): Promise<Job[]> {
-      const query = params?.search !== undefined ? { search: params.search } : undefined
-      const response = await http.get<Job[]>('v1/job', { params: query })
+    /** `GET /api/jobs`. */
+    async getJobs(): Promise<Job[]> {
+      const response = await http.get<Job[]>('v1/job')
       return response.data
     },
 

@@ -20,8 +20,10 @@ export const useAuthStore = create<AuthState>((set) => ({
   // refreshToken: storedRefreshToken,
   // isAuthenticated: !!storedToken,
 
-  token: "eyJhbGciOiJIUzI1NiJ9.eyJyb2xlcyI6WyJST0xFX0FETUlOIl0sInN1YiI6ImNyYW1pcmV6QGhtYnJhbmR0LmNvbSIsImlhdCI6MTc5NDk1MTYwNywiZXhwIjoxNzk0OTUyNTA3fQ.PQgofFPZTHyrOj2XarMayOLuxH_JuSTxR07PppJ9bTQ",
-  refreshToken: "2f84a22e-f0b6-43b2-9aea-3fa86c05bde6.bffc937e-7a49-4bca-9bfa-29b2b57daf41",
+  token:
+    "eyJhbGciOiJIUzI1NiJ9.eyJyb2xlcyI6WyJST0xFX0FETUlOIl0sInN1YiI6ImNyYW1pcmV6QGhtYnJhbmR0LmNvbSIsImlhdCI6MTc5NDk1MjkyMiwiZXhwIjoxNzk0OTUzODIyfQ.ghyCZu_TBWw_6dTAihQpMhuu2WqPxCA5VFX8Jr2mdns",
+  refreshToken:
+    "05cfd488-5d89-4876-b9ab-8c547ab5be39.8940ce26-e3e6-4f64-a9a4-faf6dcb4481c",
   isAuthenticated: true,
 
   user: null,
@@ -34,7 +36,12 @@ export const useAuthStore = create<AuthState>((set) => ({
   logout: () => {
     localStorage.removeItem("auth_token");
     localStorage.removeItem("refresh_token");
-    set({ token: null, refreshToken: null, isAuthenticated: false, user: null });
+    set({
+      token: null,
+      refreshToken: null,
+      isAuthenticated: false,
+      user: null,
+    });
   },
   setUser: (user) => set({ user }),
   clearAuth: () => set({ user: null, isAuthenticated: false }),

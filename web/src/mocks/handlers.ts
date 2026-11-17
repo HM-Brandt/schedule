@@ -68,17 +68,9 @@ export function createHandlers(seed: ReturnType<typeof createSeed>) {
       )
     }),
 
-    http.get('*/v1/job', ({ request }) => {
-      const search = (new URL(request.url).searchParams.get('search') ?? '').toLowerCase()
-      return HttpResponse.json(
-        jobs
-          .filter(
-            (job) =>
-              job.number.toLowerCase().includes(search) || job.name.toLowerCase().includes(search),
-          )
-          .sort((a, b) => a.number.localeCompare(b.number)),
-      )
-    }),
+    http.get('*/v1/job', () =>
+      HttpResponse.json([...jobs].sort((a, b) => a.number.localeCompare(b.number))),
+    ),
 
     http.get('*/v2/job-management/schedules', ({ request }) => {
       const params = new URL(request.url).searchParams

@@ -37,16 +37,16 @@ const JOB_NAMES = [
 
 export function createSeed(today: Date) {
   const employees: Employee[] = [
-    ['Marta', 'Gómez', 'Encargada'],
-    ['Jorge', 'Pérez', 'Fontanero'],
-    ['Ana', 'López', 'Pintora'],
-    ['Pedro', 'Sánchez', 'Albañil'],
-    ['Luis', 'Martínez', 'Electricista'],
-    ['Elena', 'Díaz', 'Carpintera'],
-    ['Sofía', 'Romero', 'Pintora'],
-    ['Carlos', 'Ruiz', 'Ayudante'],
-    ['Raúl', 'Torres', 'Fontanero'],
-    ['Lucía', 'Navarro', 'Ayudante'],
+    ['Marta', 'Gómez', 'Supervisor'],
+    ['Jorge', 'Pérez', 'Labor'],
+    ['Ana', 'López', 'Labor'],
+    ['Pedro', 'Sánchez', 'Supervisor'],
+    ['Luis', 'Martínez', 'Office'],
+    ['Elena', 'Díaz', 'Labor'],
+    ['Sofía', 'Romero', 'Labor'],
+    ['Carlos', 'Ruiz', 'Labor'],
+    ['Raúl', 'Torres', 'Labor'],
+    ['Lucía', 'Navarro', 'Office'],
   ].map(([firstName, lastName, title], index) => ({
     employeesId: index + 1,
     legalName: `${firstName} ${lastName}`,

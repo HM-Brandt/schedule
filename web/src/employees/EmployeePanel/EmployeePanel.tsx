@@ -1,5 +1,6 @@
 import { useMemo } from 'react'
 import type { Employee, IsoDate, Schedule } from '../../api/types'
+import { panelEmployees } from '../../lib/employees'
 import { employeeDayCounts } from '../../lib/selectors'
 import { EmployeeItem } from '../EmployeeItem'
 import styles from './EmployeePanel.module.css'
@@ -28,8 +29,7 @@ export function EmployeePanel({
         </p>
       )}
       <ul className={styles.list}>
-        {employees
-          .filter((employee) => employee.status === 'Active')
+        {panelEmployees(employees)
           .map((employee) => (
             <EmployeeItem
               key={employee.employeesId}

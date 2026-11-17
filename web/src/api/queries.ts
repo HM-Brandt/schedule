@@ -1,4 +1,5 @@
-import { keepPreviousData, useQuery } from '@tanstack/react-query'
+import { useQuery } from '@tanstack/react-query'
+import { sortJobs } from '../lib/jobs'
 import { useAuthStore } from '../stores/authStore'
 import { api } from './client'
 import type { IsoDate } from './types'
@@ -6,7 +7,7 @@ import type { IsoDate } from './types'
 export const queryKeys = {
   me: ['me'] as const,
   employees: ['employees'] as const,
-  jobs: (search: string) => ['jobs', search] as const,
+  jobs: ['jobs'] as const,
   schedules: (from: IsoDate, to: IsoDate) => ['schedules', from, to] as const,
 }
 
@@ -25,13 +26,8 @@ export function  useEmployees() {
   return useQuery({ queryKey: queryKeys.employees, queryFn: () => api.getEmployees() })
 }
 
-export function useJobs(search: string) {
-  const term = search.trim()
-  return useQuery({
-    queryKey: queryKeys.jobs(term),
-    queryFn: () => api.getJobs(term ? { search: term } : undefined),
-    placeholderData: keepPreviousData,
-  })
+export function useJobs() {
+  return useQuery({ queryKey: queryKeys.jobs, queryFn: () => api.getJobs(), select: sortJobs })
 }
 
 export function useWeekSchedules(from: IsoDate, to: IsoDate) {
