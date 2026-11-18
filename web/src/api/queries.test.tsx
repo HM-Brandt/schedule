@@ -37,7 +37,7 @@ beforeEach(() => {
   // Una programación en la semana siguiente para distinguir los rangos.
   semilla.schedules.push({
     jobSchedulesId: 50,
-    job: semilla.jobs[0],
+    jobsId: semilla.jobs[0].jobsId,
     date: '2026-11-10',
     startTime: '07:00',
     employeesIds: [],
@@ -77,8 +77,8 @@ describe('queryKeys', () => {
     expect(queryKeys.schedules('2026-11-01', '2026-11-07')).toEqual(['schedules', '2026-11-01', '2026-11-07'])
   })
 
-  it('la clave de trabajos incluye la búsqueda', () => {
-    expect(queryKeys.jobs('pint')).toEqual(['jobs', 'pint'])
+  it('la clave de trabajos es ["jobs"]: la búsqueda se filtra en el cliente', () => {
+    expect(queryKeys.jobs).toEqual(['jobs'])
   })
 
   it('la clave de empleados es ["employees"]', () => {
@@ -170,6 +170,45 @@ describe('useWeekSchedules', () => {
     expect(semana1?.map((item) => item.jobSchedulesId)).toEqual([1, 2, 3, 4])
     expect(semana2?.map((item) => item.jobSchedulesId)).toEqual([50])
   })
+
+  it('cada programación lleva el job del catálogo que corresponde a su jobsId', async () => {
+    const { result } = renderHook(() => useWeekSchedules('2026-11-01', '2026-11-07'), { wrapper: envoltorio })
+
+    await waitFor(() => expect(result.current.isSuccess).toBe(true))
+    const primera = result.current.data?.[0]
+    expect(primera).not.toHaveProperty('jobsId')
+    expect(primera?.job).toMatchObject({ jobsId: 7, number: 'J-1024', name: 'Pintar oficina' })
+    expect(result.current.data?.map((item) => item.job.number)).toEqual(['J-1024', 'J-1024', 'J-1019', 'J-1029'])
+  })
+
+  it('si el jobsId no está en el catálogo usa un trabajo "Unknown job" con número "#<id>"', async () => {
+    server.use(
+      http.get('*/v2/job-management/schedules', () =>
+        HttpResponse.json([
+          { jobSchedulesId: 77, jobsId: 999, date: '2026-11-02', startTime: '07:00', employeesIds: [], scheduleComment: null },
+        ]),
+      ),
+    )
+
+    const { result } = renderHook(() => useWeekSchedules('2026-11-01', '2026-11-07'), { wrapper: envoltorio })
+
+    await waitFor(() => expect(result.current.isSuccess).toBe(true))
+    expect(result.current.data?.[0].job).toMatchObject({ jobsId: 999, number: '#999', name: 'Unknown job' })
+  })
+
+  it('pide el catálogo una sola vez aunque cambie la semana', async () => {
+    const urls = capturarPeticiones('/v1/job')
+    const { result, rerender } = renderHook(({ from, to }) => useWeekSchedules(from, to), {
+      wrapper: envoltorio,
+      initialProps: { from: '2026-11-01', to: '2026-11-07' },
+    })
+    await waitFor(() => expect(result.current.isSuccess).toBe(true))
+
+    rerender({ from: '2026-11-08', to: '2026-11-14' })
+
+    await waitFor(() => expect(result.current.data?.map((item) => item.job.number)).toEqual(['J-1018']))
+    expect(urls).toHaveLength(1)
+  })
 })
 
 describe('useEmployees', () => {
@@ -187,48 +226,39 @@ describe('useEmployees', () => {
 })
 
 describe('useJobs', () => {
-  it('con búsqueda vacía no envía search y devuelve todo el catálogo', async () => {
+  it('pide GET /v1/job sin parámetros y devuelve todo el catálogo', async () => {
     const urls = capturarPeticiones('/v1/job')
 
-    const { result } = renderHook(() => useJobs(''), { wrapper: envoltorio })
+    const { result } = renderHook(() => useJobs(), { wrapper: envoltorio })
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true))
     expect(urls).toHaveLength(1)
-    expect(urls[0].searchParams.has('search')).toBe(false)
+    expect(parametros(urls[0])).toEqual({})
     expect(result.current.data).toHaveLength(30)
   })
 
-  it('con solo espacios tampoco envía search', async () => {
-    const urls = capturarPeticiones('/v1/job')
-
-    const { result } = renderHook(() => useJobs('   '), { wrapper: envoltorio })
+  it('ordena los trabajos por number de mayor a menor', async () => {
+    const { result } = renderHook(() => useJobs(), { wrapper: envoltorio })
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true))
-    expect(urls[0].searchParams.has('search')).toBe(false)
+    const numeros = result.current.data?.map((trabajo) => trabajo.number)
+    expect(numeros?.[0]).toBe('J-1047')
+    expect(numeros?.at(-1)).toBe('J-1018')
   })
 
-  it('con texto envía search y devuelve los trabajos que coinciden', async () => {
-    const urls = capturarPeticiones('/v1/job')
+  it('compara la parte numérica del number: J-10 va antes que J-9', async () => {
+    server.use(
+      http.get('*/v1/job', () =>
+        HttpResponse.json([
+          { ...createSeed(HOY).jobs[0], jobsId: 1, number: 'J-9' },
+          { ...createSeed(HOY).jobs[0], jobsId: 2, number: 'J-10' },
+        ]),
+      ),
+    )
 
-    const { result } = renderHook(() => useJobs('pintar'), { wrapper: envoltorio })
+    const { result } = renderHook(() => useJobs(), { wrapper: envoltorio })
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true))
-    expect(parametros(urls[0])).toEqual({ search: 'pintar' })
-    expect(result.current.data?.map((trabajo) => trabajo.name)).toEqual(['Pintar oficina', 'Pintar pasillo'])
-  })
-
-  it('al cambiar la búsqueda pide de nuevo con el texto recortado', async () => {
-    const urls = capturarPeticiones('/v1/job')
-    const { result, rerender } = renderHook(({ busqueda }) => useJobs(busqueda), {
-      wrapper: envoltorio,
-      initialProps: { busqueda: '' },
-    })
-    await waitFor(() => expect(result.current.isSuccess).toBe(true))
-
-    rerender({ busqueda: ' J-1024 ' })
-
-    await waitFor(() => expect(result.current.data?.map((trabajo) => trabajo.number)).toEqual(['J-1024']))
-    expect(urls).toHaveLength(2)
-    expect(parametros(urls[1])).toEqual({ search: 'J-1024' })
+    expect(result.current.data?.map((trabajo) => trabajo.number)).toEqual(['J-10', 'J-9'])
   })
 })

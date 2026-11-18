@@ -11,6 +11,7 @@ import { render, screen } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
 import type { IsoDate } from '../../api/types'
 import { WeekLoad } from './WeekLoad'
+import styles from './WeekLoad.module.css'
 
 const DIAS = ['2026-11-01', '2026-11-02', '2026-11-03', '2026-11-04', '2026-11-05', '2026-11-06', '2026-11-07']
 const DOMINGO = DIAS[0]
@@ -138,5 +139,68 @@ describe('WeekLoad', () => {
     const { recuadros } = renderSemana(undefined, MARTES, siguiente)
 
     expect(recuadros.some((recuadro) => recuadro.hasAttribute('data-today'))).toBe(false)
+  })
+
+  // Variante que reparte los siete recuadros a todo el ancho de la fila del empleado
+  // (`design.md`: "Los recuadros de días con trabajo de cada empleado se adaptan al ancho de su
+  // fila"). La usa `EmployeeItem`; `AssignSheet` sigue con la variante de siempre.
+  describe('props opcionales "fill" y "className"', () => {
+    const clases = (elemento: HTMLElement) => elemento.className.split(/\s+/).filter(Boolean)
+
+    it('sin "fill" ni "className" el contenedor solo lleva la clase de siempre', () => {
+      const { contenedor } = renderSemana(undefined)
+
+      expect(clases(contenedor)).toEqual([styles.week])
+      expect(contenedor).not.toHaveClass(styles.fill)
+    })
+
+    it('con "fill" el contenedor lleva además la clase de relleno', () => {
+      render(<WeekLoad days={DIAS} today={MARTES} load={undefined} fill />)
+
+      expect(clases(screen.getByRole('img'))).toEqual([styles.week, styles.fill])
+    })
+
+    it('con "fill={false}" no añade la clase de relleno', () => {
+      render(<WeekLoad days={DIAS} today={MARTES} load={undefined} fill={false} />)
+
+      expect(clases(screen.getByRole('img'))).toEqual([styles.week])
+    })
+
+    it('"className" se suma a las clases del contenedor sin quitar la de siempre', () => {
+      render(<WeekLoad days={DIAS} today={MARTES} load={undefined} className="fila-del-empleado" />)
+
+      expect(clases(screen.getByRole('img'))).toEqual([styles.week, 'fila-del-empleado'])
+    })
+
+    it('con "fill" y "className" el contenedor lleva las tres clases', () => {
+      render(<WeekLoad days={DIAS} today={MARTES} load={undefined} fill className="fila-del-empleado" />)
+
+      expect(clases(screen.getByRole('img'))).toEqual([styles.week, styles.fill, 'fila-del-empleado'])
+    })
+
+    it('con "fill" mantiene los siete recuadros, sus niveles, el día actual y el texto accesible', () => {
+      render(
+        <WeekLoad
+          days={DIAS}
+          today={MARTES}
+          load={
+            new Map([
+              [LUNES, 2],
+              [MARTES, 1],
+            ])
+          }
+          fill
+          className="fila-del-empleado"
+        />,
+      )
+
+      const contenedor = screen.getByRole('img')
+      const recuadros = Array.from(contenedor.children) as HTMLElement[]
+      expect(contenedor).toHaveAccessibleName('Assigned: Mon (2), Tue (1)')
+      expect(recuadros.map((recuadro) => recuadro.textContent)).toEqual(['S', 'M', 'T', 'W', 'T', 'F', 'S'])
+      expect(niveles(recuadros)).toEqual(['0', '2', '1', '0', '0', '0', '0'])
+      expect(recuadros[2]).toHaveAttribute('data-today')
+      for (const recuadro of recuadros) expect(recuadro).toHaveAttribute('aria-hidden', 'true')
+    })
   })
 })

@@ -1,7 +1,8 @@
-import { DragDropProvider } from '@dnd-kit/react'
+import { DragDropProvider, DragOverlay } from '@dnd-kit/react'
 import type { ReactNode } from 'react'
 import type { Schedule } from '../api/types'
 import { useScheduleActions } from '../undo/useScheduleActions'
+import { DragPreview } from './DragPreview'
 import { resolveDrop } from './dropResolution'
 import type { DragData, DropData } from './dropResolution'
 
@@ -33,6 +34,15 @@ export function ScheduleDndProvider({ schedules, children }: { schedules: Schedu
       }}
     >
       {children}
+      <DragOverlay
+        dropAnimation={null}
+        disabled={(source) => {
+          const data = source?.data as DragData | undefined
+          return !(data?.kind === 'catalog-job' || (data?.kind === 'employee' && data.fromScheduleId === undefined))
+        }}
+      >
+        {(source) => <DragPreview source={source} />}
+      </DragOverlay>
     </DragDropProvider>
   )
 }

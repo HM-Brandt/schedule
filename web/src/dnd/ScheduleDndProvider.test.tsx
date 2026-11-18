@@ -20,6 +20,10 @@
 //   y otra (id 2) a las 08:00 con Ana;
 // - martes 3: "J-1019 Cambiar ventanas" (id 3) a las 07:00 con Carlos Ruiz (8);
 // - jueves 5: "J-1029 Instalar lámparas" (id 4) a las 09:30, sin empleados.
+//
+// El panel de empleados solo muestra a los activos con cargo "Supervisor" o "Labor" (commit
+// 7a084c0). En la semilla Luis tiene cargo "Office"; `beforeEach` le da cargo "Labor" para poder
+// arrastrarlo desde el panel y ver sus recuadros.
 import { QueryClientProvider } from '@tanstack/react-query'
 import type { QueryClient } from '@tanstack/react-query'
 import { render, screen, waitFor, within } from '@testing-library/react'
@@ -63,6 +67,9 @@ beforeEach(() => {
   vi.useFakeTimers({ toFake: ['Date'] })
   vi.setSystemTime(new Date(2026, 10, 3, 10, 0))
   semilla = createSeed(new Date(2026, 10, 3))
+  semilla.employees = semilla.employees.map((empleado) =>
+    empleado.firstName === 'Luis' ? { ...empleado, title: 'Labor' } : empleado,
+  )
   peticiones = []
   client = createQueryClient()
   client.setDefaultOptions({ queries: { retry: false } })
@@ -150,7 +157,7 @@ const tarjetasDelDia = (nombre: string) => within(columnaDelDia(nombre)).queryAl
 
 /** Iniciales de los empleados de una tarjeta, en orden. */
 const iniciales = (tarjeta: HTMLElement) =>
-  Array.from(tarjeta.querySelectorAll('[title]:not([aria-label^="Comment:"])')).map((elemento) => elemento.textContent)
+  Array.from(tarjeta.querySelectorAll('span[title]:not([aria-label^="Comment:"])')).map((elemento) => elemento.textContent)
 
 /** Comprueba que soltar no envió ninguna petición de cambio. */
 async function sinPeticiones() {
@@ -194,7 +201,7 @@ describe('ScheduleDndProvider', () => {
     })
 
     it('a un día que ya tiene ese trabajo a las 07:00: PATCH con la hora recalculada 08:00', async () => {
-      semilla.schedules.push({ jobSchedulesId: 10, job: semilla.jobs[6], date: MARTES, startTime: '07:00', employeesIds: [], scheduleComment: null })
+      semilla.schedules.push({ jobSchedulesId: 10, jobsId: semilla.jobs[6].jobsId, date: MARTES, startTime: '07:00', employeesIds: [], scheduleComment: null })
       await renderTablero(5)
       expect(tarjetasDelDia('Tue')).toHaveLength(2)
 

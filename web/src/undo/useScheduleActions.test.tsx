@@ -99,7 +99,7 @@ function prepararServidor() {
 function programarConUnInactivo() {
   semilla.schedules.push({
     jobSchedulesId: 10,
-    job: semilla.jobs[13],
+    jobsId: semilla.jobs[13].jobsId,
     date: MIERCOLES,
     startTime: '07:00',
     employeesIds: [3, RAUL],

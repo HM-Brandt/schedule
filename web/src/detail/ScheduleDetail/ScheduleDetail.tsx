@@ -1,5 +1,5 @@
 import { format } from 'date-fns'
-import { ArrowRightLeft, Copy, Trash2, X } from 'lucide-react'
+import { ArrowRightLeft, Copy, MapPin, Trash2, X } from 'lucide-react'
 import { useEffect, useRef } from 'react'
 import type { Employee, IsoDate, Schedule } from '../../api/types'
 import { parseIsoDate } from '../../lib/dates'
@@ -49,6 +49,18 @@ export function ScheduleDetail({
     <aside ref={panelRef} role="dialog" aria-label={`${schedule.job.number} ${schedule.job.name}`} className={styles.panel} data-hue={jobHue(schedule.job.jobsId)}>
       <div className={styles.number}>{schedule.job.number}</div>
       <h2 className={styles.name}>{schedule.job.name}</h2>
+      {schedule.job.type && <div className={styles.date}>{schedule.job.type}</div>}
+      {schedule.job.address && (
+        <a
+          className={styles.address}
+          href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(schedule.job.address)}`}
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          <MapPin size={14} />
+          {schedule.job.address}
+        </a>
+      )}
       <div className={styles.date}>{formatDate(schedule.date)}</div>
       <label className={styles.field}>
         Start time

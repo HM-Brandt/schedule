@@ -9,6 +9,10 @@
 // La semilla programa el lunes 2 "J-1024 Pintar oficina" (id 1) a las 07:00 con Ana López (3) y
 // Luis Martínez (5), y otra (id 2) a las 08:00 con Ana. Tiene 8 empleados activos y 2 inactivos
 // (Raúl Torres y Lucía Navarro).
+//
+// El panel solo ofrece a los activos con cargo "Supervisor" o "Labor" (commit 7a084c0). En la
+// semilla Luis tiene cargo "Office"; para los escenarios con Ana y Luis, `beforeEach` le da cargo
+// "Labor". Un test aparte usa la semilla sin cambios para comprobar que Luis no se ofrece.
 import { QueryClientProvider } from '@tanstack/react-query'
 import type { QueryClient } from '@tanstack/react-query'
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
@@ -22,6 +26,7 @@ import type { Schedule } from '../../api/types'
 import { ScheduleCard } from '../../board/ScheduleCard'
 import { createHandlers } from '../../mocks/handlers'
 import { createSeed } from '../../mocks/seed'
+import { conTrabajo, programacionesConTrabajo } from '../../test/semilla'
 import { UndoProvider } from '../../undo/UndoProvider'
 import { UndoToast } from '../../undo/UndoToast'
 import { AssignSheet } from './AssignSheet'
@@ -55,6 +60,9 @@ beforeEach(() => {
   vi.useFakeTimers({ toFake: ['Date'] })
   vi.setSystemTime(new Date(2026, 10, 3, 10, 0))
   semilla = createSeed(new Date(2026, 10, 3))
+  semilla.employees = semilla.employees.map((empleado) =>
+    empleado.firstName === 'Luis' ? { ...empleado, title: 'Labor' } : empleado,
+  )
   reemplazos = []
   client = createQueryClient()
   client.setDefaultOptions({ queries: { retry: false } })
@@ -127,7 +135,7 @@ async function renderPanel(id = 1) {
 const casilla = (nombre: string) => screen.getByRole('checkbox', { name: nombre })
 
 /** Iniciales de los empleados de la tarjeta, en orden. */
-const iniciales = () => Array.from(screen.getByRole('article').querySelectorAll('[title]:not([aria-label^="Comment:"])')).map((item) => item.textContent)
+const iniciales = () => Array.from(screen.getByRole('article').querySelectorAll('span[title]:not([aria-label^="Comment:"])')).map((item) => item.textContent)
 
 /** Fila del panel con el nombre completo `nombre`. */
 const fila = (panel: HTMLElement, nombre: string) =>
@@ -151,6 +159,32 @@ describe('AssignSheet', () => {
     expect(within(panel).queryByRole('checkbox', { name: 'Lucía Navarro' })).not.toBeInTheDocument()
     expect(panel).not.toHaveTextContent('Raúl Torres')
     expect(panel).not.toHaveTextContent('Lucía Navarro')
+  })
+
+  it('no ofrece a los activos con un cargo distinto de Supervisor o Labor: Luis con cargo "Office"', async () => {
+    semilla.employees = semilla.employees.map((empleado) =>
+      empleado.firstName === 'Luis' ? { ...empleado, title: 'Office' } : empleado,
+    )
+
+    const { panel } = await renderPanel()
+
+    expect(within(panel).getAllByRole('checkbox')).toHaveLength(7)
+    expect(within(panel).queryByRole('checkbox', { name: 'Luis Martínez' })).not.toBeInTheDocument()
+  })
+
+  it('ordena las casillas por cargo (Supervisor y luego Labor) y por nombre', async () => {
+    const { panel } = await renderPanel()
+
+    expect(within(panel).getAllByRole('checkbox').map((elemento) => elemento.getAttribute('aria-label'))).toEqual([
+      'Marta Gómez',
+      'Pedro Sánchez',
+      'Ana López',
+      'Carlos Ruiz',
+      'Elena Díaz',
+      'Jorge Pérez',
+      'Luis Martínez',
+      'Sofía Romero',
+    ])
   })
 
   it('solo ofrece a los Active: si Marta pasa a Terminated deja de tener casilla', async () => {
@@ -337,14 +371,14 @@ describe('AssignSheet', () => {
   it('si la programación ya no está en la semana, el panel se cierra solo', async () => {
     prepararServidor()
     const onClose = vi.fn()
-    const desaparecida: Schedule = { ...semilla.schedules[0], jobSchedulesId: 99 }
+    const desaparecida: Schedule = { ...conTrabajo(semilla, semilla.schedules[0]), jobSchedulesId: 99 }
     render(
       <QueryClientProvider client={client}>
         <UndoProvider>
           <AssignSheet
             schedule={desaparecida}
             employees={semilla.employees}
-            schedules={semilla.schedules}
+            schedules={programacionesConTrabajo(semilla)}
             days={DIAS}
             today="2026-11-03"
             onClose={onClose}

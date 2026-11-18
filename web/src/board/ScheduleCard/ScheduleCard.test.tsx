@@ -51,6 +51,15 @@ describe('ScheduleCard', () => {
     expect(screen.getByText('07:00')).toBeInTheDocument()
   })
 
+  // El nombre se recorta a dos líneas con CSS; el nombre completo queda en la ayuda emergente.
+  it('el nombre del trabajo lleva su nombre completo como ayuda emergente', () => {
+    const nombre = 'Pintar oficina principal, pasillos, escaleras y fachada norte del edificio'
+    const tarjeta = renderTarjeta(programacion({ job: trabajo(7, 'J-1024', nombre) }))
+
+    const elemento = within(tarjeta).getByText(nombre)
+    expect(elemento).toHaveAttribute('title', nombre)
+  })
+
   it('no muestra ninguna hora de fin: una sola hora y ningún rango "HH:mm - HH:mm"', () => {
     const tarjeta = renderTarjeta(programacion())
     const texto = tarjeta.textContent ?? ''
@@ -75,7 +84,7 @@ describe('ScheduleCard', () => {
   it('muestra los empleados en el orden de la programación', () => {
     const tarjeta = renderTarjeta(programacion({ employeesIds: [5, 3] }))
 
-    const iniciales = Array.from(tarjeta.querySelectorAll('[title]')).map((elemento) => elemento.textContent)
+    const iniciales = Array.from(tarjeta.querySelectorAll('span[title]')).map((elemento) => elemento.textContent)
     expect(iniciales).toEqual(['LM', 'AL'])
   })
 
@@ -89,14 +98,14 @@ describe('ScheduleCard', () => {
     const tarjeta = renderTarjeta(programacion({ employeesIds: [] }))
 
     expect(screen.getByText('No employees')).toBeInTheDocument()
-    expect(tarjeta.querySelectorAll('[title]')).toHaveLength(0)
+    expect(tarjeta.querySelectorAll('span[title]')).toHaveLength(0)
   })
 
   it('omite los ids de empleado que no están en el mapa', () => {
     const tarjeta = renderTarjeta(programacion({ employeesIds: [3, 99] }))
 
     expect(screen.getByTitle('Ana López')).toHaveTextContent('AL')
-    expect(tarjeta.querySelectorAll('[title]')).toHaveLength(1)
+    expect(tarjeta.querySelectorAll('span[title]')).toHaveLength(1)
     expect(screen.queryByText('No employees')).not.toBeInTheDocument()
   })
 
@@ -104,7 +113,7 @@ describe('ScheduleCard', () => {
     const tarjeta = renderTarjeta(programacion({ employeesIds: [3, 5] }), new Map())
 
     expect(screen.queryByText('No employees')).not.toBeInTheDocument()
-    expect(tarjeta.querySelectorAll('[title]')).toHaveLength(0)
+    expect(tarjeta.querySelectorAll('span[title]')).toHaveLength(0)
   })
 
   // Tarea 12.2: "Comentario de una programación" de `specs/weekly-schedule-board/spec.md`.
@@ -134,7 +143,7 @@ describe('ScheduleCard', () => {
       const tarjeta = renderTarjeta(programacion({ scheduleComment: null }))
 
       expect(iconoComentario(tarjeta)).toBeNull()
-      expect(tarjeta.querySelectorAll('[title]')).toHaveLength(2)
+      expect(tarjeta.querySelectorAll('span[title]')).toHaveLength(2)
     })
 
     it('al borrar el comentario el icono desaparece', () => {
@@ -268,7 +277,7 @@ describe('ScheduleCard', () => {
   describe('más empleados de los que caben', () => {
     /** Textos de las iniciales y del indicador "+N" de la tarjeta, en orden. */
     const indicadoresDeEmpleados = (tarjeta: HTMLElement) =>
-      Array.from(tarjeta.querySelectorAll('[title]')).map((elemento) => elemento.textContent)
+      Array.from(tarjeta.querySelectorAll('span[title]')).map((elemento) => elemento.textContent)
 
     it('escenario "Muchos empleados": con seis muestra cuatro iniciales y el indicador "+2"', () => {
       const tarjeta = renderTarjeta(programacion({ employeesIds: [1, 2, 3, 4, 5, 6] }))

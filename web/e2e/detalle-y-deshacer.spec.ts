@@ -51,7 +51,7 @@ const tarjeta = (page: Page, nombre: string, texto: string) =>
   dia(page, nombre).getByRole('article').filter({ hasText: texto })
 
 /** Iniciales de los empleados de una tarjeta, en orden. */
-const iniciales = (tarjetaDelDia: Locator) => tarjetaDelDia.locator('[title]:not([aria-label^="Comment:"])')
+const iniciales = (tarjetaDelDia: Locator) => tarjetaDelDia.locator('span[title]:not([aria-label^="Comment:"])')
 
 /** Aviso de acción con el texto `texto` (la página tiene además la región en vivo de @dnd-kit). */
 const avisoDeAccion = (page: Page, texto: string) => page.getByRole('status').filter({ hasText: texto })

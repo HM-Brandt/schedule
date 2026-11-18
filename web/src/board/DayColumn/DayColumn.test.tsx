@@ -19,6 +19,7 @@ import { EmployeePanel } from '../../employees/EmployeePanel'
 import { schedulesByDay } from '../../lib/selectors'
 import { createSeed } from '../../mocks/seed'
 import { CapturadorDelGestor, empezarArrastre, gestorActual, simularApisDeArrastre } from '../../test/dnd'
+import { programacionesConTrabajo } from '../../test/semilla'
 import { WeekBoard } from '../WeekBoard'
 import { DayColumn } from './DayColumn'
 
@@ -29,6 +30,7 @@ const NOMBRES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 const INDICADOR = /^\d+ jobs?$/
 
 const semilla = createSeed(new Date(2026, 10, 3))
+const PROGRAMACIONES = programacionesConTrabajo(semilla)
 const EMPLEADOS = new Map<number, Employee>(semilla.employees.map((empleado) => [empleado.employeesId, empleado]))
 
 function renderTablero() {
@@ -38,13 +40,13 @@ function renderTablero() {
       <WeekBoard
         days={DIAS}
         today="2026-11-03"
-        schedulesByDay={schedulesByDay(semilla.schedules, DIAS)}
+        schedulesByDay={schedulesByDay(PROGRAMACIONES, DIAS)}
         employeesById={EMPLEADOS}
       />
       <EmployeePanel
         employees={semilla.employees}
         error={null}
-        schedules={semilla.schedules}
+        schedules={PROGRAMACIONES}
         days={DIAS}
         today="2026-11-03"
       />

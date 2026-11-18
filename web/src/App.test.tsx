@@ -102,7 +102,7 @@ async function trabajoDelCatalogo(numero: string): Promise<HTMLElement> {
 function programarEnLaSemanaSiguiente() {
   semilla.schedules.push({
     jobSchedulesId: 50,
-    job: semilla.jobs[13],
+    jobsId: semilla.jobs[13].jobsId,
     date: '2026-11-10',
     startTime: '10:00',
     employeesIds: [1],
@@ -273,8 +273,8 @@ describe('App', () => {
       server.use(
         http.get('/v2/job-management/schedules', () =>
           HttpResponse.json([
-            { jobSchedulesId: 9, job: jardin, date: '2026-11-02', startTime: '07:00', employeesIds: [] },
-            { jobSchedulesId: 4, job: pintar, date: '2026-11-02', startTime: '07:00', employeesIds: [] },
+            { jobSchedulesId: 9, jobsId: jardin.jobsId, date: '2026-11-02', startTime: '07:00', employeesIds: [] },
+            { jobSchedulesId: 4, jobsId: pintar.jobsId, date: '2026-11-02', startTime: '07:00', employeesIds: [] },
           ]),
         ),
       )
@@ -453,15 +453,17 @@ describe('App', () => {
   })
 
   // Tarea 7.1: "Panel de empleados activos" de `specs/employee-assignment/spec.md`. La semilla
-  // tiene 8 empleados activos y 2 inactivos (Raúl Torres y Lucía Navarro).
+  // tiene 8 empleados activos y 2 inactivos (Raúl Torres y Lucía Navarro). El panel solo muestra a
+  // los activos con cargo "Supervisor" o "Labor" (commit 7a084c0): 7, sin Luis Martínez ("Office").
   describe('panel de empleados en la página', () => {
-    it('muestra "Employees" en una columna lateral con los 8 activos y sin los inactivos', async () => {
+    it('muestra "Employees" en una columna lateral con los 7 activos con cargo Supervisor o Labor y sin los inactivos', async () => {
       renderApp()
 
       const panel = seccion('Employees')
       expect(panel.closest('aside')).not.toBeNull()
-      await waitFor(() => expect(within(panel).getAllByRole('listitem')).toHaveLength(8))
+      await waitFor(() => expect(within(panel).getAllByRole('listitem')).toHaveLength(7))
       expect(within(panel).getByText('Ana López')).toBeInTheDocument()
+      expect(within(panel).queryByText('Luis Martínez')).not.toBeInTheDocument()
       expect(within(panel).queryByText('Raúl Torres')).not.toBeInTheDocument()
       expect(within(panel).queryByText('Lucía Navarro')).not.toBeInTheDocument()
     })
@@ -496,7 +498,7 @@ describe('App', () => {
 
         await waitFor(() => expect(recuadrosDe('Ana López').contenedor).toHaveAccessibleName('Assigned: Mon (2)'))
         expect(recuadrosDe('Ana López').niveles).toEqual(['0', '2', '0', '0', '0', '0', '0'])
-        expect(recuadrosDe('Luis Martínez').niveles).toEqual(['0', '1', '0', '0', '0', '0', '0'])
+        expect(recuadrosDe('Carlos Ruiz').niveles).toEqual(['0', '0', '1', '0', '0', '0', '0'])
         expect(recuadrosDe('Carlos Ruiz').contenedor).toHaveAccessibleName('Assigned: Tue (1)')
         expect(recuadrosDe('Marta Gómez').contenedor).toHaveAccessibleName('Assigned: none')
         expect(recuadrosDe('Marta Gómez').hoy).toEqual([false, false, true, false, false, false, false])

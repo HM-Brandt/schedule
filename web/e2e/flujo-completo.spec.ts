@@ -69,7 +69,7 @@ const columna = (page: Page, nombre: string) => page.getByText(nombre, { exact: 
 const jardines = (contenedor: Locator | Page) => contenedor.getByRole('article').filter({ hasText: 'J-1031' })
 
 /** Iniciales de los empleados de una tarjeta, en orden. */
-const iniciales = (tarjeta: Locator) => tarjeta.locator('[title]:not([aria-label^="Comment:"])')
+const iniciales = (tarjeta: Locator) => tarjeta.locator('span[title]:not([aria-label^="Comment:"])')
 
 /** Aviso de acción con el texto `texto` (la página tiene además la región en vivo de @dnd-kit). */
 const aviso = (page: Page, texto: string) => page.getByRole('status').filter({ hasText: texto })
@@ -211,38 +211,45 @@ test.describe('tablet, 800 px', () => {
     const martes = jardines(columna(page, 'Tue'))
     await expect(columna(page, 'Wed').getByRole('article')).toHaveCount(0)
 
-    // 1. Programar "J-1031 Jardín Pérez" en el miércoles desde el cajón "Jobs".
-    await page.getByRole('button', { name: 'Jobs' }).click()
+    // 1. Programar "J-1031 Jardín Pérez" en el miércoles desde el cajón "Jobs". Al soltar, el cajón se cierra.
     const cajonJobs = page.getByRole('dialog', { name: 'Jobs' })
-    await expect(cajonJobs).toBeInViewport()
-    await cajonJobs.getByRole('searchbox', { name: 'Search jobs' }).fill('1031')
-    await expect(cajonJobs.getByRole('list').getByRole('listitem')).toHaveCount(1)
     const jardin = jardinEnElCatalogo(cajonJobs)
+    /** Abre el cajón "Jobs" y deja en él solo "J-1031 Jardín Pérez". */
+    const abrirCajonJobs = async () => {
+      await page.getByRole('button', { name: 'Jobs' }).click()
+      await expect(cajonJobs).toBeInViewport()
+      await cajonJobs.getByRole('searchbox', { name: 'Search jobs' }).fill('1031')
+      await expect(cajonJobs.getByRole('list').getByRole('listitem')).toHaveCount(1)
+    }
+    await abrirCajonJobs()
     await comprobarSinContador(jardin)
     await arrastrar(page, jardin, columna(page, 'Wed'))
+    await expect(cajonJobs).toHaveCount(0)
     await comprobarTarjeta(miercoles, '07:00', [])
     await esperarConfirmada(miercoles)
     await expect(aviso(page, 'Job scheduled')).toBeVisible()
+    await abrirCajonJobs()
     await comprobarContador(jardin, 'x1')
 
     // 2. Repetirlo en el miércoles: 08:00 y "x2".
     await arrastrar(page, jardin, columna(page, 'Wed'))
+    await expect(cajonJobs).toHaveCount(0)
     await expect(miercoles).toHaveCount(2)
     await expect(miercoles.nth(0)).toContainText('07:00')
     await expect(miercoles.nth(1)).toContainText('08:00')
     await esperarConfirmada(miercoles.nth(1))
+    await abrirCajonJobs()
     await comprobarContador(jardin, 'x2')
 
-    // 3. Asignar a Ana desde el cajón "Employees" a la de las 07:00.
+    // 3. Asignar a Ana desde el cajón "Employees" a la de las 07:00. Al soltar, el cajón se cierra.
     await page.getByRole('button', { name: 'Employees' }).click()
     const cajonEmpleados = page.getByRole('dialog', { name: 'Employees' })
     await expect(cajonEmpleados).toBeInViewport()
     const deLasSiete = miercoles.filter({ hasText: '07:00' })
     await arrastrar(page, cajonEmpleados.getByRole('listitem').filter({ hasText: 'Ana López' }), deLasSiete)
+    await expect(page.getByRole('dialog')).toHaveCount(0)
     await comprobarTarjeta(deLasSiete, '07:00', ['AL'])
     await expect(aviso(page, 'Employees updated')).toBeVisible()
-    await cajonEmpleados.getByRole('button', { name: 'Close' }).click()
-    await expect(page.getByRole('dialog')).toHaveCount(0)
 
     // 4. Moverla al domingo: conserva la hora y a Ana.
     await arrastrar(page, deLasSiete, columna(page, 'Sun'))
@@ -281,9 +288,8 @@ test.describe('tablet, 800 px', () => {
     await comprobarTarjeta(domingo, '07:00', ['AL'])
     await comprobarTarjeta(martes, '07:00', ['AL'])
     await expect(columna(page, 'Tue').getByRole('article').filter({ hasText: 'J-1019' })).toHaveCount(1)
-    await page.getByRole('button', { name: 'Jobs' }).click()
-    await cajonJobs.getByRole('searchbox', { name: 'Search jobs' }).fill('1031')
-    await comprobarContador(jardinEnElCatalogo(cajonJobs), 'x3')
+    await abrirCajonJobs()
+    await comprobarContador(jardin, 'x3')
   })
 })
 
@@ -302,30 +308,39 @@ test.describe('teléfono, 390 px', () => {
     await abrir(page, 1)
     const tarjetas = jardines(page)
 
-    // 1. Programar "J-1031 Jardín Pérez" en el miércoles arrastrándolo del panel "Jobs" al día de la tira.
+    // 1. Programar "J-1031 Jardín Pérez" en el miércoles arrastrándolo del panel "Jobs" al día de
+    // la tira. Al soltar, el panel se cierra.
     await enLaTira(page, 'Wed').click()
     await expect(enLaTira(page, 'Wed')).toHaveAttribute('aria-pressed', 'true')
     await expect(page.getByRole('article')).toHaveCount(0)
-    await botonJobs(page).click()
     const panelJobs = page.getByRole('dialog', { name: 'Jobs' })
-    await panelJobs.getByRole('searchbox', { name: 'Search jobs' }).fill('1031')
-    await expect(panelJobs.getByRole('list').getByRole('listitem')).toHaveCount(1)
     const jardin = jardinEnElCatalogo(panelJobs)
+    /** Abre el panel "Jobs" y deja en él solo "J-1031 Jardín Pérez". */
+    const abrirPanelJobs = async () => {
+      await botonJobs(page).click()
+      await panelJobs.getByRole('searchbox', { name: 'Search jobs' }).fill('1031')
+      await expect(panelJobs.getByRole('list').getByRole('listitem')).toHaveCount(1)
+    }
+    await abrirPanelJobs()
     await comprobarSinContador(jardin)
     await arrastrar(page, jardin, enLaTira(page, 'Wed'))
+    await expect(panelJobs).toHaveCount(0)
     await expect(enLaTira(page, 'Wed').getByLabel('1 job')).toBeVisible()
     await comprobarTarjeta(tarjetas, '07:00', [])
     await esperarConfirmada(tarjetas)
     await expect(aviso(page, 'Job scheduled')).toBeVisible()
+    await abrirPanelJobs()
     await comprobarContador(jardin, 'x1')
 
     // 2. Repetirlo en el miércoles: 08:00 y "x2".
     await arrastrar(page, jardin, enLaTira(page, 'Wed'))
+    await expect(panelJobs).toHaveCount(0)
     await expect(enLaTira(page, 'Wed').getByLabel('2 jobs')).toBeVisible()
     await expect(tarjetas).toHaveCount(2)
     await expect(tarjetas.nth(0)).toContainText('07:00')
     await expect(tarjetas.nth(1)).toContainText('08:00')
     await esperarConfirmada(tarjetas.nth(1))
+    await abrirPanelJobs()
     await comprobarContador(jardin, 'x2')
     await panelJobs.getByRole('button', { name: 'Done' }).click()
     await expect(panelJobs).toHaveCount(0)
@@ -405,8 +420,7 @@ test.describe('teléfono, 390 px', () => {
     await expect(tarjetas).toHaveCount(2)
     await expect(iniciales(tarjetas.nth(0))).toHaveText(['AL'])
     await expect(iniciales(tarjetas.nth(1))).toHaveText(['AL'])
-    await botonJobs(page).click()
-    await panelJobs.getByRole('searchbox', { name: 'Search jobs' }).fill('1031')
-    await comprobarContador(jardinEnElCatalogo(panelJobs), 'x3')
+    await abrirPanelJobs()
+    await comprobarContador(jardin, 'x3')
   })
 })

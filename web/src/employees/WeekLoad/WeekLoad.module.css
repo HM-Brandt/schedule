@@ -20,6 +20,17 @@
   color: var(--color-text-muted);
 }
 
+.fill {
+  width: 100%;
+}
+
+.fill .day {
+  max-width: none;
+  aspect-ratio: auto;
+  height: 18px;
+  font-size: 11px;
+}
+
 .day[data-level="1"] {
   border-color: var(--color-accent-light);
   background: var(--color-accent-light);

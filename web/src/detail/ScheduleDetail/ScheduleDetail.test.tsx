@@ -27,8 +27,11 @@ import { setupServer } from 'msw/node'
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import App from '../../App'
 import { createQueryClient } from '../../api/queryClient'
+import type { Job, Schedule } from '../../api/types'
 import { createHandlers } from '../../mocks/handlers'
 import { createSeed } from '../../mocks/seed'
+import { programacionesConTrabajo } from '../../test/semilla'
+import { trabajo } from '../../test/fabricas'
 import { UndoProvider } from '../../undo/UndoProvider'
 import { ScheduleDetail } from './ScheduleDetail'
 
@@ -116,7 +119,7 @@ const horasDelDia = (nombre: string) =>
 
 /** Iniciales de los empleados de una tarjeta, en orden. */
 const iniciales = (elemento: HTMLElement) =>
-  Array.from(elemento.querySelectorAll('[title]:not([aria-label^="Comment:"])')).map((item) => item.textContent)
+  Array.from(elemento.querySelectorAll('span[title]:not([aria-label^="Comment:"])')).map((item) => item.textContent)
 
 /** Pulsa la tarjeta y devuelve el panel de detalle que abre. */
 function abrirDetalle(elemento: HTMLElement, nombre: string): HTMLElement {
@@ -400,7 +403,7 @@ describe('ScheduleDetail', () => {
     })
 
     it('la copia no lleva a los empleados inactivos', async () => {
-      semilla.schedules.push({ jobSchedulesId: 10, job: semilla.jobs[13], date: MIERCOLES, startTime: '07:00', employeesIds: [3, 9], scheduleComment: null })
+      semilla.schedules.push({ jobSchedulesId: 10, jobsId: semilla.jobs[13].jobsId, date: MIERCOLES, startTime: '07:00', employeesIds: [3, 9], scheduleComment: null })
       await renderApp(5)
       const detalle = abrirDetalle(tarjeta('Wed', 'J-1031'), 'J-1031 Jardín Pérez')
 
@@ -490,7 +493,7 @@ describe('ScheduleDetail', () => {
     })
 
     it('un empleado inactivo aparece con "(inactive)" y se puede retirar', async () => {
-      semilla.schedules.push({ jobSchedulesId: 10, job: semilla.jobs[13], date: MIERCOLES, startTime: '07:00', employeesIds: [3, 9], scheduleComment: null })
+      semilla.schedules.push({ jobSchedulesId: 10, jobsId: semilla.jobs[13].jobsId, date: MIERCOLES, startTime: '07:00', employeesIds: [3, 9], scheduleComment: null })
       await renderApp(5)
       const detalle = abrirDetalle(tarjeta('Wed', 'J-1031'), 'J-1031 Jardín Pérez')
 
@@ -529,7 +532,7 @@ describe('ScheduleDetail: cerrar el detalle', () => {
       <QueryClientProvider client={client}>
         <UndoProvider>
           <h1>Tablero</h1>
-          <ScheduleDetail scheduleId={id} schedules={semilla.schedules} days={DIAS} employeesById={porId} onClose={onClose} />
+          <ScheduleDetail scheduleId={id} schedules={programacionesConTrabajo(semilla)} days={DIAS} employeesById={porId} onClose={onClose} />
         </UndoProvider>
       </QueryClientProvider>,
     )
@@ -710,5 +713,127 @@ describe('ScheduleDetail: cerrar el detalle', () => {
       expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
       await waitFor(() => expect(horasDelDia('Mon')).toEqual(['07:00', '08:00']))
     })
+  })
+})
+
+// Debajo del nombre, el detalle muestra el tipo del trabajo y su dirección como enlace a Google
+// Maps, que se abre en otra pestaña. Cada uno se oculta si viene vacío.
+describe('ScheduleDetail: tipo y dirección del trabajo', () => {
+  const DIAS = ['2026-11-01', LUNES, '2026-11-03', MIERCOLES, JUEVES, '2026-11-06', '2026-11-07']
+
+  /** Programación del lunes de "J-1024 Pintar oficina" con el tipo y la dirección indicados. */
+  function programacion(cambios: Partial<Job> = {}): Schedule {
+    return {
+      jobSchedulesId: 1,
+      job: { ...trabajo(7, 'J-1024', 'Pintar oficina'), type: 'Interior', address: 'Calle Mayor 1', ...cambios },
+      date: LUNES,
+      startTime: '07:00',
+      employeesIds: [],
+      scheduleComment: null,
+    }
+  }
+
+  /** Monta solo el detalle de `schedule` y devuelve el panel y el espía de `onClose`. */
+  function renderDetalle(schedule: Schedule) {
+    prepararServidor()
+    const onClose = vi.fn()
+    render(
+      <QueryClientProvider client={client}>
+        <UndoProvider>
+          <ScheduleDetail scheduleId={schedule.jobSchedulesId} schedules={[schedule]} days={DIAS} employeesById={new Map()} onClose={onClose} />
+        </UndoProvider>
+      </QueryClientProvider>,
+    )
+    return { detalle: screen.getByRole('dialog', { name: 'J-1024 Pintar oficina' }), onClose }
+  }
+
+  const enlace = (detalle: HTMLElement) => within(detalle).queryByRole('link')
+
+  it('muestra el tipo "Interior" debajo del nombre', () => {
+    const { detalle } = renderDetalle(programacion())
+
+    const tipo = within(detalle).getByText('Interior')
+    const nombre = within(detalle).getByRole('heading', { name: 'Pintar oficina' })
+    expect(nombre.compareDocumentPosition(tipo) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+  })
+
+  it('muestra la dirección como enlace a Google Maps que se abre en otra pestaña', () => {
+    const { detalle } = renderDetalle(programacion())
+
+    const direccion = within(detalle).getByRole('link', { name: 'Calle Mayor 1' })
+    expect(direccion).toHaveAttribute('href', 'https://www.google.com/maps/search/?api=1&query=Calle%20Mayor%201')
+    expect(direccion).toHaveAttribute('target', '_blank')
+    expect(direccion).toHaveAttribute('rel', 'noopener noreferrer')
+  })
+
+  it('el enlace va debajo del nombre y antes de la fecha', () => {
+    const { detalle } = renderDetalle(programacion())
+
+    const direccion = within(detalle).getByRole('link', { name: 'Calle Mayor 1' })
+    const nombre = within(detalle).getByRole('heading', { name: 'Pintar oficina' })
+    const fecha = within(detalle).getByText('Mon, Nov 2', { selector: 'div' })
+    expect(nombre.compareDocumentPosition(direccion) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(direccion.compareDocumentPosition(fecha) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+  })
+
+  it('codifica en el enlace los caracteres especiales de la dirección', () => {
+    const direccion = 'Av. Juárez #12, Col. Centro & Sur'
+    const { detalle } = renderDetalle(programacion({ address: direccion }))
+
+    expect(within(detalle).getByRole('link', { name: direccion })).toHaveAttribute(
+      'href',
+      'https://www.google.com/maps/search/?api=1&query=Av.%20Ju%C3%A1rez%20%2312%2C%20Col.%20Centro%20%26%20Sur',
+    )
+  })
+
+  it('sin tipo no muestra el tipo, y la dirección sigue apareciendo', () => {
+    const { detalle } = renderDetalle(programacion({ type: '' }))
+
+    expect(within(detalle).queryByText('Interior')).not.toBeInTheDocument()
+    expect(enlace(detalle)).toHaveTextContent('Calle Mayor 1')
+  })
+
+  it('sin dirección no muestra ningún enlace, y el tipo sigue apareciendo', () => {
+    const { detalle } = renderDetalle(programacion({ address: '' }))
+
+    expect(enlace(detalle)).not.toBeInTheDocument()
+    expect(within(detalle).getByText('Interior')).toBeInTheDocument()
+  })
+
+  it('sin tipo ni dirección muestra el nombre seguido de la fecha', () => {
+    const { detalle } = renderDetalle(programacion({ type: '', address: '' }))
+
+    expect(enlace(detalle)).not.toBeInTheDocument()
+    const nombre = within(detalle).getByRole('heading', { name: 'Pintar oficina' })
+    expect(nombre.nextElementSibling).toHaveTextContent('Mon, Nov 2')
+  })
+
+  it('hacer click en el enlace de la dirección no cierra el detalle', () => {
+    const { detalle, onClose } = renderDetalle(programacion())
+    // jsdom no navega: se evita que intente abrir el enlace.
+    const evitarNavegacion = (evento: Event) => evento.preventDefault()
+    window.addEventListener('click', evitarNavegacion)
+
+    try {
+      fireEvent.click(within(detalle).getByRole('link', { name: 'Calle Mayor 1' }))
+      fireEvent.click(within(detalle).getByText('Calle Mayor 1').querySelector('svg') as SVGElement)
+    } finally {
+      window.removeEventListener('click', evitarNavegacion)
+    }
+
+    expect(onClose).not.toHaveBeenCalled()
+    expect(screen.getByRole('dialog', { name: 'J-1024 Pintar oficina' })).toBe(detalle)
+  })
+
+  it('en la aplicación, el detalle de "J-1024" muestra el tipo y el enlace de la dirección de la semilla', async () => {
+    await renderApp()
+
+    const detalle = abrirDetalle(tarjeta('Mon', '07:00'), 'J-1024 Pintar oficina')
+
+    expect(within(detalle).getByText('Interior')).toBeInTheDocument()
+    expect(within(detalle).getByRole('link', { name: 'Calle Mayor 1' })).toHaveAttribute(
+      'href',
+      'https://www.google.com/maps/search/?api=1&query=Calle%20Mayor%201',
+    )
   })
 })

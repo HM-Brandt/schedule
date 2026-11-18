@@ -2,7 +2,8 @@
 //
 // Cubren "Catálogo de trabajos" e "Indicador de trabajo en uso" de
 // `specs/weekly-schedule-board/spec.md`. La semilla tiene 30 trabajos, de "J-1018" a
-// "J-1047"; los que contienen "pintar" son J-1024 y J-1039.
+// "J-1047"; los que contienen "pintar" son J-1024 y J-1039. El catálogo se pide una vez y se
+// filtra en el cliente; se muestra ordenado por número de mayor a menor (commit 7a084c0).
 import { QueryClientProvider } from '@tanstack/react-query'
 import type { QueryClient } from '@tanstack/react-query'
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
@@ -72,6 +73,14 @@ describe('JobCatalog', () => {
     expect(buscador()).toHaveValue('')
   })
 
+  it('ordena los trabajos por número de mayor a menor', async () => {
+    renderCatalogo()
+
+    await waitFor(() => expect(elementos()).toHaveLength(30))
+    expect(numeros()[0]).toBe('J-1047')
+    expect(numeros().at(-1)).toBe('J-1018')
+  })
+
   it('lista los 30 trabajos con su número y su nombre', async () => {
     renderCatalogo()
 
@@ -79,6 +88,16 @@ describe('JobCatalog', () => {
     expect(trabajo('J-1018')).toHaveTextContent('Revisar tejado')
     expect(trabajo('J-1024')).toHaveTextContent('Pintar oficina')
     expect(trabajo('J-1047')).toHaveTextContent('Revisar ascensor')
+  })
+
+  it('cada trabajo de la semilla muestra su dirección, "Calle Mayor 1", y la lleva en su texto emergente', async () => {
+    renderCatalogo()
+
+    await waitFor(() => expect(elementos()).toHaveLength(30))
+    for (const elemento of elementos()) {
+      expect(within(elemento).getByText('Calle Mayor 1')).toBeInTheDocument()
+    }
+    expect(trabajo('J-1024')).toHaveAttribute('title', 'J-1024 Pintar oficina\nCalle Mayor 1')
   })
 
   describe('búsqueda', () => {
@@ -98,7 +117,24 @@ describe('JobCatalog', () => {
 
       buscar('PINTAR')
 
-      await waitFor(() => expect(numeros()).toEqual(['J-1024', 'J-1039']))
+      await waitFor(() => expect(numeros()).toEqual(['J-1039', 'J-1024']))
+    })
+
+    it('filtra en el cliente: escribir no hace nuevas peticiones a GET /v1/job', async () => {
+      let peticiones = 0
+      server.use(
+        http.get('*/v1/job', () => {
+          peticiones++
+        }),
+      )
+      renderCatalogo()
+      await waitFor(() => expect(elementos()).toHaveLength(30))
+
+      buscar('pint')
+      buscar('pintar')
+
+      await waitFor(() => expect(numeros()).toEqual(['J-1039', 'J-1024']))
+      expect(peticiones).toBe(1)
     })
 
     it('al vaciar la búsqueda vuelven todos los trabajos', async () => {
@@ -170,9 +206,9 @@ describe('JobCatalog', () => {
       await waitFor(() => expect(elementos()).toHaveLength(30))
       const enUso = elementos().filter((elemento) => elemento.getAttribute('data-in-use') === 'true')
       expect(enUso.map((elemento) => within(elemento).getByText(/^J-\d+$/).textContent)).toEqual([
-        'J-1019',
-        'J-1024',
         'J-1029',
+        'J-1024',
+        'J-1019',
       ])
     })
 

@@ -5,12 +5,14 @@ import { employeeHue } from '../../lib/colors'
 import { createSeed } from '../../mocks/seed'
 import { simularApisDeArrastre } from '../../test/dnd'
 import { empleado, trabajo } from '../../test/fabricas'
+import { programacionesConTrabajo } from '../../test/semilla'
 import { EmployeePanel } from './EmployeePanel'
 
 simularApisDeArrastre()
 
-const ANA: Employee = empleado(3, 'Ana', 'López', 'Pintora')
-const PEDRO_INACTIVO: Employee = empleado(4, 'Pedro', 'Sánchez', 'Albañil', 'Terminated')
+// El panel solo muestra a los empleados activos con cargo "Supervisor" o "Labor" (commit 7a084c0).
+const ANA: Employee = empleado(3, 'Ana', 'López', 'Labor')
+const PEDRO_INACTIVO: Employee = empleado(4, 'Pedro', 'Sánchez', 'Supervisor', 'Terminated')
 
 const DIAS = ['2026-11-01', '2026-11-02', '2026-11-03', '2026-11-04', '2026-11-05', '2026-11-06', '2026-11-07']
 const SIGUIENTE = ['2026-11-08', '2026-11-09', '2026-11-10', '2026-11-11', '2026-11-12', '2026-11-13', '2026-11-14']
@@ -63,34 +65,87 @@ describe('EmployeePanel', () => {
     expect(screen.queryByText('PS')).not.toBeInTheDocument()
   })
 
-  it('con la semilla muestra los 8 Active y ninguno de los 2 Terminated', () => {
+  it('con la semilla muestra los 7 Active con cargo Supervisor o Labor, sin Luis (Office) ni los 2 Terminated', () => {
     const { employees } = createSeed(new Date(2026, 10, 3))
     const { lista } = renderPanel(employees)
 
-    expect(within(lista).getAllByRole('listitem')).toHaveLength(8)
+    expect(within(lista).getAllByRole('listitem')).toHaveLength(7)
     for (const nombre of [
       'Marta Gómez',
       'Jorge Pérez',
       'Ana López',
       'Pedro Sánchez',
-      'Luis Martínez',
       'Elena Díaz',
       'Sofía Romero',
       'Carlos Ruiz',
     ]) {
       expect(within(lista).getByText(nombre)).toBeInTheDocument()
     }
+    expect(screen.queryByText('Luis Martínez')).not.toBeInTheDocument()
     expect(screen.queryByText('Raúl Torres')).not.toBeInTheDocument()
     expect(screen.queryByText('Lucía Navarro')).not.toBeInTheDocument()
   })
 
-  it('cada fila muestra las iniciales, el nombre completo y el cargo: "AL", "Ana López", "Pintora"', () => {
+  it('con la semilla ordena primero los Supervisor y luego los Labor, cada grupo por nombre', () => {
+    const { employees } = createSeed(new Date(2026, 10, 3))
+    const { lista } = renderPanel(employees)
+
+    const nombres = within(lista)
+      .getAllByRole('listitem')
+      .map((elemento) => within(elemento).getByText(/^\S+ \S+$/).textContent)
+    expect(nombres).toEqual([
+      'Marta Gómez',
+      'Pedro Sánchez',
+      'Ana López',
+      'Carlos Ruiz',
+      'Elena Díaz',
+      'Jorge Pérez',
+      'Sofía Romero',
+    ])
+  })
+
+  it('no muestra a los empleados activos con un cargo distinto de Supervisor o Labor', () => {
+    const { lista } = renderPanel([
+      ANA,
+      empleado(5, 'Luis', 'Martínez', 'Office'),
+      empleado(6, 'Elena', 'Díaz', 'Driver'),
+    ])
+
+    expect(within(lista).getAllByRole('listitem')).toHaveLength(1)
+    expect(screen.queryByText('Luis Martínez')).not.toBeInTheDocument()
+    expect(screen.queryByText('Elena Díaz')).not.toBeInTheDocument()
+  })
+
+  it('acepta el cargo sin distinguir mayúsculas ni espacios alrededor', () => {
+    const { lista } = renderPanel([
+      empleado(1, 'Marta', 'Gómez', ' supervisor '),
+      empleado(2, 'Jorge', 'Pérez', 'LABOR'),
+    ])
+
+    expect(within(lista).getAllByRole('listitem')).toHaveLength(2)
+  })
+
+  it('con el mismo cargo y nombre desempata por apellido', () => {
+    const { lista } = renderPanel([
+      empleado(12, 'Ana', 'Zapata', 'Labor'),
+      ANA,
+      empleado(11, 'Ana', 'Abad', 'Labor'),
+    ])
+
+    expect(
+      within(lista)
+        .getAllByRole('listitem')
+        .map((elemento) => within(elemento).getByText(/^Ana /).textContent),
+    ).toEqual(['Ana Abad', 'Ana López', 'Ana Zapata'])
+  })
+
+  it('cada fila muestra las iniciales, el nombre completo y el cargo: "AL", "Ana López", "Labor"', () => {
     const { lista } = renderPanel([ANA])
 
     const ana = fila(lista, 'Ana López')
     expect(within(ana).getByText('AL')).toBeInTheDocument()
     expect(within(ana).getByText('Ana López')).toBeInTheDocument()
-    expect(within(ana).getByText('Pintora')).toBeInTheDocument()
+    expect(within(ana).getByText('Labor')).toBeInTheDocument()
   })
 
   it('las iniciales salen en mayúsculas aunque el nombre llegue en minúsculas', () => {
@@ -113,14 +168,14 @@ describe('EmployeePanel', () => {
     expect(within(fila(lista, 'Elena Díaz')).getByText('ED')).toHaveAttribute('data-hue', String(employeeHue(6)))
   })
 
-  it('con la semilla los 8 activos llevan 8 tonos distintos', () => {
+  it('con la semilla los 7 empleados del panel llevan 7 tonos distintos', () => {
     const { employees } = createSeed(new Date(2026, 10, 3))
     const { lista } = renderPanel(employees)
 
     const tonos = within(lista)
       .getAllByRole('listitem')
       .map((elemento) => elemento.querySelector('[data-hue]')?.getAttribute('data-hue'))
-    expect(new Set(tonos).size).toBe(8)
+    expect(new Set(tonos).size).toBe(7)
   })
 
   it('sin error no muestra ningún aviso', () => {
@@ -139,7 +194,7 @@ describe('EmployeePanel', () => {
   // Tareas 13.1 y 13.2: requisito "Días con trabajo en la semana visible" de
   // `specs/employee-assignment/spec.md`. Nivel 0 = vacío, 1 = tono claro, 2 = tono fuerte.
   describe('días con trabajo en la semana visible', () => {
-    const JUAN: Employee = empleado(11, 'Juan', 'García', 'Ayudante')
+    const JUAN: Employee = empleado(11, 'Juan', 'García', 'Labor')
     const LUNES = DIAS[1]
     const MARTES = DIAS[2]
 
@@ -172,14 +227,14 @@ describe('EmployeePanel', () => {
     })
 
     it('escenario "Dos trabajos el mismo día": con la semilla, el lunes de Ana (dos programaciones) en tono fuerte', () => {
-      const { employees, schedules } = createSeed(new Date(2026, 10, 3))
-      const { lista } = renderPanel(employees, null, schedules)
+      const semilla = createSeed(new Date(2026, 10, 3))
+      const { lista } = renderPanel(semilla.employees, null, programacionesConTrabajo(semilla))
 
       const ana = recuadros(fila(lista, 'Ana López'))
       expect(ana.niveles).toEqual(['0', '2', '0', '0', '0', '0', '0'])
       expect(ana.contenedor).toHaveAccessibleName('Assigned: Mon (2)')
-      // Luis tiene una el lunes y Carlos una el martes: tono claro.
-      expect(recuadros(fila(lista, 'Luis Martínez')).niveles).toEqual(['0', '1', '0', '0', '0', '0', '0'])
+      // Carlos tiene una el martes: tono claro.
+      expect(recuadros(fila(lista, 'Carlos Ruiz')).niveles).toEqual(['0', '0', '1', '0', '0', '0', '0'])
       expect(recuadros(fila(lista, 'Carlos Ruiz')).contenedor).toHaveAccessibleName('Assigned: Tue (1)')
       // Marta no tiene ninguna.
       expect(recuadros(fila(lista, 'Marta Gómez')).niveles).toEqual(['0', '0', '0', '0', '0', '0', '0'])

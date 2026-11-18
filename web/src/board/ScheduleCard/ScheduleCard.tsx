@@ -98,7 +98,9 @@ export function ScheduleCard({
           </button>
         )}
       </div>
-      <div className={styles.name}>{schedule.job.name}</div>
+      <div className={styles.name} title={schedule.job.name}>
+        {schedule.job.name}
+      </div>
       {schedule.employeesIds.length > 0 ? (
         <div className={styles.employees}>
           {visible.map((employee) =>

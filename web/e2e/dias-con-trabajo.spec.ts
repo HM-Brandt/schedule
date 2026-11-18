@@ -55,7 +55,8 @@ test.beforeEach(async ({ page }) => {
   await page.clock.setFixedTime(new Date(2026, 10, 3, 10, 0))
   await page.goto('/')
   await expect(page.getByRole('article')).toHaveCount(4)
-  await expect(panel(page).getByRole('listitem')).toHaveCount(8)
+  // 7 empleados en el panel: los activos con cargo "Supervisor" o "Labor".
+  await expect(panel(page).getByRole('listitem')).toHaveCount(7)
 })
 
 test('cada empleado del panel muestra sus días con trabajo y asignar a Pedro el jueves pinta su jueves', async ({

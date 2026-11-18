@@ -29,7 +29,7 @@ export function EmployeeItem({
       </span>
       <span className={styles.name}>{fullName(employee)}</span>
       <span className={styles.title}>{employee.title}</span>
-      <WeekLoad days={days} today={today} load={load} />
+      <WeekLoad days={days} today={today} load={load} fill className={styles.week} />
     </li>
   )
 }

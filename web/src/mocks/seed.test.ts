@@ -107,13 +107,13 @@ describe('createSeed', () => {
     expect(new Set(schedules.map((programacion) => programacion.jobSchedulesId)).size).toBe(schedules.length)
     for (const programacion of schedules) {
       expect(programacion.startTime).toMatch(/^([01]\d|2[0-3]):[0-5]\d$/)
-      expect(jobs).toContainEqual(programacion.job)
+      expect(jobs.map((trabajo) => trabajo.jobsId)).toContain(programacion.jobsId)
     }
   })
 
   it('hay un trabajo repetido el mismo día', () => {
     const { schedules } = createSeed(HOY)
-    const claves = schedules.map((programacion) => `${programacion.job.jobsId}|${programacion.date}`)
+    const claves = schedules.map((programacion) => `${programacion.jobsId}|${programacion.date}`)
 
     expect(new Set(claves).size).toBeLessThan(claves.length)
   })

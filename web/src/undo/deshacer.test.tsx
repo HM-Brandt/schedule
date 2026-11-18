@@ -73,7 +73,7 @@ const tarjeta = (nombre: string, texto: string) =>
   tarjetasDelDia(nombre).find((elemento) => elemento.textContent?.includes(texto))
 
 const iniciales = (elemento: HTMLElement) =>
-  Array.from(elemento.querySelectorAll('[title]:not([aria-label^="Comment:"])')).map((item) => item.textContent)
+  Array.from(elemento.querySelectorAll('span[title]:not([aria-label^="Comment:"])')).map((item) => item.textContent)
 
 function abrirDetalle(elemento: HTMLElement | undefined, nombre: string): HTMLElement {
   fireEvent.click(elemento as HTMLElement)
@@ -142,7 +142,7 @@ describe('deshacer en la página', () => {
   })
 
   it('escenario "Deshacer un quitar con un empleado inactivo": vuelve con Ana y sin Raúl', async () => {
-    semilla.schedules.push({ jobSchedulesId: 10, job: semilla.jobs[13], date: MIERCOLES, startTime: '07:00', employeesIds: [3, 9], scheduleComment: null })
+    semilla.schedules.push({ jobSchedulesId: 10, jobsId: semilla.jobs[13].jobsId, date: MIERCOLES, startTime: '07:00', employeesIds: [3, 9], scheduleComment: null })
     await renderApp(5)
     const jardin = tarjeta('Wed', 'J-1031') as HTMLElement
     expect(within(jardin).getByTitle('Raúl Torres (inactive)')).toBeInTheDocument()

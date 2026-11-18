@@ -17,7 +17,7 @@ import { readConfig } from '../config'
 import { useAuthStore } from '../stores/authStore'
 import type { AuthUser } from '../types'
 import { ApiError, createApiClient } from './client'
-import type { Employee, Job, Schedule } from './types'
+import type { Employee, Job, ScheduleResponse } from './types'
 import { empleado, trabajo } from '../test/fabricas'
 import { simularNavegacion } from '../test/navegacion'
 
@@ -27,6 +27,13 @@ const server = setupServer()
 
 beforeAll(() => {
   server.listen({ onUnhandledFrame: 'error' })
+})
+
+// Los tests de rutas y errores parten sin sesión: sin token no se envía `Authorization` y las
+// peticiones a otro origen no necesitan permitir esa cabecera en CORS. El estado inicial del
+// store se prueba en `stores/authStore.test.ts`; el bloque "autenticación" inicia su propia sesión.
+beforeEach(() => {
+  useAuthStore.setState({ token: null, refreshToken: null, isAuthenticated: false, user: null })
 })
 
 afterEach(() => {
@@ -41,9 +48,10 @@ afterAll(() => {
 // Datos del spec: trabajo 7 "J-1024 Pintar oficina", programación 101, empleados 3 y 5.
 const TRABAJO: Job = trabajo(7, 'J-1024', 'Pintar oficina')
 
-const PROGRAMACION: Schedule = {
+/** Programación 101 como la envía el backend: con `jobsId` en lugar del objeto `job`. */
+const PROGRAMACION: ScheduleResponse = {
   jobSchedulesId: 101,
-  job: TRABAJO,
+  jobsId: 7,
   date: '2026-11-02',
   startTime: '08:00',
   employeesIds: [3, 5],
@@ -51,8 +59,8 @@ const PROGRAMACION: Schedule = {
 }
 
 const EMPLEADOS: Employee[] = [
-  empleado(3, 'Ana', 'López', 'Pintora'),
-  empleado(5, 'Luis', 'Martínez', 'Electricista'),
+  empleado(3, 'Ana', 'López', 'Labor'),
+  empleado(5, 'Luis', 'Martínez', 'Labor'),
 ]
 
 /** Petición recibida por el servidor simulado. */
@@ -260,18 +268,6 @@ describe('createApiClient', () => {
       expect(trabajos).toEqual([TRABAJO])
     })
 
-    it('getJobs con search: envía ?search=pintar', async () => {
-      const api = createApiClient(BASE_URL)
-      const peticiones = capturar(() => HttpResponse.json([TRABAJO]))
-
-      const trabajos = await api.getJobs()
-
-      expect(peticiones[0].method).toBe('GET')
-      expect(peticiones[0].pathname).toBe('/v1/job')
-      expect([...peticiones[0].searchParams]).toEqual([['search', 'pintar']])
-      expect(trabajos).toEqual([TRABAJO])
-    })
-
     it('getSchedules: GET /v2/job-management/schedules con from y to', async () => {
       const api = createApiClient(BASE_URL)
       const peticiones = capturar(() => HttpResponse.json([PROGRAMACION]))
@@ -291,7 +287,7 @@ describe('createApiClient', () => {
 
     it('createSchedule: POST /v2/job-management/schedules con el cuerpo JSON de "Creación válida"', async () => {
       const api = createApiClient(BASE_URL)
-      const creada: Schedule = { ...PROGRAMACION, startTime: '07:00', employeesIds: [] }
+      const creada: ScheduleResponse = { ...PROGRAMACION, startTime: '07:00', employeesIds: [] }
       const peticiones = capturar(() => HttpResponse.json(creada, { status: 201 }))
 
       const resultado = await api.createSchedule({ jobsId: 7, date: '2026-11-02', startTime: '07:00' })
@@ -320,7 +316,7 @@ describe('createApiClient', () => {
 
     it('updateSchedule: PATCH /v2/job-management/schedules/101 con el cuerpo de "Mover a otro día"', async () => {
       const api = createApiClient(BASE_URL)
-      const movida: Schedule = { ...PROGRAMACION, date: '2026-11-04' }
+      const movida: ScheduleResponse = { ...PROGRAMACION, date: '2026-11-04' }
       const peticiones = capturar(() => HttpResponse.json(movida))
 
       const resultado = await api.updateSchedule(101, { date: '2026-11-04' })
@@ -345,7 +341,7 @@ describe('createApiClient', () => {
 
     it('createSchedule envía scheduleComment y devuelve el comentario de la respuesta ("Creación con comentario")', async () => {
       const api = createApiClient(BASE_URL)
-      const creada: Schedule = { ...PROGRAMACION, scheduleComment: 'Llevar escalera' }
+      const creada: ScheduleResponse = { ...PROGRAMACION, scheduleComment: 'Llevar escalera' }
       const peticiones = capturar(() => HttpResponse.json(creada, { status: 201 }))
 
       const resultado = await api.createSchedule({
@@ -390,7 +386,7 @@ describe('createApiClient', () => {
 
     it('replaceScheduleEmployees: PUT /v2/job-management/schedules/101/employees con el cuerpo de "Reemplazo"', async () => {
       const api = createApiClient(BASE_URL)
-      const reemplazada: Schedule = { ...PROGRAMACION, employeesIds: [5, 8] }
+      const reemplazada: ScheduleResponse = { ...PROGRAMACION, employeesIds: [5, 8] }
       const peticiones = capturar(() => HttpResponse.json(reemplazada))
 
       const resultado = await api.replaceScheduleEmployees(101, { employeesIds: [5, 8] })
@@ -462,6 +458,18 @@ describe('createApiClient', () => {
       const reemplazada = await api.replaceScheduleEmployees(101, { employeesIds: [3, 5] })
 
       expect(reemplazada).toEqual(PROGRAMACION)
+    })
+  })
+
+  describe('respuesta sin employeesIds ni scheduleComment', () => {
+    it('getSchedules los completa con [] y null', async () => {
+      const api = createApiClient(BASE_URL)
+      const { employeesIds: _ids, scheduleComment: _comentario, ...incompleta } = PROGRAMACION
+      capturar(() => HttpResponse.json([incompleta]))
+
+      const programaciones = await api.getSchedules({ from: '2026-11-01', to: '2026-11-07' })
+
+      expect(programaciones).toEqual([{ ...PROGRAMACION, employeesIds: [], scheduleComment: null }])
     })
   })
 

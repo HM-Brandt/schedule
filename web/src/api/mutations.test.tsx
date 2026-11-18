@@ -21,6 +21,7 @@ import { useCreateSchedule, useDeleteSchedule, useReplaceEmployees, useUpdateSch
 import { queryKeys, useWeekSchedules } from './queries'
 import { createQueryClient } from './queryClient'
 import type { Schedule } from './types'
+import { programacionesConTrabajo } from '../test/semilla'
 
 /** Martes 2026-11-03: la semilla arma la semana del 2026-11-01 al 2026-11-07. */
 const HOY = new Date(2026, 10, 3)
@@ -46,7 +47,7 @@ beforeEach(() => {
   onMutationError = vi.fn<(mensaje: string) => void>()
   client = createQueryClient({ onMutationError })
   // Semana visible con las programaciones 1 a 4 de la semilla, y la siguiente vacía.
-  client.setQueryData(SEMANA_1, structuredClone(semilla.schedules))
+  client.setQueryData(SEMANA_1, structuredClone(programacionesConTrabajo(semilla)))
   client.setQueryData(SEMANA_2, [])
 })
 

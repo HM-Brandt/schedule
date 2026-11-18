@@ -7,7 +7,8 @@
 // - lunes 2: "J-1024 Pintar oficina" a las 07:00 con Ana López y Luis Martínez, y a las 08:00 con Ana;
 // - martes 3: "J-1019 Cambiar ventanas" a las 07:00 con Carlos Ruiz;
 // - jueves 5: "J-1029 Instalar lámparas" a las 09:30, sin empleados.
-// Tiene 8 empleados activos y 2 inactivos (Raúl Torres y Lucía Navarro).
+// Tiene 8 empleados activos y 2 inactivos (Raúl Torres y Lucía Navarro). El panel muestra a los 7
+// activos con cargo "Supervisor" o "Labor"; Luis Martínez ("Office") no aparece en él.
 // Los datos que la semilla no tiene se preparan en cada test desde la interfaz, programando
 // antes el trabajo desde el catálogo.
 import { expect, test } from '@playwright/test'
@@ -61,7 +62,7 @@ const panel = (page: Page) => page.getByRole('heading', { name: 'Employees' }).l
 const enElPanel = (page: Page, nombre: string) => panel(page).getByRole('listitem').filter({ hasText: nombre })
 
 /** Iniciales de los empleados de una tarjeta, en orden. */
-const iniciales = (tarjetaDelDia: Locator) => tarjetaDelDia.locator('[title]:not([aria-label^="Comment:"])')
+const iniciales = (tarjetaDelDia: Locator) => tarjetaDelDia.locator('span[title]:not([aria-label^="Comment:"])')
 
 /**
  * Programa `numero` en el día `nombre` arrastrándolo del catálogo, tras buscarlo para que quepa
@@ -85,7 +86,7 @@ test.beforeEach(async ({ page }) => {
   await page.goto('/')
   await expect(page.getByRole('article')).toHaveCount(4)
   await expect(dia(page, 'Mon').getByTitle('Ana López')).toHaveCount(2)
-  await expect(panel(page).getByRole('listitem')).toHaveCount(8)
+  await expect(panel(page).getByRole('listitem')).toHaveCount(7)
 })
 
 test('el panel "Employees" muestra a los activos con iniciales, nombre y cargo, y no a los inactivos', async ({
@@ -94,8 +95,8 @@ test('el panel "Employees" muestra a los activos con iniciales, nombre y cargo, 
   const ana = enElPanel(page, 'Ana López')
   await expect(ana).toBeVisible()
   await expect(ana).toContainText('AL')
-  await expect(ana).toContainText('Pintora')
-  await expect(enElPanel(page, 'Luis Martínez')).toBeVisible()
+  await expect(ana).toContainText('Labor')
+  await expect(enElPanel(page, 'Pedro Sánchez')).toContainText('Supervisor')
 
   await expect(panel(page)).not.toContainText('Raúl Torres')
   await expect(panel(page)).not.toContainText('Lucía Navarro')

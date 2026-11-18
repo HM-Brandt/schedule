@@ -181,7 +181,7 @@ test.describe('teléfono, 390 px', () => {
     await expect(tarjetas).toBeInViewport()
   })
 
-  test('escenario "Marcar dos empleados": "+" abre "Assign employees" y marcar a Ana y a Luis los asigna', async ({
+  test('escenario "Marcar dos empleados": "+" abre "Assign employees" y marcar a Ana y a Pedro los asigna', async ({
     page,
   }) => {
     await abrir(page, 1)
@@ -198,13 +198,15 @@ test.describe('teléfono, 390 px', () => {
     const ana = panel.getByRole('checkbox', { name: 'Ana López' })
     await ana.click()
     await expect(ana).toBeChecked()
-    const luis = panel.getByRole('checkbox', { name: 'Luis Martínez' })
-    await luis.click()
-    await expect(luis).toBeChecked()
+    // El spec usa a Luis, pero en la semilla tiene cargo "Office" y la lista solo ofrece a los
+    // cargos "Supervisor" y "Labor": se marca a Pedro (Supervisor).
+    const pedro = panel.getByRole('checkbox', { name: 'Pedro Sánchez' })
+    await pedro.click()
+    await expect(pedro).toBeChecked()
 
     await panel.getByRole('button', { name: 'Done' }).click()
     await expect(panel).toHaveCount(0)
-    await expect(lamparas.locator('[title]:not([aria-label^="Comment:"])')).toHaveText(['AL', 'LM'])
+    await expect(lamparas.locator('span[title]:not([aria-label^="Comment:"])')).toHaveText(['AL', 'PS'])
     await expect(lamparas).not.toContainText('No employees')
   })
 })
@@ -281,7 +283,7 @@ test.describe('táctil en tablet vertical, 800 px', () => {
     // La tarjeta sigue en el lunes, igual que antes.
     await expect(columna(page, 'Mon').getByRole('article')).toHaveCount(2)
     await expect(pintar).toContainText('J-1024')
-    await expect(pintar.locator('[title]:not([aria-label^="Comment:"])')).toHaveText(['AL', 'LM'])
+    await expect(pintar.locator('span[title]:not([aria-label^="Comment:"])')).toHaveText(['AL', 'LM'])
     await expect(page.getByRole('article')).toHaveCount(4)
   })
 })

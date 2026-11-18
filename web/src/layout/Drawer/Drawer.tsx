@@ -1,4 +1,4 @@
-import { useDragOperation } from '@dnd-kit/react'
+import { useDragDropMonitor, useDragOperation } from '@dnd-kit/react'
 import { X } from 'lucide-react'
 import type { ReactNode } from 'react'
 import styles from './Drawer.module.css'
@@ -15,6 +15,7 @@ export function Drawer({
   children: ReactNode
 }) {
   const { source } = useDragOperation()
+  useDragDropMonitor({ onDragEnd: () => onClose() })
 
   return (
     <div role="dialog" aria-label={label} className={[styles.drawer, styles[side], source && styles.away].filter(Boolean).join(' ')}>

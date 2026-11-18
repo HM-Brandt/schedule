@@ -97,4 +97,41 @@ describe('Drawer', () => {
 
     await waitFor(() => expect(cajon).not.toHaveClass(/away/))
   })
+
+  // El cajón se cierra al terminar cualquier arrastre, para que el tablero quede a la vista.
+  describe('cierre al terminar el arrastre', () => {
+    it('sin ningún arrastre no llama a onClose', () => {
+      const { onClose } = renderCajon()
+
+      expect(onClose).not.toHaveBeenCalled()
+    })
+
+    it('al empezar a arrastrar todavía no llama a onClose', async () => {
+      const { cajon, onClose } = renderCajon()
+
+      await empezarArrastre('origen')
+      await waitFor(() => expect(cajon).toHaveClass(/away/))
+
+      expect(onClose).not.toHaveBeenCalled()
+    })
+
+    it('al soltar llama a onClose una vez', async () => {
+      const { onClose } = renderCajon()
+
+      await arrastrar('origen', null)
+
+      await waitFor(() => expect(onClose).toHaveBeenCalledTimes(1))
+    })
+
+    it('al cancelar el arrastre también llama a onClose', async () => {
+      const { onClose } = renderCajon('right')
+      await empezarArrastre('origen')
+
+      await act(async () => {
+        gestorActual().actions.stop({ canceled: true })
+      })
+
+      await waitFor(() => expect(onClose).toHaveBeenCalledTimes(1))
+    })
+  })
 })

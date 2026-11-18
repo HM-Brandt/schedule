@@ -17,6 +17,9 @@
 // - lunes 2: "J-1024 Pintar oficina" a las 07:00 (Ana López y Luis Martínez) y a las 08:00 (Ana);
 // - martes 3: "J-1019 Cambiar ventanas" a las 07:00 (Carlos Ruiz);
 // - jueves 5: "J-1029 Instalar lámparas" a las 09:30, sin empleados.
+//
+// El panel de empleados muestra a los 7 activos con cargo "Supervisor" o "Labor" (commit 7a084c0):
+// Luis Martínez tiene cargo "Office" y no aparece.
 import { QueryClientProvider } from '@tanstack/react-query'
 import type { QueryClient } from '@tanstack/react-query'
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
@@ -120,7 +123,7 @@ describe('App en tablet horizontal (1100 px)', () => {
 
     const cajon = screen.getByRole('dialog', { name: 'Employees' })
     expect(cajon).toHaveClass(/right/)
-    await waitFor(() => expect(within(cajon).getAllByRole('listitem')).toHaveLength(8))
+    await waitFor(() => expect(within(cajon).getAllByRole('listitem')).toHaveLength(7))
     expect(within(cajon).getByText('Ana López')).toBeInTheDocument()
     expect(recuadrosDe(cajon, 'Ana López')).toHaveAccessibleName('Assigned: Mon (2)')
     expect(screen.getByRole('button', { name: 'Employees' })).toHaveAttribute('aria-expanded', 'true')
@@ -174,7 +177,7 @@ describe('App en tablet vertical (800 px)', () => {
 
     const cajon = screen.getByRole('dialog', { name: 'Employees' })
     expect(cajon).toHaveClass(/right/)
-    await waitFor(() => expect(within(cajon).getAllByRole('listitem')).toHaveLength(8))
+    await waitFor(() => expect(within(cajon).getAllByRole('listitem')).toHaveLength(7))
     expect(within(cajon).getByText('Ana López')).toBeInTheDocument()
     // Tarea 13.2: también en el cajón cada fila muestra sus días con trabajo.
     expect(recuadrosDe(cajon, 'Ana López')).toHaveAccessibleName('Assigned: Mon (2)')
@@ -312,7 +315,7 @@ describe('App en teléfono (390 px)', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Employees' }))
 
     const panel = screen.getByRole('dialog', { name: 'Employees' })
-    await waitFor(() => expect(within(panel).getAllByRole('listitem')).toHaveLength(8))
+    await waitFor(() => expect(within(panel).getAllByRole('listitem')).toHaveLength(7))
   })
 
   it('en el panel inferior de empleados cada fila muestra sus días con trabajo de toda la semana', async () => {
@@ -321,7 +324,7 @@ describe('App en teléfono (390 px)', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Employees' }))
 
     const panel = screen.getByRole('dialog', { name: 'Employees' })
-    await waitFor(() => expect(within(panel).getAllByRole('listitem')).toHaveLength(8))
+    await waitFor(() => expect(within(panel).getAllByRole('listitem')).toHaveLength(7))
     // Aunque solo se ve el martes, los recuadros cubren los siete días.
     expect(recuadrosDe(panel, 'Ana López')).toHaveAccessibleName('Assigned: Mon (2)')
     expect(recuadrosDe(panel, 'Carlos Ruiz')).toHaveAccessibleName('Assigned: Tue (1)')
@@ -349,7 +352,7 @@ describe('App en teléfono (390 px)', () => {
 
     const panel = screen.getByRole('dialog', { name: 'Assign employees' })
     expect(within(panel).getByRole('checkbox', { name: 'Ana López' })).toBeChecked()
-    expect(within(panel).getByRole('checkbox', { name: 'Luis Martínez' })).toBeChecked()
+    expect(within(panel).getByRole('checkbox', { name: 'Pedro Sánchez' })).not.toBeChecked()
     expect(screen.queryByRole('dialog', { name: 'J-1024 Pintar oficina' })).not.toBeInTheDocument()
   })
 

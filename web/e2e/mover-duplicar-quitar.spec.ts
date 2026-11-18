@@ -60,7 +60,10 @@ const dia = (page: Page, nombre: string) => page.getByText(nombre, { exact: true
 /** La sección del catálogo de trabajos, que también es el destino para quitar tarjetas. */
 const catalogo = (page: Page) => page.getByRole('heading', { name: 'Jobs' }).locator('xpath=..')
 
-/** Programa `numero` en el día `nombre` arrastrándolo del catálogo, tras buscarlo para que quepa en la vista. */
+/**
+ * Programa `numero` en el día `nombre` arrastrándolo del catálogo, tras buscarlo para que quepa en
+ * la vista, y espera a que el servidor confirme la nueva tarjeta (deja de estar desactivada).
+ */
 async function programarDesdeElCatalogo(page: Page, numero: string, nombre: string) {
   await page.getByRole('searchbox', { name: 'Search jobs' }).fill(numero.replace('J-', ''))
   const trabajos = catalogo(page).getByRole('list').getByRole('listitem')
@@ -69,10 +72,11 @@ async function programarDesdeElCatalogo(page: Page, numero: string, nombre: stri
   const antes = await tarjetas.count()
   await arrastrar(page, trabajos.filter({ hasText: numero }), dia(page, nombre))
   await expect(tarjetas).toHaveCount(antes + 1)
+  await expect(dia(page, nombre).locator('article[aria-disabled="true"]')).toHaveCount(0)
 }
 
 /** Iniciales de los empleados de una tarjeta, en orden. */
-const iniciales = (tarjeta: Locator) => tarjeta.locator('[title]:not([aria-label^="Comment:"])')
+const iniciales = (tarjeta: Locator) => tarjeta.locator('span[title]:not([aria-label^="Comment:"])')
 
 test.beforeEach(async ({ page }) => {
   await page.clock.setFixedTime(new Date(2026, 10, 3, 10, 0))
@@ -190,7 +194,8 @@ test.describe('resaltado de los destinos válidos durante el arrastre', () => {
   })
 
   test('arrastrando un trabajo del catálogo se resaltan los siete días y el catálogo no', async ({ page }) => {
-    const trabajo = catalogo(page).getByRole('list').getByRole('listitem').filter({ hasText: 'J-1018' })
+    // El catálogo se ordena por número de mayor a menor: J-1047 es el primero y queda a la vista.
+    const trabajo = catalogo(page).getByRole('list').getByRole('listitem').filter({ hasText: 'J-1047' })
     const desde = await empezarArrastre(page, trabajo)
 
     for (const nombre of DIAS) await expect(dia(page, nombre)).toHaveClass(/accepting/)

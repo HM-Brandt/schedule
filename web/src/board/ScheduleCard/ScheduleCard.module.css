@@ -7,6 +7,7 @@
   border-radius: var(--radius-md);
   background: var(--color-surface);
   box-shadow: inset 3px 0 0 var(--hue-accent), var(--shadow-card);
+  container-type: inline-size;
   cursor: grab;
   user-select: none;
   -webkit-touch-callout: none;
@@ -52,8 +53,16 @@
 
 .number {
   margin-right: auto;
-  font-weight: var(--font-weight-medium);
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-text);
   white-space: nowrap;
+}
+
+@container (max-width: 140px) {
+  .number {
+    font-size: var(--font-size-sm);
+  }
 }
 
 .assign {
@@ -108,6 +117,11 @@
 }
 
 .name {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  overflow-wrap: anywhere;
   font-size: var(--font-size-sm);
   color: var(--color-text);
 }
@@ -128,10 +142,6 @@
 
   .top {
     gap: var(--space-1);
-  }
-
-  .name {
-    overflow-wrap: anywhere;
   }
 }
 

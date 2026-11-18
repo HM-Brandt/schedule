@@ -13,7 +13,7 @@
 // eso los tests los comparan ordenados.
 import { setupServer } from 'msw/node'
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
-import type { Employee, Job, Schedule } from '../api/types'
+import type { Employee, Job, ScheduleResponse } from '../api/types'
 import { createApiClient } from '../api/client'
 import { empleado, trabajo } from '../test/fabricas'
 import { createHandlers } from './handlers'
@@ -24,10 +24,10 @@ const HOY = new Date(2026, 10, 3)
 
 const TRABAJO_7: Job = trabajo(7, 'J-1024', 'Pintar oficina')
 
-/** Programación 101 de los escenarios del spec. */
-const PROGRAMACION_101: Schedule = {
+/** Programación 101 de los escenarios del spec, con `jobsId` en lugar del objeto `job` (commit e2737a0). */
+const PROGRAMACION_101: ScheduleResponse = {
   jobSchedulesId: 101,
-  job: TRABAJO_7,
+  jobsId: 7,
   date: '2026-11-02',
   startTime: '08:00',
   employeesIds: [3, 5],
@@ -96,13 +96,13 @@ async function pedir(
 }
 
 /** Programaciones de la semana de `HOY`. */
-async function semana(): Promise<Schedule[]> {
+async function semana(): Promise<ScheduleResponse[]> {
   const respuesta = await pedir('GET', '/v2/job-management/schedules?from=2026-11-01&to=2026-11-07')
   expect(respuesta.status).toBe(200)
   return respuesta.cuerpo
 }
 
-async function buscarProgramacion(id: number): Promise<Schedule | undefined> {
+async function buscarProgramacion(id: number): Promise<ScheduleResponse | undefined> {
   return (await semana()).find((programacion) => programacion.jobSchedulesId === id)
 }
 
@@ -128,7 +128,7 @@ describe('GET /v1/employee', () => {
   it('cada empleado tiene la forma {employeesId, legalName, employeeNumber, firstName, lastName, status, title, user}', async () => {
     const { cuerpo } = await pedir('GET', '/v1/employee')
 
-    expect(cuerpo).toContainEqual(empleado(3, 'Ana', 'López', 'Pintora'))
+    expect(cuerpo).toContainEqual(empleado(3, 'Ana', 'López', 'Labor'))
     for (const empleado of cuerpo as Employee[]) {
       expect(Object.keys(empleado).sort()).toEqual(
         ['employeesId', 'legalName', 'employeeNumber', 'firstName', 'lastName', 'status', 'title', 'user'].sort(),
@@ -212,7 +212,7 @@ describe('GET /v1/employee', () => {
 })
 
 describe('GET /v1/job', () => {
-  it('sin search devuelve todo el catálogo con la forma {jobsId, number, type, name, address, contractor, contact, status, user}', async () => {
+  it('devuelve todo el catálogo con la forma {jobsId, number, type, name, address, contractor, contact, status, user}', async () => {
     const respuesta = await pedir('GET', '/v1/job')
 
     expect(respuesta.status).toBe(200)
@@ -232,12 +232,6 @@ describe('GET /v1/job', () => {
     expect(terminados).toEqual([trabajo(30, 'J-1047', 'Revisar ascensor', 'Done')])
   })
 
-  it('la búsqueda tampoco filtra por status: ?search=ascensor devuelve el trabajo "Done"', async () => {
-    const { cuerpo } = await pedir('GET', '/v1/job?search=ascensor')
-
-    expect(cuerpo).toEqual([trabajo(30, 'J-1047', 'Revisar ascensor', 'Done')])
-  })
-
   it('ordena por number aunque el catálogo venga desordenado', async () => {
     usarSemilla((semilla) => {
       semilla.jobs.reverse()
@@ -250,54 +244,10 @@ describe('GET /v1/job', () => {
     expect(numeros.at(-1)).toBe('J-1047')
     expect(numeros).toEqual([...numeros].sort())
   })
-
-  it('Búsqueda por nombre: ?search=pintar incluye "Pintar oficina"', async () => {
-    const respuesta = await pedir('GET', '/v1/job?search=pintar')
-
-    expect(respuesta.status).toBe(200)
-    const trabajos: Job[] = respuesta.cuerpo
-    expect(trabajos).toContainEqual(TRABAJO_7)
-    expect(trabajos.map((trabajo) => trabajo.name)).toEqual(['Pintar oficina', 'Pintar pasillo'])
-    expect(trabajos.map((trabajo) => trabajo.number)).toEqual(['J-1024', 'J-1039'])
-  })
-
-  it.each([['PINTAR'], ['Pintar'], ['pInTaR']])(
-    'la búsqueda no distingue mayúsculas (%s)',
-    async (texto) => {
-      const { cuerpo } = await pedir('GET', `/v1/job?search=${texto}`)
-
-      expect((cuerpo as Job[]).map((trabajo) => trabajo.jobsId)).toEqual([7, 22])
-    },
-  )
-
-  it('busca también por number, sin distinguir mayúsculas', async () => {
-    const { cuerpo } = await pedir('GET', '/v1/job?search=j-1024')
-
-    expect(cuerpo).toEqual([TRABAJO_7])
-  })
-
-  it('busca texto en medio del nombre', async () => {
-    const { cuerpo } = await pedir('GET', `/v1/job?search=${encodeURIComponent('r OFIC')}`)
-
-    expect(cuerpo).toEqual([TRABAJO_7])
-  })
-
-  it('sin coincidencias devuelve 200 con lista vacía', async () => {
-    const respuesta = await pedir('GET', '/v1/job?search=zzz')
-
-    expect(respuesta.status).toBe(200)
-    expect(respuesta.cuerpo).toEqual([])
-  })
-
-  it('search vacío devuelve todo el catálogo', async () => {
-    const { cuerpo } = await pedir('GET', '/v1/job?search=')
-
-    expect(cuerpo).toHaveLength(30)
-  })
 })
 
 describe('GET /v2/job-management/schedules', () => {
-  it('Programación con dos empleados: la representación es la del spec', async () => {
+  it('Programación con dos empleados: la representación lleva jobsId en lugar del objeto job', async () => {
     usarSemilla((semilla) => {
       semilla.schedules = [PROGRAMACION_101]
     })
@@ -306,19 +256,10 @@ describe('GET /v2/job-management/schedules', () => {
 
     expect(respuesta.status).toBe(200)
     expect(respuesta.cuerpo).toHaveLength(1)
-    expect(respuesta.cuerpo[0]).toMatchObject({
+    expect(respuesta.cuerpo[0]).not.toHaveProperty('job')
+    expect(respuesta.cuerpo[0]).toEqual({
       jobSchedulesId: 101,
-      job: {
-        jobsId: 7,
-        number: 'J-1024',
-        type: 'Interior',
-        name: 'Pintar oficina',
-        address: expect.any(String),
-        contractor: expect.any(String),
-        contact: expect.any(String),
-        status: 'Open',
-        user: expect.any(String),
-      },
+      jobsId: 7,
       date: '2026-11-02',
       startTime: '08:00',
       employeesIds: [3, 5],
@@ -326,17 +267,18 @@ describe('GET /v2/job-management/schedules', () => {
     })
   })
 
-  it('devuelve las programaciones de la semilla con la forma del contrato y el job igual al de GET v1/job', async () => {
+  it('devuelve las programaciones de la semilla con la forma del contrato y un jobsId del catálogo de GET v1/job', async () => {
     const programaciones = await semana()
     const { cuerpo: trabajos } = await pedir('GET', '/v1/job')
 
     expect(programaciones).toHaveLength(4)
     for (const programacion of programaciones) {
       expect(Object.keys(programacion)).toEqual(
-        expect.arrayContaining(['date', 'employeesIds', 'jobSchedulesId', 'job', 'startTime', 'scheduleComment']),
+        expect.arrayContaining(['date', 'employeesIds', 'jobSchedulesId', 'jobsId', 'startTime', 'scheduleComment']),
       )
       expect(Object.keys(programacion)).not.toEqual(expect.arrayContaining(['id']))
-      expect(trabajos).toContainEqual(programacion.job)
+      expect(Object.keys(programacion)).not.toContain('job')
+      expect((trabajos as Job[]).map((trabajo) => trabajo.jobsId)).toContain(programacion.jobsId)
       expect(programacion.startTime).toMatch(/^\d{2}:\d{2}$/)
     }
   })
@@ -349,7 +291,7 @@ describe('GET /v2/job-management/schedules', () => {
     const respuesta = await pedir('GET', '/v2/job-management/schedules?from=2026-11-01&to=2026-11-07')
 
     expect(respuesta.status).toBe(200)
-    const ids = (respuesta.cuerpo as Schedule[]).map((programacion) => programacion.jobSchedulesId)
+    const ids = (respuesta.cuerpo as ScheduleResponse[]).map((programacion) => programacion.jobSchedulesId)
     expect(ids).toContain(sabado.cuerpo.jobSchedulesId)
     expect(ids).not.toContain(antes.cuerpo.jobSchedulesId)
     expect(ids).not.toContain(despues.cuerpo.jobSchedulesId)
@@ -360,7 +302,7 @@ describe('GET /v2/job-management/schedules', () => {
     const respuesta = await pedir('GET', '/v2/job-management/schedules?from=2026-11-02&to=2026-11-02')
 
     expect(respuesta.status).toBe(200)
-    expect((respuesta.cuerpo as Schedule[]).every((programacion) => programacion.date === '2026-11-02')).toBe(true)
+    expect((respuesta.cuerpo as ScheduleResponse[]).every((programacion) => programacion.date === '2026-11-02')).toBe(true)
     expect(respuesta.cuerpo).toHaveLength(2)
   })
 
@@ -411,7 +353,7 @@ describe('POST /v2/job-management/schedules', () => {
     expect(respuesta.status).toBe(201)
     expect(respuesta.cuerpo).toEqual({
       jobSchedulesId: expect.any(Number),
-      job: TRABAJO_7,
+      jobsId: 7,
       date: '2026-11-02',
       startTime: '07:00',
       employeesIds: [],
@@ -451,7 +393,7 @@ describe('POST /v2/job-management/schedules', () => {
 
     expect(respuesta.status).toBe(201)
     const delDia = (await semana()).filter(
-      (programacion) => programacion.job.jobsId === 7 && programacion.date === '2026-11-02',
+      (programacion) => programacion.jobsId === 7 && programacion.date === '2026-11-02',
     )
     expect(delDia).toHaveLength(2)
     expect(new Set(delDia.map((programacion) => programacion.jobSchedulesId)).size).toBe(2)
@@ -580,7 +522,7 @@ describe('PATCH /v2/job-management/schedules/{id}', () => {
     })
 
     expect(respuesta.status).toBe(200)
-    expect(respuesta.cuerpo).toMatchObject({ date: '2026-11-06', startTime: '13:15', job: TRABAJO_7 })
+    expect(respuesta.cuerpo).toMatchObject({ date: '2026-11-06', startTime: '13:15', jobsId: 7 })
   })
 
   it('Programación inexistente: 404 con el mensaje exacto', async () => {
@@ -833,7 +775,7 @@ describe('DELETE /v2/job-management/schedules/{id}', () => {
     expect(trabajos).toContainEqual(TRABAJO_7)
     expect(trabajos).toHaveLength(30)
     // La semilla tiene las programaciones 1 y 2 del trabajo 7.
-    const delTrabajo7 = (await semana()).filter((programacion) => programacion.job.jobsId === 7)
+    const delTrabajo7 = (await semana()).filter((programacion) => programacion.jobsId === 7)
     expect(delTrabajo7.map((programacion) => programacion.jobSchedulesId)).toEqual([1, 2])
   })
 
@@ -913,7 +855,7 @@ describe('PUT /v2/job-management/schedules/{id}/employees', () => {
   it('no cambia la fecha, la hora ni el trabajo', async () => {
     const respuesta = await pedir('PUT', '/v2/job-management/schedules/101/employees', { employeesIds: [1] })
 
-    expect(respuesta.cuerpo).toMatchObject({ jobSchedulesId: 101, job: TRABAJO_7, date: '2026-11-02', startTime: '08:00' })
+    expect(respuesta.cuerpo).toMatchObject({ jobSchedulesId: 101, jobsId: 7, date: '2026-11-02', startTime: '08:00' })
   })
 
   it('422 sin cambios cuando un empleado no existe', async () => {
@@ -968,7 +910,7 @@ describe('comodín de origen: interceptan la misma ruta v1/... desde cualquier U
     expect(empleados.status).toBe(200)
     expect(empleados.cuerpo).toHaveLength(8)
 
-    const trabajos = await pedir('GET', `${base}/v1/job?search=pintar`)
+    const trabajos = await pedir('GET', `${base}/v1/job`)
     expect(trabajos.status).toBe(200)
     expect(trabajos.cuerpo).toContainEqual(TRABAJO_7)
 
@@ -1069,7 +1011,7 @@ describe('estado en memoria', () => {
 
     expect(await buscarProgramacion(creada.cuerpo.jobSchedulesId)).toEqual({
       jobSchedulesId: creada.cuerpo.jobSchedulesId,
-      job: TRABAJO_7,
+      jobsId: 7,
       date: '2026-11-05',
       startTime: '12:00',
       employeesIds: [2],

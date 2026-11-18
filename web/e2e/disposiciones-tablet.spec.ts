@@ -91,7 +91,8 @@ async function comprobarSinDesplazamientoHorizontal(page: Page) {
  */
 async function comprobarRecuadrosDentro(contenedor: Locator) {
   const filas = contenedor.getByRole('listitem')
-  await expect(filas).toHaveCount(8)
+  // 7 empleados en el panel: los activos con cargo "Supervisor" o "Labor".
+  await expect(filas).toHaveCount(7)
   const medidas = await filas.evaluateAll((elementos) =>
     elementos.map((fila) => {
       const caja = fila.getBoundingClientRect()
@@ -194,19 +195,19 @@ test.describe('tablet vertical, 800 px', () => {
     const lunes = dia(page, 'Mon').getByRole('article')
     await expect(lunes).toHaveCount(2)
 
-    // Se programa "J-1031 Jardín Pérez" cuatro veces en el lunes desde el cajón "Jobs".
-    const jardin = await jardinDelCajon(page)
+    // Se programa "J-1031 Jardín Pérez" cuatro veces en el lunes desde el cajón "Jobs", que se
+    // cierra al soltar y se vuelve a abrir para cada arrastre.
     const cajon = page.getByRole('dialog', { name: 'Jobs' })
     for (let veces = 1; veces <= 4; veces++) {
-      // El cajón se aparta durante el arrastre: se espera a que vuelva del todo a su sitio.
+      const jardin = await jardinDelCajon(page)
+      // El cajón entra con una transición: se espera a que esté del todo en su sitio.
       await expect.poll(async () => (await medir(cajon)).x).toBe(0)
       await arrastrar(page, jardin, dia(page, 'Mon'))
+      await expect(page.getByRole('dialog')).toHaveCount(0)
       await expect(lunes).toHaveCount(2 + veces)
       // Se espera a que el servidor confirme la nueva antes de arrastrar la siguiente.
       await expect(dia(page, 'Mon').locator('article[aria-disabled="true"]')).toHaveCount(0)
     }
-    await cajon.getByRole('button', { name: 'Close' }).click()
-    await expect(page.getByRole('dialog')).toHaveCount(0)
 
     // Las seis tarjetas quedan dentro de la fila del lunes, en más de una línea: la primera línea
     // tiene varias tarjetas una al lado de la otra y las demás siguen debajo.

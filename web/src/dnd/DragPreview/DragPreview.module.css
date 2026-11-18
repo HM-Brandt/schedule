@@ -1,0 +1,38 @@
+.job {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-1) var(--space-3);
+  border: 1px solid var(--hue-accent);
+  border-radius: 999px;
+  background: var(--hue-bg);
+  box-shadow: var(--shadow-raised);
+  font-size: var(--font-size-sm);
+  color: var(--hue-fg);
+}
+
+.number {
+  font-weight: var(--font-weight-bold);
+  white-space: nowrap;
+}
+
+.name {
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.initials {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--hue-bg);
+  box-shadow: var(--shadow-raised);
+  color: var(--hue-fg);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-bold);
+}
