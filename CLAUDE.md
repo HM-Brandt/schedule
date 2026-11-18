@@ -42,6 +42,4 @@ Escribe todo en español: planes, mensajes, comentarios y artefactos.
 ## Proyecto
 
 - Los requisitos y el diseño están en OpenSpec: `openspec/changes/<cambio>/` (`proposal.md`, `design.md`, `specs/`, `tasks.md`). Son la fuente de verdad. Si el código y el spec no coinciden, se lo dices a Carlos; no cambias el spec por tu cuenta.
-- Frontend en la raíz del repositorio (`src/`, `e2e/`): React + Vite + TypeScript, TanStack Query, `@dnd-kit/react`, date-fns, CSS Modules y MSW para datos de prueba.
-- Tests: Vitest + Testing Library + jsdom para los unitarios, y Playwright para los e2e.
 - El backend lo implementa Carlos por separado. Este repositorio solo entrega el frontend, el esquema SQL y el contrato HTTP.

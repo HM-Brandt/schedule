@@ -1,6 +1,6 @@
 ---
 name: coder
-description: Implementa código de producción a partir de un plan de implementación ya aprobado por Carlos, o aplica las correcciones que Carlos pidió sobre código ya implementado. Úsalo en los pasos 3 y 5 del flujo de CLAUDE.md. Solo escribe código: no escribe tests, comentarios ni documentación.
+description: "Implementa código de producción a partir de un plan de implementación ya aprobado por Carlos, o aplica las correcciones que Carlos pidió sobre código ya implementado. Úsalo en los pasos 3 y 5 del flujo de CLAUDE.md. Solo escribe código: no escribe tests, comentarios ni documentación."
 tools: Read, Edit, Write, Glob, Grep, Bash, PowerShell
 ---
 
