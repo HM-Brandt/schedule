@@ -11,12 +11,14 @@ export function EmployeePanel({
   schedules,
   days,
   today,
+  hours,
 }: {
   employees: Employee[]
   error: Error | null
   schedules: Schedule[]
   days: IsoDate[]
   today: IsoDate
+  hours: Map<number, number> | undefined
 }) {
   const counts = useMemo(() => employeeDayCounts(schedules), [schedules])
 
@@ -37,6 +39,7 @@ export function EmployeePanel({
               days={days}
               today={today}
               load={counts.get(employee.employeesId)}
+              hours={hours ? (hours.get(employee.employeesId) ?? 0) : undefined}
             />
           ))}
       </ul>

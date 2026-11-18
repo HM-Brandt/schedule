@@ -95,3 +95,14 @@ export interface SchedulesQuery {
 }
 
 export type AbsencesQuery = SchedulesQuery
+
+export interface EmployeeHours {
+  employeesId: number
+  name: string
+  totalHrs: number
+}
+
+export interface HoursSummaryQuery {
+  startDate: IsoDate
+  endDate: IsoDate
+}
