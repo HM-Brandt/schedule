@@ -3,7 +3,12 @@
 // `tsc -b` si la línea siguiente deja de producir un error de tipos.
 import { describe, expect, it } from 'vitest'
 import type {
+  Absence,
+  AbsenceType,
+  AbsencesQuery,
   ApiErrorBody,
+  CreateAbsenceBody,
+  CreateAbsenceResponse,
   CreateScheduleBody,
   Employee,
   EmployeeStatus,
@@ -260,6 +265,76 @@ describe('tipos del contrato schedule-api', () => {
       const vacio: ReplaceEmployeesBody = {}
 
       expect(vacio).toEqual({})
+    })
+  })
+
+  describe('ausencias', () => {
+    const AUSENCIA_41 = {
+      employeeAbsencesId: 41,
+      employeesId: 3,
+      date: '2026-11-03',
+      absenceType: 'Vacation',
+      absenceComment: 'Viaje familiar',
+    } satisfies Absence
+
+    it('acepta la representación del spec "Ausencia con comentario" y una sin comentario (null)', () => {
+      const sinComentario = { ...AUSENCIA_41, absenceComment: null } satisfies Absence
+
+      expect(AUSENCIA_41.absenceType).toBe('Vacation')
+      expect(sinComentario.absenceComment).toBeNull()
+    })
+
+    it('acepta los cuatro valores de AbsenceType y rechaza otro', () => {
+      const tipos = ['Off', 'Vacation', 'Sick', 'Other'] satisfies AbsenceType[]
+      // @ts-expect-error 'Holiday' no es un AbsenceType
+      const invalido: AbsenceType = 'Holiday'
+
+      expect(tipos).toHaveLength(4)
+      expect(invalido).toBe('Holiday')
+    })
+
+    it('rechaza una ausencia sin absenceComment', () => {
+      // @ts-expect-error falta absenceComment (null si no tiene comentario)
+      const sinComentario: Absence = { employeeAbsencesId: 41, employeesId: 3, date: '2026-11-03', absenceType: 'Off' }
+
+      expect(sinComentario.employeesId).toBe(3)
+    })
+
+    it('CreateAbsenceBody acepta el cuerpo sin comentario, con comentario y con null', () => {
+      const sinComentario = { employeesId: 3, date: '2026-11-02', absenceType: 'Off' } satisfies CreateAbsenceBody
+      const conComentario = { employeesId: 5, date: '2026-11-04', absenceType: 'Sick', absenceComment: 'Gripe' } satisfies CreateAbsenceBody
+      const nulo = { ...conComentario, absenceComment: null } satisfies CreateAbsenceBody
+
+      expect(sinComentario).not.toHaveProperty('absenceComment')
+      expect(conComentario.absenceComment).toBe('Gripe')
+      expect(nulo.absenceComment).toBeNull()
+    })
+
+    it('CreateAbsenceBody rechaza un cuerpo sin employeesId', () => {
+      // @ts-expect-error falta employeesId
+      const sinEmpleado: CreateAbsenceBody = { date: '2026-11-02', absenceType: 'Off' }
+
+      expect(sinEmpleado.date).toBe('2026-11-02')
+    })
+
+    it('CreateAbsenceResponse lleva la ausencia y las programaciones actualizadas', () => {
+      const respuesta = {
+        absence: AUSENCIA_41,
+        updatedSchedules: [
+          { jobSchedulesId: 101, jobsId: 7, date: '2026-11-02', startTime: '08:00', employeesIds: [5], scheduleComment: null },
+        ],
+      } satisfies CreateAbsenceResponse
+
+      expect(respuesta.updatedSchedules).toHaveLength(1)
+    })
+
+    it('AbsencesQuery usa from y to', () => {
+      const consulta = { from: '2026-11-01', to: '2026-11-07' } satisfies AbsencesQuery
+      // @ts-expect-error falta to
+      const incompleta: AbsencesQuery = { from: '2026-11-01' }
+
+      expect(consulta.to).toBe('2026-11-07')
+      expect(incompleta.from).toBe('2026-11-01')
     })
   })
 

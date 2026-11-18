@@ -54,6 +54,28 @@ export interface ReplaceEmployeesBody {
   employeesIds: number[]
 }
 
+export type AbsenceType = 'Off' | 'Vacation' | 'Sick' | 'Other'
+
+export interface Absence {
+  employeeAbsencesId: number
+  employeesId: number
+  date: IsoDate
+  absenceType: AbsenceType
+  absenceComment: string | null
+}
+
+export interface CreateAbsenceBody {
+  employeesId: number
+  date: IsoDate
+  absenceType: AbsenceType
+  absenceComment?: string | null
+}
+
+export interface CreateAbsenceResponse {
+  absence: Absence
+  updatedSchedules: ScheduleResponse[]
+}
+
 export interface ApiErrorBody {
   error: string
 }
@@ -71,3 +93,5 @@ export interface SchedulesQuery {
   /** Último día del rango, incluido. */
   to: IsoDate
 }
+
+export type AbsencesQuery = SchedulesQuery

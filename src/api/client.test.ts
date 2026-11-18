@@ -17,7 +17,7 @@ import { readConfig } from '../config'
 import { useAuthStore } from '../stores/authStore'
 import type { AuthUser } from '../types'
 import { ApiError, createApiClient } from './client'
-import type { Employee, Job, ScheduleResponse } from './types'
+import type { Absence, CreateAbsenceBody, Employee, Job, ScheduleResponse } from './types'
 import { empleado, trabajo } from '../test/fabricas'
 import { simularNavegacion } from '../test/navegacion'
 
@@ -470,6 +470,156 @@ describe('createApiClient', () => {
       const programaciones = await api.getSchedules({ from: '2026-11-01', to: '2026-11-07' })
 
       expect(programaciones).toEqual([{ ...PROGRAMACION, employeesIds: [], scheduleComment: null }])
+    })
+  })
+
+  describe('ausencias (grupo 1 de `employee-absences`)', () => {
+    const AUSENCIA: Absence = {
+      employeeAbsencesId: 41,
+      employeesId: 3,
+      date: '2026-11-03',
+      absenceType: 'Vacation',
+      absenceComment: 'Viaje familiar',
+    }
+    const PROGRAMACION_102: ScheduleResponse = {
+      jobSchedulesId: 102,
+      jobsId: 8,
+      date: '2026-11-02',
+      startTime: '13:00',
+      employeesIds: [5],
+      scheduleComment: null,
+    }
+
+    it('getAbsences: GET /v2/job-management/absences con from y to, y devuelve las ausencias', async () => {
+      const api = createApiClient(BASE_URL)
+      const peticiones = capturar(() => HttpResponse.json([AUSENCIA]))
+
+      const ausencias = await api.getAbsences({ from: '2026-11-01', to: '2026-11-07' })
+
+      expect(peticiones).toHaveLength(1)
+      expect(peticiones[0].method).toBe('GET')
+      expect(peticiones[0].pathname).toBe('/v2/job-management/absences')
+      expect(Object.fromEntries(peticiones[0].searchParams)).toEqual({ from: '2026-11-01', to: '2026-11-07' })
+      expect(peticiones[0].body).toBeUndefined()
+      expect(ausencias).toEqual([AUSENCIA])
+    })
+
+    it('getAbsences deja absenceComment en null cuando la respuesta no lo trae', async () => {
+      const api = createApiClient(BASE_URL)
+      const { absenceComment: _comentario, ...sinComentario } = AUSENCIA
+      capturar(() => HttpResponse.json([sinComentario]))
+
+      const ausencias = await api.getAbsences({ from: '2026-11-01', to: '2026-11-07' })
+
+      expect(ausencias).toEqual([{ ...AUSENCIA, absenceComment: null }])
+    })
+
+    it('getAbsences con una lista vacía devuelve []', async () => {
+      const api = createApiClient(BASE_URL)
+      capturar(() => HttpResponse.json([]))
+
+      expect(await api.getAbsences({ from: '2026-11-01', to: '2026-11-07' })).toEqual([])
+    })
+
+    it('createAbsence: POST /v2/job-management/absences con el cuerpo tal cual y devuelve {absence, updatedSchedules} normalizados', async () => {
+      const api = createApiClient(BASE_URL)
+      const cuerpo: CreateAbsenceBody = { employeesId: 3, date: '2026-11-02', absenceType: 'Off' }
+      const sinEmpleado3 = [
+        { ...PROGRAMACION, employeesIds: [5], startTime: '08:00:00' },
+        { ...PROGRAMACION_102, employeesIds: [], startTime: '13:00:00' },
+      ]
+      const peticiones = capturar(() =>
+        HttpResponse.json(
+          { absence: { ...AUSENCIA, date: '2026-11-02', absenceType: 'Off', absenceComment: undefined }, updatedSchedules: sinEmpleado3 },
+          { status: 201 },
+        ),
+      )
+
+      const resultado = await api.createAbsence(cuerpo)
+
+      expect(peticiones).toHaveLength(1)
+      expect(peticiones[0].method).toBe('POST')
+      expect(peticiones[0].pathname).toBe('/v2/job-management/absences')
+      expect(peticiones[0].contentType).toContain('application/json')
+      expect(peticiones[0].body).toEqual(cuerpo)
+      expect(resultado.absence).toEqual({ ...AUSENCIA, date: '2026-11-02', absenceType: 'Off', absenceComment: null })
+      expect(resultado.updatedSchedules).toEqual([
+        { ...PROGRAMACION, employeesIds: [5], startTime: '08:00' },
+        { ...PROGRAMACION_102, employeesIds: [], startTime: '13:00' },
+      ])
+    })
+
+    it('createAbsence envía absenceComment y lo conserva en la respuesta', async () => {
+      const api = createApiClient(BASE_URL)
+      const cuerpo: CreateAbsenceBody = {
+        employeesId: 3,
+        date: '2026-11-03',
+        absenceType: 'Vacation',
+        absenceComment: 'Viaje familiar',
+      }
+      const peticiones = capturar(() => HttpResponse.json({ absence: AUSENCIA, updatedSchedules: [] }, { status: 201 }))
+
+      const resultado = await api.createAbsence(cuerpo)
+
+      expect(peticiones[0].body).toEqual(cuerpo)
+      expect(resultado.absence).toEqual(AUSENCIA)
+    })
+
+    it('createAbsence devuelve updatedSchedules [] si la respuesta no lo trae ("Ausencia sin trabajos ese día")', async () => {
+      const api = createApiClient(BASE_URL)
+      const ausencia: Absence = { ...AUSENCIA, employeeAbsencesId: 42, employeesId: 5, date: '2026-11-04', absenceType: 'Sick', absenceComment: 'Gripe' }
+      capturar(() => HttpResponse.json({ absence: ausencia }, { status: 201 }))
+
+      const resultado = await api.createAbsence({ employeesId: 5, date: '2026-11-04', absenceType: 'Sick', absenceComment: 'Gripe' })
+
+      expect(resultado).toEqual({ absence: ausencia, updatedSchedules: [] })
+    })
+
+    it('createAbsence completa employeesIds y scheduleComment de los schedules actualizados', async () => {
+      const api = createApiClient(BASE_URL)
+      const { employeesIds: _ids, scheduleComment: _comentario, ...incompleta } = PROGRAMACION
+      capturar(() => HttpResponse.json({ absence: AUSENCIA, updatedSchedules: [incompleta] }, { status: 201 }))
+
+      const resultado = await api.createAbsence({ employeesId: 3, date: '2026-11-02', absenceType: 'Off' })
+
+      expect(resultado.updatedSchedules).toEqual([{ ...PROGRAMACION, employeesIds: [], scheduleComment: null }])
+    })
+
+    it('deleteAbsence: DELETE /v2/job-management/absences/41 y resuelve undefined con un 204', async () => {
+      const api = createApiClient(BASE_URL)
+      const peticiones = capturar(() => new HttpResponse(null, { status: 204 }))
+
+      const resultado = await api.deleteAbsence(41)
+
+      expect(peticiones).toHaveLength(1)
+      expect(peticiones[0].method).toBe('DELETE')
+      expect(peticiones[0].pathname).toBe('/v2/job-management/absences/41')
+      expect(peticiones[0].body).toBeUndefined()
+      expect(resultado).toBeUndefined()
+    })
+
+    it('422 con {"error": "..."} en createAbsence da ApiError validation con ese mensaje', async () => {
+      const api = createApiClient(BASE_URL)
+      capturar(() => HttpResponse.json({ error: 'El empleado 3 ya tiene una ausencia ese día' }, { status: 422 }))
+
+      const error = await capturarError(api.createAbsence({ employeesId: 3, date: '2026-11-02', absenceType: 'Off' }))
+
+      expect(error).toBeInstanceOf(ApiError)
+      expect(error).toMatchObject({
+        kind: 'validation',
+        status: 422,
+        message: 'El empleado 3 ya tiene una ausencia ese día',
+      })
+    })
+
+    it('404 con {"error": "..."} en deleteAbsence da ApiError not_found', async () => {
+      const api = createApiClient(BASE_URL)
+      capturar(() => HttpResponse.json({ error: 'No existe la ausencia' }, { status: 404 }))
+
+      const error = await capturarError(api.deleteAbsence(99999))
+
+      expect(error).toBeInstanceOf(ApiError)
+      expect(error).toMatchObject({ kind: 'not_found', status: 404, message: 'No existe la ausencia' })
     })
   })
 

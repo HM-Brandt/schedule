@@ -131,6 +131,64 @@ describe('createSeed', () => {
     expect(Math.max(0, ...cuenta.values())).toBeGreaterThanOrEqual(2)
   })
 
+  it('tiene al menos una ausencia y todas caen en la semana domingo-sábado de today', () => {
+    const { absences } = createSeed(HOY)
+
+    expect(absences.length).toBeGreaterThanOrEqual(1)
+    for (const ausencia of absences) {
+      expect(ausencia.date >= DESDE && ausencia.date <= HASTA).toBe(true)
+    }
+  })
+
+  it('las ausencias se mueven con la semana de today', () => {
+    const { absences } = createSeed(new Date(2026, 10, 14))
+
+    for (const ausencia of absences) {
+      expect(ausencia.date >= '2026-11-08' && ausencia.date <= '2026-11-14').toBe(true)
+    }
+  })
+
+  it('las ausencias tienen ids distintos, empleados existentes y activos y un absenceType válido', () => {
+    const { absences, employees } = createSeed(HOY)
+
+    expect(new Set(absences.map((ausencia) => ausencia.employeeAbsencesId)).size).toBe(absences.length)
+    for (const ausencia of absences) {
+      const empleado = employees.find((candidato) => candidato.employeesId === ausencia.employeesId)
+      expect(empleado?.status).toBe('Active')
+      expect(['Off', 'Vacation', 'Sick', 'Other']).toContain(ausencia.absenceType)
+    }
+  })
+
+  it('las ausencias tienen la forma {employeeAbsencesId, employeesId, date, absenceType, absenceComment}', () => {
+    const { absences } = createSeed(HOY)
+
+    for (const ausencia of absences) {
+      expect(Object.keys(ausencia).sort()).toEqual(
+        ['employeeAbsencesId', 'employeesId', 'date', 'absenceType', 'absenceComment'].sort(),
+      )
+      expect(ausencia.date).toMatch(/^\d{4}-\d{2}-\d{2}$/)
+    }
+  })
+
+  it('ninguna ausencia coincide con una asignación del mismo empleado el mismo día', () => {
+    const { absences, schedules } = createSeed(HOY)
+
+    for (const ausencia of absences) {
+      const choques = schedules.filter(
+        (programacion) =>
+          programacion.date === ausencia.date && programacion.employeesIds.includes(ausencia.employeesId),
+      )
+      expect(choques).toEqual([])
+    }
+  })
+
+  it('no hay dos ausencias del mismo empleado el mismo día', () => {
+    const { absences } = createSeed(HOY)
+    const claves = absences.map((ausencia) => `${ausencia.employeesId}|${ausencia.date}`)
+
+    expect(new Set(claves).size).toBe(claves.length)
+  })
+
   it('los employeesIds de las programaciones existen y no se repiten', () => {
     const { employees, schedules } = createSeed(HOY)
     const ids = new Set(employees.map((empleado) => empleado.employeesId))
