@@ -1,5 +1,6 @@
 import { useMutation } from '@tanstack/react-query'
 import type { MutationFunctionContext } from '@tanstack/react-query'
+import { toSchedule } from '../lib/schedules'
 import { api } from './client'
 import {
   findCachedSchedule,
@@ -42,7 +43,7 @@ export function useCreateSchedule() {
       startTime: StartTime
       employeesIds?: number[]
       scheduleComment?: string | null
-    }) => api.createSchedule({ jobsId: job.jobsId, ...body }),
+    }) => api.createSchedule({ jobsId: job.jobsId, ...body }).then((response) => toSchedule(response, job)),
     onMutate: async (variables, context) => {
       const result = await startOptimistic(context)
       const tempId = nextTempId()

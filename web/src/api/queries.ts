@@ -1,5 +1,6 @@
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { sortJobs } from '../lib/jobs'
+import { toSchedule, unknownJob } from '../lib/schedules'
 import { useAuthStore } from '../stores/authStore'
 import { api } from './client'
 import type { IsoDate } from './types'
@@ -31,8 +32,16 @@ export function useJobs() {
 }
 
 export function useWeekSchedules(from: IsoDate, to: IsoDate) {
+  const queryClient = useQueryClient()
   return useQuery({
     queryKey: queryKeys.schedules(from, to),
-    queryFn: () => api.getSchedules({ from, to }),
+    queryFn: async () => {
+      const [responses, jobs] = await Promise.all([
+        api.getSchedules({ from, to }),
+        queryClient.ensureQueryData({ queryKey: queryKeys.jobs, queryFn: () => api.getJobs() }),
+      ])
+      const jobsById = new Map(jobs.map((job) => [job.jobsId, job]))
+      return responses.map((r) => toSchedule(r, jobsById.get(r.jobsId) ?? unknownJob(r.jobsId)))
+    },
   })
 }

@@ -172,7 +172,7 @@ describe('createApiClient', () => {
       ])
     })
 
-    it('con una URL absoluta con prefijo /api las siete peticiones van a https://host/api/v1/... y https://host/api/v2/..., sin /api/api', async () => {
+    it('con una URL absoluta con prefijo /api las siete peticiones van a https://host/api/v1/..., sin /api/api', async () => {
       const api = createApiClient('https://host/api')
       const peticiones = capturarUrls()
 
@@ -264,7 +264,7 @@ describe('createApiClient', () => {
       const api = createApiClient(BASE_URL)
       const peticiones = capturar(() => HttpResponse.json([TRABAJO]))
 
-      const trabajos = await api.getJobs({ search: 'pintar' })
+      const trabajos = await api.getJobs()
 
       expect(peticiones[0].method).toBe('GET')
       expect(peticiones[0].pathname).toBe('/v1/job')
@@ -863,7 +863,7 @@ describe('createApiClient', () => {
         const [trabajos, empleados, otrosTrabajos] = await Promise.all([
           api.getJobs(),
           api.getEmployees(),
-          api.getJobs({ search: 'pintar' }),
+          api.getJobs(),
         ])
 
         expect(registro.refrescos).toHaveLength(1)
@@ -975,7 +975,7 @@ describe('createApiClient', () => {
 
         const errores = await Promise.all([
           capturarError(api.getJobs()),
-          capturarError(api.getJobs({ search: 'pintar' })),
+          capturarError(api.getJobs()),
         ])
 
         expect(registro.refrescos).toHaveLength(1)

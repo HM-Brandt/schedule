@@ -102,8 +102,9 @@ export function createHandlers(seed: ReturnType<typeof createSeed>) {
       ) {
         return error(422, 'El cuerpo de la petición no es válido')
       }
-      const job = jobs.find((candidate) => candidate.jobsId === body.jobsId)
-      if (!job) return error(422, `No existe el trabajo ${body.jobsId}`)
+      if (!jobs.some((candidate) => candidate.jobsId === body.jobsId)) {
+        return error(422, `No existe el trabajo ${body.jobsId}`)
+      }
       if (!isDate(body.date)) return error(422, 'La fecha no es válida')
       if (!isTime(body.startTime)) return error(422, 'La hora debe tener el formato HH:mm')
       const employeeIds = [...new Set(body.employeesIds ?? [])]
@@ -111,7 +112,7 @@ export function createHandlers(seed: ReturnType<typeof createSeed>) {
       if (failure) return failure
       const schedule = {
         jobSchedulesId: nextId++,
-        job,
+        jobsId: body.jobsId,
         date: body.date,
         startTime: body.startTime,
         employeesIds: employeeIds,

@@ -21,9 +21,9 @@ export const useAuthStore = create<AuthState>((set) => ({
   // isAuthenticated: !!storedToken,
 
   token:
-    "eyJhbGciOiJIUzI1NiJ9.eyJyb2xlcyI6WyJST0xFX0FETUlOIl0sInN1YiI6ImNyYW1pcmV6QGhtYnJhbmR0LmNvbSIsImlhdCI6MTc5NDk1MjkyMiwiZXhwIjoxNzk0OTUzODIyfQ.ghyCZu_TBWw_6dTAihQpMhuu2WqPxCA5VFX8Jr2mdns",
+    "eyJhbGciOiJIUzI1NiJ9.eyJyb2xlcyI6WyJST0xFX0FETUlOIl0sInN1YiI6ImNyYW1pcmV6QGhtYnJhbmR0LmNvbSIsImlhdCI6MTc5NTAxMTQxMywiZXhwIjoxNzk1MDEyMzEzfQ.QOXH-qtAUakDm6d2vFifVUh2-4BPdvVvS_FWMAhfmLM",
   refreshToken:
-    "05cfd488-5d89-4876-b9ab-8c547ab5be39.8940ce26-e3e6-4f64-a9a4-faf6dcb4481c",
+    "46ad923d-77e3-46c9-bed1-dbdab3cc6b89.98adfb05-9ade-4d5b-8cd5-1296a5b6f18b",
   isAuthenticated: true,
 
   user: null,

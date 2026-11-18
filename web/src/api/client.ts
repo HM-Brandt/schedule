@@ -11,7 +11,7 @@ import type {
   EmployeesQuery,
   Job,
   ReplaceEmployeesBody,
-  Schedule,
+  ScheduleResponse,
   SchedulesQuery,
   UpdateScheduleBody,
 } from './types'
@@ -73,8 +73,13 @@ function toApiError(error: AxiosError): ApiError {
 }
 
 /** Deja la hora de inicio de una programación en `HH:mm`, aunque el backend envíe segundos. */
-function normalizeSchedule(schedule: Schedule): Schedule {
-  return { ...schedule, startTime: normalizeTime(schedule.startTime) }
+function normalizeSchedule(schedule: ScheduleResponse): ScheduleResponse {
+  return {
+    ...schedule,
+    startTime: normalizeTime(schedule.startTime),
+    employeesIds: schedule.employeesIds ?? [],
+    scheduleComment: schedule.scheduleComment ?? null,
+  }
 }
 
 /**
@@ -147,22 +152,22 @@ export function createApiClient(baseURL: string) {
     },
 
     /** `GET /api/schedules?from&to`. Programaciones del rango, ambos días incluidos. */
-    async getSchedules(params: SchedulesQuery): Promise<Schedule[]> {
-      const response = await http.get<Schedule[]>('v2/job-management/schedules', {
+    async getSchedules(params: SchedulesQuery): Promise<ScheduleResponse[]> {
+      const response = await http.get<ScheduleResponse[]>('v2/job-management/schedules', {
         params: { from: params.from, to: params.to },
       })
       return response.data.map(normalizeSchedule)
     },
 
     /** `POST /api/schedules`. Crea una programación y la devuelve. */
-    async createSchedule(body: CreateScheduleBody): Promise<Schedule> {
-      const response = await http.post<Schedule>('v2/job-management/schedules', body)
+    async createSchedule(body: CreateScheduleBody): Promise<ScheduleResponse> {
+      const response = await http.post<ScheduleResponse>('v2/job-management/schedules', body)
       return normalizeSchedule(response.data)
     },
 
     /** `PATCH /api/schedules/{id}`. Cambia la fecha, la hora o ambas, y devuelve la programación. */
-    async updateSchedule(id: number, body: UpdateScheduleBody): Promise<Schedule> {
-      const response = await http.patch<Schedule>(`v2/job-management/schedules/${id}`, body)
+    async updateSchedule(id: number, body: UpdateScheduleBody): Promise<ScheduleResponse> {
+      const response = await http.patch<ScheduleResponse>(`v2/job-management/schedules/${id}`, body)
       return normalizeSchedule(response.data)
     },
 
@@ -172,8 +177,8 @@ export function createApiClient(baseURL: string) {
     },
 
     /** `PUT /api/schedules/{id}/employees`. Reemplaza el conjunto de empleados y devuelve la programación. */
-    async replaceScheduleEmployees(id: number, body: ReplaceEmployeesBody): Promise<Schedule> {
-      const response = await http.put<Schedule>(`v2/job-management/schedules/${id}/employees`, body)
+    async replaceScheduleEmployees(id: number, body: ReplaceEmployeesBody): Promise<ScheduleResponse> {
+      const response = await http.put<ScheduleResponse>(`v2/job-management/schedules/${id}/employees`, body)
       return normalizeSchedule(response.data)
     },
 

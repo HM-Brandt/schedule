@@ -1,5 +1,5 @@
 import { addDays } from 'date-fns'
-import type { Employee, Job, Schedule } from '../api/types'
+import type { Employee, Job, ScheduleResponse } from '../api/types'
 import { getWeekRange, parseIsoDate, toIsoDate } from '../lib/dates'
 
 const JOB_NAMES = [
@@ -70,11 +70,11 @@ export function createSeed(today: Date) {
   }))
   const sunday = parseIsoDate(getWeekRange(today).from)
   const day = (offset: number) => toIsoDate(addDays(sunday, offset))
-  const schedules: Schedule[] = [
-    { jobSchedulesId: 1, job: jobs[6], date: day(1), startTime: '07:00', employeesIds: [3, 5], scheduleComment: 'Llevar escalera' },
-    { jobSchedulesId: 2, job: jobs[6], date: day(1), startTime: '08:00', employeesIds: [3], scheduleComment: null },
-    { jobSchedulesId: 3, job: jobs[1], date: day(2), startTime: '07:00', employeesIds: [8], scheduleComment: null },
-    { jobSchedulesId: 4, job: jobs[11], date: day(4), startTime: '09:30', employeesIds: [], scheduleComment: null },
+  const schedules: ScheduleResponse[] = [
+    { jobSchedulesId: 1, jobsId: jobs[6].jobsId, date: day(1), startTime: '07:00', employeesIds: [3, 5], scheduleComment: 'Llevar escalera' },
+    { jobSchedulesId: 2, jobsId: jobs[6].jobsId, date: day(1), startTime: '08:00', employeesIds: [3], scheduleComment: null },
+    { jobSchedulesId: 3, jobsId: jobs[1].jobsId, date: day(2), startTime: '07:00', employeesIds: [8], scheduleComment: null },
+    { jobSchedulesId: 4, jobsId: jobs[11].jobsId, date: day(4), startTime: '09:30', employeesIds: [], scheduleComment: null },
   ]
   return { employees, jobs, schedules }
 }

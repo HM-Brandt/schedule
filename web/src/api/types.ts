@@ -38,6 +38,8 @@ export interface Schedule {
   scheduleComment: string | null
 }
 
+export type ScheduleResponse = Omit<Schedule, 'job'> & { jobsId: number }
+
 export interface CreateScheduleBody {
   jobsId: number
   date: IsoDate
