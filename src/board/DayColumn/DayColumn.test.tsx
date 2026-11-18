@@ -49,6 +49,7 @@ function renderTablero() {
         schedules={PROGRAMACIONES}
         days={DIAS}
         today="2026-11-03"
+        hours={undefined}
       />
     </DragDropProvider>,
   )

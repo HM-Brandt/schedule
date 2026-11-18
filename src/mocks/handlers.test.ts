@@ -342,6 +342,38 @@ describe('GET /v2/job-management/schedules', () => {
   })
 })
 
+describe('GET /v1/drEmployee/hours-summary', () => {
+  it('200 con las horas de la semilla: Marta 32.5, Jorge 40 y Ana 12', async () => {
+    const respuesta = await pedir('GET', '/v1/drEmployee/hours-summary?startDate=2026-11-01&endDate=2026-11-07')
+
+    expect(respuesta.status).toBe(200)
+    expect(respuesta.cuerpo).toEqual([
+      { employeesId: 1, name: 'Marta Gómez', totalHrs: 32.5 },
+      { employeesId: 2, name: 'Jorge Pérez', totalHrs: 40 },
+      { employeesId: 3, name: 'Ana López', totalHrs: 12 },
+    ])
+  })
+
+  it('startDate igual a endDate es válido', async () => {
+    const respuesta = await pedir('GET', '/v1/drEmployee/hours-summary?startDate=2026-11-02&endDate=2026-11-02')
+
+    expect(respuesta.status).toBe(200)
+  })
+
+  it.each([
+    ['falta startDate', '?endDate=2026-11-07'],
+    ['falta endDate', '?startDate=2026-11-01'],
+    ['faltan los dos', ''],
+    ['startDate no es una fecha', '?startDate=hoy&endDate=2026-11-07'],
+  ])('422 con { error } cuando %s', async (_descripcion, query) => {
+    const respuesta = await pedir('GET', `/v1/drEmployee/hours-summary${query}`)
+
+    expect(respuesta.status).toBe(422)
+    expect(typeof respuesta.cuerpo.error).toBe('string')
+    expect(Object.keys(respuesta.cuerpo)).toEqual(['error'])
+  })
+})
+
 describe('POST /v2/job-management/schedules', () => {
   it('Creación válida: 201 con la nueva programación y employeesIds vacío', async () => {
     const respuesta = await pedir('POST', '/v2/job-management/schedules', {

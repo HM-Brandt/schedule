@@ -92,6 +92,17 @@ export function createHandlers(seed: ReturnType<typeof createSeed>) {
       )
     }),
 
+    http.get('*/v1/drEmployee/hours-summary', ({ request }) => {
+      const params = new URL(request.url).searchParams
+      const startDate = params.get('startDate')
+      const endDate = params.get('endDate')
+      if (!isDate(startDate) || !isDate(endDate)) {
+        return error(422, 'Los parámetros startDate y endDate deben ser fechas AAAA-MM-DD')
+      }
+      if (startDate > endDate) return error(422, 'La fecha startDate no puede ser posterior a endDate')
+      return HttpResponse.json(seed.hours)
+    }),
+
     http.post('*/v2/job-management/schedules', async ({ request }) => {
       const body = (await request.json().catch(() => null)) as Partial<CreateScheduleBody> | null
       if (

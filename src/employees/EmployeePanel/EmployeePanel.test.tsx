@@ -18,9 +18,15 @@ const DIAS = ['2026-11-01', '2026-11-02', '2026-11-03', '2026-11-04', '2026-11-0
 const SIGUIENTE = ['2026-11-08', '2026-11-09', '2026-11-10', '2026-11-11', '2026-11-12', '2026-11-13', '2026-11-14']
 const HOY = '2026-11-03'
 
-function renderPanel(employees: Employee[], error: Error | null = null, schedules: Schedule[] = [], days = DIAS) {
+function renderPanel(
+  employees: Employee[],
+  error: Error | null = null,
+  schedules: Schedule[] = [],
+  days = DIAS,
+  hours: Map<number, number> | undefined = undefined,
+) {
   const resultado = render(
-    <EmployeePanel employees={employees} error={error} schedules={schedules} days={days} today={HOY} />,
+    <EmployeePanel employees={employees} error={error} schedules={schedules} days={days} today={HOY} hours={hours} />,
   )
   return { lista: screen.getByRole('list'), rerender: resultado.rerender }
 }
@@ -54,6 +60,25 @@ describe('EmployeePanel', () => {
     renderPanel([ANA])
 
     expect(screen.getByRole('heading', { level: 2, name: 'Employees' })).toBeInTheDocument()
+  })
+
+  describe('horas trabajadas de la semana', () => {
+    const MARTA: Employee = empleado(1, 'Marta', 'Gómez', 'Supervisor')
+
+    it('con un map muestra las horas del empleado presente y "0 h" al ausente', () => {
+      const { lista } = renderPanel([MARTA, ANA], null, [], DIAS, new Map([[1, 32.5]]))
+
+      expect(fila(lista, 'Marta Gómez')).toHaveTextContent('Supervisor · 32.5 h')
+      expect(fila(lista, 'Ana López')).toHaveTextContent('Labor · 0 h')
+    })
+
+    it('con hours undefined (cargando o con error) no muestra horas ni alerta', () => {
+      const { lista } = renderPanel([MARTA, ANA], null, [], DIAS, undefined)
+
+      expect(fila(lista, 'Marta Gómez')).not.toHaveTextContent(/\bh\b/)
+      expect(fila(lista, 'Ana López')).not.toHaveTextContent(/\bh\b/)
+      expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    })
   })
 
   it('escenario "Empleado inactivo": con Ana (Active) y Pedro (Terminated) muestra a Ana y no a Pedro', () => {
@@ -269,7 +294,9 @@ describe('EmployeePanel', () => {
       const { lista, rerender } = renderPanel([JUAN], null, conTrabajo)
       expect(recuadros(fila(lista, 'Juan García')).niveles).toEqual(['0', '1', '1', '0', '0', '0', '0'])
 
-      rerender(<EmployeePanel employees={[JUAN]} error={null} schedules={[]} days={SIGUIENTE} today={HOY} />)
+      rerender(
+        <EmployeePanel employees={[JUAN]} error={null} schedules={[]} days={SIGUIENTE} today={HOY} hours={undefined} />,
+      )
 
       const { contenedor, niveles } = recuadros(fila(screen.getByRole('list'), 'Juan García'))
       expect(niveles).toEqual(['0', '0', '0', '0', '0', '0', '0'])
@@ -289,6 +316,7 @@ describe('EmployeePanel', () => {
           schedules={[programacion(LUNES, [11]), programacion(DIAS[4], [11])]}
           days={DIAS}
           today={HOY}
+          hours={undefined}
         />,
       )
 

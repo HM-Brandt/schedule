@@ -26,10 +26,14 @@ const HOY = DIAS[2]
 
 const ANA: Employee = empleado(3, 'Ana', 'López', 'Labor')
 
-function renderEmpleado(load: Map<IsoDate, number> | undefined = undefined, employee: Employee = ANA) {
+function renderEmpleado(
+  load: Map<IsoDate, number> | undefined = undefined,
+  employee: Employee = ANA,
+  hours: number | undefined = undefined,
+) {
   render(
     <ul>
-      <EmployeeItem employee={employee} days={DIAS} today={HOY} load={load} />
+      <EmployeeItem employee={employee} days={DIAS} today={HOY} load={load} hours={hours} />
     </ul>,
   )
   const tarjeta = screen.getByRole('listitem')
@@ -37,7 +41,7 @@ function renderEmpleado(load: Map<IsoDate, number> | undefined = undefined, empl
     tarjeta,
     iniciales: within(tarjeta).getByText('AL'),
     nombre: within(tarjeta).getByText('Ana López'),
-    cargo: within(tarjeta).getByText(employee.title),
+    cargo: within(tarjeta).getByText(new RegExp(`^${employee.title}( · .+ h)?$`)),
     recuadros: within(tarjeta).getByRole('img'),
   }
 }
@@ -109,6 +113,24 @@ describe('EmployeeItem', () => {
       false,
       false,
     ])
+  })
+
+  it('con horas, la fila del título muestra "Supervisor · 32.5 h"', () => {
+    const { cargo } = renderEmpleado(undefined, empleado(3, 'Ana', 'López', 'Supervisor'), 32.5)
+
+    expect(cargo).toHaveTextContent('Supervisor · 32.5 h')
+  })
+
+  it('con 0 horas muestra "Labor · 0 h"', () => {
+    const { cargo } = renderEmpleado(undefined, ANA, 0)
+
+    expect(cargo).toHaveTextContent('Labor · 0 h')
+  })
+
+  it('sin horas (undefined) muestra solo el título', () => {
+    const { cargo } = renderEmpleado(undefined, ANA, undefined)
+
+    expect(cargo).toHaveTextContent(/^Labor$/)
   })
 
   it('un supervisor muestra "Supervisor" como cargo en la misma posición', () => {

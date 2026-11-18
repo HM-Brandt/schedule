@@ -8,6 +8,10 @@ export function fullName(employee: Employee): string {
   return `${employee.firstName} ${employee.lastName}`
 }
 
+export function formatHours(hours: number): string {
+  return `${Math.round(hours * 10) / 10} h`
+}
+
 const TITLE_ORDER = ['supervisor', 'labor']
 
 export function panelEmployees(employees: Employee[]): Employee[] {

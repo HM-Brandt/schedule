@@ -7,7 +7,7 @@ Contrato HTTP en JSON entre el tablero semanal y el backend: consulta de emplead
 ## ADDED Requirements
 
 ### Requirement: Rutas relativas a la URL base
-Todas las rutas del contrato (`v1/employee`, `v1/job`, `v2/job-management/schedules` y sus subrutas) SHALL ser relativas a la URL base del backend, configurada en `VITE_API_URL`. La URL completa de cada petición SHALL ser la URL base seguida de la ruta, con una sola `/` entre ambas.
+Todas las rutas del contrato (`v1/employee`, `v1/drEmployee/hours-summary`, `v1/job`, `v2/job-management/schedules` y sus subrutas) SHALL ser relativas a la URL base del backend, configurada en `VITE_API_URL`. La URL completa de cada petición SHALL ser la URL base seguida de la ruta, con una sola `/` entre ambas.
 
 #### Scenario: URL base con prefijo
 - **WHEN** `VITE_API_URL` es `https://api.ejemplo.com/api/` y se pide la programación 101
@@ -45,6 +45,23 @@ Ante una petición inválida el backend SHALL responder 422 con un cuerpo `{"err
 #### Scenario: Todos
 - **WHEN** se envía `GET v1/employee`
 - **THEN** la respuesta es 200 con empleados `Active` y `Terminated`
+
+### Requirement: Resumen de horas trabajadas por empleado
+`GET v1/drEmployee/hours-summary?startDate=YYYY-MM-DD&endDate=YYYY-MM-DD` SHALL devolver, a partir del reporte de horas trabajadas, una lista de objetos `{employeesId, name, totalHrs}` con el total de horas de cada empleado entre `startDate` y `endDate`, ambos incluidos. `totalHrs` es un número que MAY tener decimales. Un empleado sin horas en el rango MAY no aparecer en la lista. Si falta algún parámetro o no es una fecha válida, SHALL responder 422. Estas horas son solo informativas: SHALL NOT depender de las programaciones ni de sus empleados asignados.
+
+El frontend SHALL mostrar las horas de la semana visible en la fila del título de cada empleado del panel, como `<title> · <horas> h`, con un decimal como máximo. Si un empleado no aparece en la lista, SHALL mostrar `0 h`. Mientras carga, o si la petición falla, SHALL NOT mostrar horas, y el panel SHALL seguir funcionando sin alerta.
+
+#### Scenario: Semana con horas
+- **WHEN** se envía `GET v1/drEmployee/hours-summary?startDate=2026-11-01&endDate=2026-11-07` y Marta Gómez trabajó 32.5 horas esa semana
+- **THEN** la respuesta es 200 e incluye `{"employeesId": 1, "name": "Marta Gómez", "totalHrs": 32.5}`, y el panel muestra "Supervisor · 32.5 h"
+
+#### Scenario: Empleado sin horas
+- **WHEN** un empleado activo no aparece en la respuesta de la semana visible
+- **THEN** el panel muestra "0 h" en su fila del título
+
+#### Scenario: Falla al cargar las horas
+- **WHEN** la petición de horas responde con error
+- **THEN** el panel muestra los empleados sin horas y sin alerta
 
 ### Requirement: Listar trabajos
 `GET v1/job` SHALL devolver, sin parámetros, la lista completa de objetos `{jobsId, number, type, name, address, contractor, contact, status, user}`. El `status` del trabajo SHALL NOT filtrar la lista: se devuelven todos los trabajos. La búsqueda y el orden del catálogo los aplica el frontend.

@@ -268,6 +268,24 @@ describe('createApiClient', () => {
       expect(trabajos).toEqual([TRABAJO])
     })
 
+    it('getHoursSummary: GET /v1/drEmployee/hours-summary con startDate y endDate', async () => {
+      const api = createApiClient(BASE_URL)
+      const horas = [{ employeesId: 3, name: 'Ana López', totalHrs: 32.5 }]
+      const peticiones = capturar(() => HttpResponse.json(horas))
+
+      const resultado = await api.getHoursSummary({ startDate: '2026-11-01', endDate: '2026-11-07' })
+
+      expect(peticiones).toHaveLength(1)
+      expect(peticiones[0].method).toBe('GET')
+      expect(peticiones[0].pathname).toBe('/v1/drEmployee/hours-summary')
+      expect(Object.fromEntries(peticiones[0].searchParams)).toEqual({
+        startDate: '2026-11-01',
+        endDate: '2026-11-07',
+      })
+      expect(peticiones[0].body).toBeUndefined()
+      expect(resultado).toEqual(horas)
+    })
+
     it('getSchedules: GET /v2/job-management/schedules con from y to', async () => {
       const api = createApiClient(BASE_URL)
       const peticiones = capturar(() => HttpResponse.json([PROGRAMACION]))
