@@ -7,11 +7,19 @@ Asignación de empleados activos a los trabajos programados del tablero semanal,
 ## ADDED Requirements
 
 ### Requirement: Panel de empleados activos
-El sistema SHALL mostrar un panel con los empleados activos (`status` `Active`), cada uno con sus iniciales, su nombre completo (`firstName` y `lastName`) y su `title`. Los empleados inactivos (`status` `Terminated`) SHALL NOT aparecer en el panel.
+El sistema SHALL mostrar un panel con los empleados activos (`status` `Active`) cuyo `title` es "Supervisor" o "Labor", sin distinguir mayúsculas de minúsculas ni espacios al principio o al final. Cada uno SHALL mostrarse con sus iniciales, su nombre completo (`firstName` y `lastName`) y su `title`. Los empleados inactivos (`status` `Terminated`) y los de cualquier otro cargo SHALL NOT aparecer en el panel. El panel SHALL ordenar primero a los "Supervisor" y después a los "Labor", y dentro de cada cargo por `firstName` y `lastName`. La lista de asignación del teléfono SHALL usar los mismos empleados y el mismo orden.
 
 #### Scenario: Empleado inactivo
 - **WHEN** existen Ana (activo) y Pedro (inactivo)
 - **THEN** el panel muestra a Ana y no muestra a Pedro
+
+#### Scenario: Cargo fuera del panel
+- **WHEN** existen Ana (activo, "Labor") y Marta (activo, "Office")
+- **THEN** el panel muestra a Ana y no muestra a Marta
+
+#### Scenario: Orden por cargo y nombre
+- **WHEN** existen Ana ("Labor"), Bruno ("Supervisor") y Carla ("Labor"), todos activos
+- **THEN** el panel los muestra en el orden Bruno, Ana, Carla
 
 ### Requirement: Asignar un empleado arrastrándolo
 El sistema SHALL asignar un empleado a una programación cuando la persona lo arrastra desde el panel y lo suelta sobre la tarjeta de esa programación. Mientras se arrastra, las tarjetas de la vista SHALL resaltarse como destinos válidos.

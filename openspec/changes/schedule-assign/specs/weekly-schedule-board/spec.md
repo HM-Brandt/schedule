@@ -37,7 +37,11 @@ El sistema SHALL permitir ir a la semana anterior, a la semana siguiente y volve
 - **THEN** el tablero muestra la semana que contiene la fecha actual
 
 ### Requirement: Catálogo de trabajos
-El sistema SHALL mostrar un catálogo con todos los trabajos existentes, cada uno con su `number` y su `name`. El catálogo SHALL permitir filtrar por texto que coincida con el número o el nombre, sin distinguir mayúsculas de minúsculas. Un trabajo SHALL permanecer en el catálogo aunque esté programado.
+El sistema SHALL mostrar un catálogo con todos los trabajos existentes, cada uno con su `number` y su `name`, ordenados por `number` de mayor a menor comparando su parte numérica. El catálogo SHALL permitir filtrar por texto que coincida con el número o el nombre, sin distinguir mayúsculas de minúsculas; el filtro se aplica en el navegador, sin nuevas peticiones al backend. Un trabajo SHALL permanecer en el catálogo aunque esté programado.
+
+#### Scenario: Orden del catálogo
+- **WHEN** existen los trabajos "J-9", "J-10" y "J-1024"
+- **THEN** el catálogo los muestra en el orden "J-1024", "J-10", "J-9"
 
 #### Scenario: Búsqueda por número
 - **WHEN** la persona escribe "1024" en la búsqueda del catálogo

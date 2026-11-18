@@ -1,6 +1,6 @@
 // Tests del encabezado de la aplicación con `msw/node`.
 //
-// El usuario sale de `GET /auth/me` (manejador de `web/src/mocks/handlers.ts`, que devuelve
+// El usuario sale de `GET /auth/me` (manejador de `src/mocks/handlers.ts`, que devuelve
 // "Demo User"); para probar otros nombres o un error se sobrescribe ese manejador.
 import { QueryClientProvider } from '@tanstack/react-query'
 import type { QueryClient } from '@tanstack/react-query'

@@ -7,22 +7,22 @@ Contrato HTTP en JSON entre el tablero semanal y el backend: consulta de emplead
 ## ADDED Requirements
 
 ### Requirement: Rutas relativas a la URL base
-Todas las rutas del contrato (`v1/employee`, `v1/job`, `v1/schedules` y sus subrutas) SHALL ser relativas a la URL base del backend, configurada en `VITE_API_URL`. La URL completa de cada petición SHALL ser la URL base seguida de la ruta, con una sola `/` entre ambas.
+Todas las rutas del contrato (`v1/employee`, `v1/job`, `v2/job-management/schedules` y sus subrutas) SHALL ser relativas a la URL base del backend, configurada en `VITE_API_URL`. La URL completa de cada petición SHALL ser la URL base seguida de la ruta, con una sola `/` entre ambas.
 
 #### Scenario: URL base con prefijo
 - **WHEN** `VITE_API_URL` es `https://api.ejemplo.com/api/` y se pide la programación 101
-- **THEN** la petición va a `https://api.ejemplo.com/api/v1/schedules/101`
+- **THEN** la petición va a `https://api.ejemplo.com/api/v2/job-management/schedules/101`
 
 #### Scenario: URL base vacía
 - **WHEN** `VITE_API_URL` está vacía y se listan los empleados
 - **THEN** la petición va a `/v1/employee` en el mismo origen de la página
 
 ### Requirement: Formato de fechas y horas
-Toda fecha del contrato SHALL viajar como texto `YYYY-MM-DD` y toda hora de inicio como texto `HH:mm` en formato de 24 horas. El backend SHALL NOT aplicar conversiones de zona horaria: la fecha y la hora que se guardan son exactamente las recibidas.
+Toda fecha del contrato SHALL viajar como texto `YYYY-MM-DD` y toda hora de inicio como texto `HH:mm` en formato de 24 horas. En las respuestas, el backend MAY devolver la hora como `HH:mm:ss`; el frontend SHALL descartar los segundos y trabajar siempre con `HH:mm`. El backend SHALL NOT aplicar conversiones de zona horaria: la fecha y la hora que se guardan son exactamente las recibidas.
 
-#### Scenario: Hora devuelta sin segundos
-- **WHEN** una programación se guardó con hora de inicio "08:00"
-- **THEN** el backend la devuelve como "08:00" y no como "08:00:00"
+#### Scenario: Hora devuelta con segundos
+- **WHEN** una programación se guardó con hora de inicio "08:00" y el backend la devuelve como "08:00:00"
+- **THEN** el tablero muestra "08:00"
 
 #### Scenario: Fecha sin desplazamiento
 - **WHEN** se crea una programación con fecha "2026-11-02"
@@ -32,7 +32,7 @@ Toda fecha del contrato SHALL viajar como texto `YYYY-MM-DD` y toda hora de inic
 Ante una petición inválida el backend SHALL responder 422 con un cuerpo `{"error": "<mensaje>"}`, y ante un recurso inexistente SHALL responder 404 con el mismo formato.
 
 #### Scenario: Programación inexistente
-- **WHEN** se envía `PATCH v1/schedules/99999` y no existe esa programación
+- **WHEN** se envía `PATCH v2/job-management/schedules/99999` y no existe esa programación
 - **THEN** la respuesta es 404 con un cuerpo `{"error": "..."}`
 
 ### Requirement: Listar empleados
@@ -46,44 +46,46 @@ Ante una petición inválida el backend SHALL responder 422 con un cuerpo `{"err
 - **WHEN** se envía `GET v1/employee`
 - **THEN** la respuesta es 200 con empleados `Active` y `Terminated`
 
-### Requirement: Listar y buscar trabajos
-`GET v1/job` SHALL devolver una lista de objetos `{jobsId, number, type, name, address, contractor, contact, status, user}` ordenada por `number`. El `status` del trabajo SHALL NOT filtrar la lista: se devuelven todos los trabajos. El parámetro opcional `search` SHALL filtrar los trabajos cuyo `number` o `name` contenga ese texto, sin distinguir mayúsculas de minúsculas.
-
-#### Scenario: Búsqueda por nombre
-- **WHEN** se envía `GET v1/job?search=pintar`
-- **THEN** la respuesta es 200 con los trabajos cuyo número o nombre contiene "pintar", incluido "Pintar oficina"
+### Requirement: Listar trabajos
+`GET v1/job` SHALL devolver, sin parámetros, la lista completa de objetos `{jobsId, number, type, name, address, contractor, contact, status, user}`. El `status` del trabajo SHALL NOT filtrar la lista: se devuelven todos los trabajos. La búsqueda y el orden del catálogo los aplica el frontend.
 
 #### Scenario: Trabajos terminados incluidos
 - **WHEN** existe un trabajo con `status` "Done" y se envía `GET v1/job`
 - **THEN** la respuesta incluye ese trabajo
 
 ### Requirement: Representación de una programación
-Toda respuesta que devuelva una programación SHALL usar la forma `{jobSchedulesId, job, date, startTime, employeesIds, scheduleComment}`, donde `job` es el mismo objeto que devuelve `GET v1/job`, `employeesIds` es la lista de ids de empleados asignados, sin repetidos, y `scheduleComment` es el comentario de la programación o `null` si no tiene.
+Toda respuesta que devuelva una programación SHALL usar la forma `{jobSchedulesId, jobsId, date, startTime, employeesIds, scheduleComment}`, donde `jobsId` es el id del trabajo del catálogo, `employeesIds` es la lista de ids de empleados asignados, sin repetidos, y `scheduleComment` es el comentario de la programación o `null` si no tiene. El frontend SHALL ignorar los campos adicionales que envíe el backend (por ejemplo, `created_at` y `updated_at`).
+
+El frontend SHALL obtener los datos del trabajo cruzando `jobsId` con la lista de `GET v1/job`. Si el `jobsId` no está en esa lista, SHALL mostrar la programación como "Unknown job" con el número `#<jobsId>`.
 
 #### Scenario: Programación con dos empleados
 - **WHEN** se consulta una programación del trabajo 7 el 2026-11-02 a las 08:00 con los empleados 3 y 5 y sin comentario
-- **THEN** su representación es `{"jobSchedulesId": 101, "job": {"jobsId": 7, "number": "J-1024", "type": "Interior", "name": "Pintar oficina", "address": "...", "contractor": "...", "contact": "...", "status": "Open", "user": "..."}, "date": "2026-11-02", "startTime": "08:00", "employeesIds": [3, 5], "scheduleComment": null}`
+- **THEN** su representación es `{"jobSchedulesId": 101, "jobsId": 7, "date": "2026-11-02", "startTime": "08:00", "employeesIds": [3, 5], "scheduleComment": null}`
+
+#### Scenario: Trabajo fuera del catálogo
+- **WHEN** una programación tiene `jobsId` 999 y `GET v1/job` no incluye ese trabajo
+- **THEN** el tablero la muestra como "#999 Unknown job"
 
 ### Requirement: Listar programaciones de un rango de fechas
-`GET v1/schedules?from=YYYY-MM-DD&to=YYYY-MM-DD` SHALL devolver las programaciones con fecha entre `from` y `to`, ambos incluidos, ordenadas por `date`, `startTime` y `jobSchedulesId`. Si falta algún parámetro, no es una fecha válida o `from` es posterior a `to`, SHALL responder 422.
+`GET v2/job-management/schedules?from=YYYY-MM-DD&to=YYYY-MM-DD` SHALL devolver las programaciones con fecha entre `from` y `to`, ambos incluidos, ordenadas por `date`, `startTime` y `jobSchedulesId`. Si falta algún parámetro, no es una fecha válida o `from` es posterior a `to`, SHALL responder 422.
 
 #### Scenario: Semana completa
-- **WHEN** se envía `GET v1/schedules?from=2026-11-01&to=2026-11-07`
+- **WHEN** se envía `GET v2/job-management/schedules?from=2026-11-01&to=2026-11-07`
 - **THEN** la respuesta es 200 con todas las programaciones del 1 al 7 de noviembre de 2026, incluidas las del día 7
 
 #### Scenario: Rango invertido
-- **WHEN** se envía `GET v1/schedules?from=2026-11-07&to=2026-11-01`
+- **WHEN** se envía `GET v2/job-management/schedules?from=2026-11-07&to=2026-11-01`
 - **THEN** la respuesta es 422
 
 ### Requirement: Crear una programación
-`POST v1/schedules` con `{jobsId, date, startTime, employeesIds, scheduleComment}` SHALL crear una programación y responder 201 con su representación. `employeesIds` es opcional y vacío por defecto. `scheduleComment` es opcional y `null` por defecto. SHALL responder 422 si el trabajo no existe, si falta o es inválida la fecha o la hora, o si algún empleado no existe o tiene `status` `Terminated`.
+`POST v2/job-management/schedules` con `{jobsId, date, startTime, employeesIds, scheduleComment}` SHALL crear una programación y responder 201 con su representación. `employeesIds` es opcional y vacío por defecto. `scheduleComment` es opcional y `null` por defecto. SHALL responder 422 si el trabajo no existe, si falta o es inválida la fecha o la hora, o si algún empleado no existe o tiene `status` `Terminated`.
 
 #### Scenario: Creación válida
-- **WHEN** se envía `POST v1/schedules` con `{"jobsId": 7, "date": "2026-11-02", "startTime": "07:00"}`
+- **WHEN** se envía `POST v2/job-management/schedules` con `{"jobsId": 7, "date": "2026-11-02", "startTime": "07:00"}`
 - **THEN** la respuesta es 201 con la nueva programación, `employeesIds` vacío y `scheduleComment` `null`
 
 #### Scenario: Creación con comentario
-- **WHEN** se envía `POST v1/schedules` con `{"jobsId": 7, "date": "2026-11-02", "startTime": "07:00", "scheduleComment": "Llevar escalera"}`
+- **WHEN** se envía `POST v2/job-management/schedules` con `{"jobsId": 7, "date": "2026-11-02", "startTime": "07:00", "scheduleComment": "Llevar escalera"}`
 - **THEN** la respuesta es 201 con `scheduleComment` "Llevar escalera"
 
 #### Scenario: Mismo trabajo y día repetidos
@@ -91,33 +93,33 @@ Toda respuesta que devuelva una programación SHALL usar la forma `{jobSchedules
 - **THEN** la respuesta es 201 y ese día quedan dos programaciones del trabajo 7
 
 #### Scenario: Empleado inactivo
-- **WHEN** se envía `POST v1/schedules` con un empleado cuyo `status` es `Terminated` en `employeesIds`
+- **WHEN** se envía `POST v2/job-management/schedules` con un empleado cuyo `status` es `Terminated` en `employeesIds`
 - **THEN** la respuesta es 422 y no se crea la programación
 
 ### Requirement: Actualizar fecha, hora o comentario de una programación
-`PATCH v1/schedules/{id}` SHALL aceptar cualquier combinación de `date`, `startTime` y `scheduleComment`, actualizar solo los campos enviados y responder 200 con la representación actualizada. SHALL conservar los empleados asignados. Un `scheduleComment` `null`, vacío o compuesto solo por espacios SHALL guardarse como `null`. SHALL responder 404 si no existe y 422 si algún valor es inválido.
+`PATCH v2/job-management/schedules/{id}` SHALL aceptar cualquier combinación de `date`, `startTime` y `scheduleComment`, actualizar solo los campos enviados y responder 200 con la representación actualizada. SHALL conservar los empleados asignados. Un `scheduleComment` `null`, vacío o compuesto solo por espacios SHALL guardarse como `null`. SHALL responder 404 si no existe y 422 si algún valor es inválido.
 
 #### Scenario: Mover a otro día
-- **WHEN** se envía `PATCH v1/schedules/101` con `{"date": "2026-11-04"}`
+- **WHEN** se envía `PATCH v2/job-management/schedules/101` con `{"date": "2026-11-04"}`
 - **THEN** la respuesta es 200 con `date` "2026-11-04", la misma `startTime`, los mismos `employeesIds` y el mismo `scheduleComment`
 
 #### Scenario: Cambiar el comentario
-- **WHEN** se envía `PATCH v1/schedules/101` con `{"scheduleComment": "Entrar por la puerta trasera"}`
+- **WHEN** se envía `PATCH v2/job-management/schedules/101` con `{"scheduleComment": "Entrar por la puerta trasera"}`
 - **THEN** la respuesta es 200 con ese `scheduleComment` y la misma `date` y `startTime`
 
 #### Scenario: Borrar el comentario
-- **WHEN** la programación 101 tiene comentario y se envía `PATCH v1/schedules/101` con `{"scheduleComment": "  "}`
+- **WHEN** la programación 101 tiene comentario y se envía `PATCH v2/job-management/schedules/101` con `{"scheduleComment": "  "}`
 - **THEN** la respuesta es 200 con `scheduleComment` `null`
 
 ### Requirement: Eliminar una programación
-`DELETE v1/schedules/{id}` SHALL eliminar la programación y todas sus asignaciones de empleados y responder 204 sin cuerpo. El trabajo del catálogo SHALL NOT verse afectado. SHALL responder 404 si no existe.
+`DELETE v2/job-management/schedules/{id}` SHALL eliminar la programación y todas sus asignaciones de empleados y responder 204 sin cuerpo. El trabajo del catálogo SHALL NOT verse afectado. SHALL responder 404 si no existe.
 
 #### Scenario: Eliminación
-- **WHEN** se envía `DELETE v1/schedules/101`
-- **THEN** la respuesta es 204 y la programación 101 ya no aparece en `GET v1/schedules`
+- **WHEN** se envía `DELETE v2/job-management/schedules/101`
+- **THEN** la respuesta es 204 y la programación 101 ya no aparece en `GET v2/job-management/schedules`
 
 ### Requirement: Reemplazar los empleados de una programación
-`PUT v1/schedules/{id}/employees` con `{employeesIds}` SHALL reemplazar el conjunto completo de empleados asignados, ignorando ids repetidos, y responder 200 con la representación actualizada. SHALL responder 422 si algún id no existe o si incluye un empleado con `status` `Terminated` que no estaba ya asignado.
+`PUT v2/job-management/schedules/{id}/employees` con `{employeesIds}` SHALL reemplazar el conjunto completo de empleados asignados, ignorando ids repetidos, y responder 200 con la representación actualizada. SHALL responder 422 si algún id no existe o si incluye un empleado con `status` `Terminated` que no estaba ya asignado.
 
 #### Scenario: Reemplazo
 - **WHEN** la programación 101 tiene los empleados 3 y 5 y se envía `{"employeesIds": [5, 8]}`

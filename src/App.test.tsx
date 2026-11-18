@@ -3,7 +3,7 @@
 // La fecha del sistema se fija en el martes 2026-11-03 a las 10:00 hora local. Solo se
 // simula `Date`: los temporizadores siguen siendo reales para no interferir con React.
 //
-// La semilla de `web/src/mocks/seed.ts` para esa fecha programa en la semana del 1 al 7:
+// La semilla de `src/mocks/seed.ts` para esa fecha programa en la semana del 1 al 7:
 // - lunes 2: "J-1024 Pintar oficina" a las 07:00 (Ana López y Luis Martínez) y a las 08:00 (Ana);
 // - martes 3: "J-1019 Cambiar ventanas" a las 07:00 (Carlos Ruiz);
 // - jueves 5: "J-1029 Instalar lámparas" a las 09:30, sin empleados.

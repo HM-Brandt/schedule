@@ -1,6 +1,6 @@
 // Tests de las consultas de TanStack Query (tarea 4.1 de `schedule-assign`) con `msw/node`.
 //
-// Los manejadores de `web/src/mocks/handlers.ts` usan rutas relativas y la API de la
+// Los manejadores de `src/mocks/handlers.ts` usan rutas relativas y la API de la
 // aplicación (`api`) va al mismo origen porque `VITE_API_URL` está vacía en los tests,
 // así que no hay CORS de por medio.
 //

@@ -2,10 +2,10 @@
 
 ## 1. Base del proyecto
 
-- [x] 1.1 Crear la app React + Vite + TypeScript en `web/` y verificar que `npm run dev` muestra la página inicial y `npm run build` termina sin errores
+- [x] 1.1 Crear la app React + Vite + TypeScript en la raíz del repositorio y verificar que `npm run dev` muestra la página inicial y `npm run build` termina sin errores
 - [x] 1.2 Añadir `@dnd-kit/react` (versión fijada), `@tanstack/react-query`, `date-fns` y `msw`, y verificar que `npm install` y `npm run build` terminan sin errores
 - [x] 1.3 Configurar Vitest + Testing Library + jsdom con un test de humo y verificar que `npm test` pasa
-- [x] 1.4 Definir `VITE_USE_MOCKS` y `VITE_API_URL` en `web/.env.example` y en un módulo de configuración tipado, y verificar con un test que la configuración lee ambos valores
+- [x] 1.4 Definir `VITE_USE_MOCKS` y `VITE_API_URL` en `.env.example` y en un módulo de configuración tipado, y verificar con un test que la configuración lee ambos valores
 - [x] 1.5 Crear la base de estilos (variables CSS: paleta neutra, acento, espaciado, radios, tipografía) y verificar que la página inicial las usa
 - [x] 1.6 Pasar a inglés los textos de interfaz ya implementados (título de la página, mensajes por defecto de `ApiError` y mensaje de error al guardar) y verificar con tests los nuevos textos
 
@@ -18,7 +18,7 @@
 
 ## 3. Datos de prueba (MSW)
 
-- [x] 3.1 Crear los datos semilla en `web/src/mocks/` (10 empleados con 2 inactivos, unos 30 trabajos, programaciones en la semana actual incluido un trabajo repetido el mismo día y un empleado con dos trabajos el mismo día) y verificar con un test que la semilla cumple esas condiciones
+- [x] 3.1 Crear los datos semilla en `src/mocks/` (10 empleados con 2 inactivos, unos 30 trabajos, programaciones en la semana actual incluido un trabajo repetido el mismo día y un empleado con dos trabajos el mismo día) y verificar con un test que la semilla cumple esas condiciones
 - [x] 3.2 Implementar los manejadores de `GET /api/employees` y `GET /api/jobs` (filtro `status`, `search` sin distinguir mayúsculas, orden) y verificar con tests en `msw/node` los escenarios de esos requisitos
 - [x] 3.3 Implementar los manejadores de `/api/schedules` (GET por rango, POST, PATCH, DELETE, PUT de empleados) con las validaciones 404/422 del contrato y verificar con tests en `msw/node` cada escenario de `specs/schedule-api/spec.md`
 - [x] 3.4 Arrancar el service worker solo cuando `VITE_USE_MOCKS=true`, con latencia configurable, y verificar en el navegador que la pestaña de red muestra las llamadas interceptadas

@@ -30,7 +30,7 @@ Hoy la planificación semanal de trabajos y de qué empleados van a cada uno no 
 
 ## Impact
 
-- **Código nuevo**: aplicación React + Vite + TypeScript en `web/` dentro de este repositorio.
+- **Código nuevo**: aplicación React + Vite + TypeScript en la raíz de este repositorio.
 - **Dependencias nuevas**: `@dnd-kit/react` (arrastrar y soltar con soporte táctil), `@tanstack/react-query` (datos del servidor y actualizaciones optimistas), `date-fns` (cálculo de semanas y formato de fechas), `msw` (datos de prueba que interceptan las llamadas HTTP).
 - **Base de datos**: dos tablas nuevas con claves foráneas hacia `jobs.jobs_id` y `employees.employees_id`; sin cambios en tablas existentes.
 - **Backend**: fuera de alcance de este cambio; lo implementa el usuario siguiendo el contrato `schedule-api`.

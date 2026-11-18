@@ -1,6 +1,6 @@
 # Contrato HTTP del tablero de programación
 
-Este documento describe la API que el frontend del tablero semanal (`web/`) espera del backend. Sirve para quien implemente el backend: el frontend ya está construido contra este contrato y, en desarrollo, contra unos datos de prueba que lo reproducen.
+Este documento describe la API que el frontend del tablero semanal (la aplicación de la raíz de este repositorio) espera del backend. Sirve para quien implemente el backend: el frontend ya está construido contra este contrato y, en desarrollo, contra unos datos de prueba que lo reproducen.
 
 La API intercambia JSON y tiene siete endpoints: dos de consulta (empleados y catálogo de trabajos) y cinco para gestionar las programaciones de trabajos y sus empleados asignados. Se apoya en MySQL con dos tablas nuevas, sin modificar las existentes `jobs` y `employees` (ver [`schema.sql`](./schema.sql)).
 
@@ -455,7 +455,7 @@ Content-Type: application/json
 
 ## Conexión con el frontend
 
-El frontend arranca con datos de prueba (`VITE_USE_MOCKS=true`). Para usar el backend real, en `web/.env`:
+El frontend arranca con datos de prueba (`VITE_USE_MOCKS=true`). Para usar el backend real, en el `.env` de la raíz del repositorio (o en `.env.local`):
 
 ```dotenv
 VITE_USE_MOCKS=false
@@ -473,7 +473,7 @@ Si el backend está en un origen distinto al del frontend (otro dominio o puerto
 
 ### Proxy de Vite en desarrollo
 
-En desarrollo se puede evitar CORS con el proxy del servidor de Vite: se deja `VITE_API_URL` vacía y se añade en `web/vite.config.ts` una regla que reenvíe `/api` al backend, sin reescribir la ruta:
+En desarrollo se puede evitar CORS con el proxy del servidor de Vite: se deja `VITE_API_URL` vacía y se añade en `vite.config.ts` una regla que reenvíe `/api` al backend, sin reescribir la ruta:
 
 ```ts
 export default defineConfig({

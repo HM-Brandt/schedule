@@ -2,7 +2,7 @@
 
 ## Context
 
-- El repositorio solo contiene la configuración de OpenSpec; no hay código previo. El frontend se crea desde cero en `web/`.
+- El repositorio solo contiene la configuración de OpenSpec; no hay código previo. El frontend se crea desde cero en la raíz del repositorio.
 - La base de datos MySQL ya tiene `jobs` (clave primaria `jobs_id INT`) y `employees` (clave primaria `employees_id INT`). El `status` de un empleado es `Active` o `Terminated`. `jobs` no tiene fecha ni hora, así que la programación necesita tablas propias.
 - Los nombres de los campos JSON del contrato siguen la convención del backend: camelCase, con los ids como `<entidad>Id` (`employeesId`, `jobsId`, `jobSchedulesId`).
 - El backend lo implementa el usuario por separado. Este cambio entrega el frontend, el esquema SQL y el contrato HTTP (ver `specs/schedule-api/spec.md`).
@@ -71,16 +71,17 @@ Los siete endpoints de `specs/schedule-api/spec.md`. Las rutas son relativas a `
 
 | Método | Ruta | Uso |
 |---|---|---|
-| GET | `v1/employee[?status=Active]` | Panel de empleados (activos) y nombres de los ya asignados (todos) |
-| GET | `v1/job[?search=]` | Catálogo |
-| GET | `v1/schedules?from&to` | Semana visible |
-| POST | `v1/schedules` | Programar o duplicar |
-| PATCH | `v1/schedules/{id}` | Mover de día, cambiar hora o cambiar comentario |
-| DELETE | `v1/schedules/{id}` | Quitar |
-| PUT | `v1/schedules/{id}/employees` | Reemplazar empleados |
+| GET | `v1/employee[?status=Active]` | Panel de empleados (activos con cargo Supervisor o Labor) y nombres de los ya asignados (todos) |
+| GET | `v1/job` | Catálogo (búsqueda y orden en el cliente) |
+| GET | `v2/job-management/schedules?from&to` | Semana visible |
+| POST | `v2/job-management/schedules` | Programar o duplicar |
+| PATCH | `v2/job-management/schedules/{id}` | Mover de día, cambiar hora o cambiar comentario |
+| DELETE | `v2/job-management/schedules/{id}` | Quitar |
+| PUT | `v2/job-management/schedules/{id}/employees` | Reemplazar empleados |
 
-- **El frontend pide `GET v1/employee` sin filtro y filtra en el cliente.** Así puede mostrar el nombre de un empleado inactivo que sigue asignado.
-- **`GET v1/schedules` incluye el objeto `job`** dentro de cada programación, para pintar la semana con una sola llamada y sin cruzar datos en el cliente. Es el mismo objeto que devuelve `GET v1/job`, para que el backend reutilice el DTO.
+- **El frontend pide `GET v1/employee` sin filtro y filtra en el cliente.** Así puede mostrar el nombre de un empleado inactivo que sigue asignado. El panel y la lista de asignación del teléfono muestran solo a los activos con cargo Supervisor o Labor.
+- **Las programaciones traen solo `jobsId`, no el objeto `job`.** El cliente ya carga el catálogo completo con `GET v1/job`, así que cruza cada programación con su trabajo por `jobsId`, y el backend no tiene que unir tablas ni repetir los datos del trabajo en cada programación. Si un `jobsId` no está en el catálogo, la programación se muestra como "Unknown job" con el número `#<jobsId>`.
+- **El catálogo se busca y ordena en el cliente.** `GET v1/job` devuelve todos los trabajos sin parámetros; el filtro por número o nombre y el orden por número (de mayor a menor) se aplican en el navegador, sin peticiones nuevas al escribir.
 - **El comentario se edita con el mismo `PATCH`** que la fecha y la hora, en lugar de un endpoint propio. El backend sigue con siete endpoints.
 - **Empleados: `PUT` del conjunto completo** en lugar de `POST`/`DELETE` por empleado. Un solo endpoint idempotente sirve para el arrastre (añadir o quitar uno), para la lista de casillas del teléfono y para deshacer (restaurar el conjunto anterior). Mover un empleado entre dos programaciones son dos `PUT`. Con un único usuario no hay riesgo de que se pisen.
 - **Alternativa descartada:** GraphQL o un endpoint de "guardar semana". Son más complejos para el backend y peores para las actualizaciones optimistas.
@@ -100,7 +101,7 @@ si no              -> min(23, hora_entera(max(horas)) + 1):00
 
 ### 4. Stack del frontend
 
-- **React + Vite + TypeScript** en `web/`. El resultado es un build estático que se puede servir desde cualquier hosting.
+- **React + Vite + TypeScript** en la raíz del repositorio. El resultado es un build estático que se puede servir desde cualquier hosting.
 - **TanStack Query** para los datos del servidor. Ofrece caché por semana (`['schedules', from, to]`), actualizaciones optimistas con reversión en `onError` e invalidación tras cada cambio. Cubre directamente el requisito de "respuesta inmediata y error al guardar".
 - **date-fns** para el cálculo de semanas (`startOfWeek` con `weekStartsOn: 0`). Los nombres de días y meses en inglés salen de listas fijas. Todas las fechas se manejan como cadenas `YYYY-MM-DD` locales, nunca como `Date` en UTC.
 - **Idioma:** los textos de la interfaz están en inglés, las fechas en formato estadounidense (`Nov 1 - 7, 2026`) y las horas en 24 h. Los mensajes `{"error"}` del servidor se muestran tal como llegan.
@@ -141,9 +142,9 @@ Cada acción guarda en una pila en memoria su operación inversa (como máximo 2
 
 ### 7. Datos de prueba con MSW
 
-- `web/src/mocks/` contiene una base en memoria con datos semilla: 10 empleados (2 con `status` `Terminated`), unos 30 trabajos con la forma completa del contrato y una semana actual ya armada, con al menos una programación con comentario. También contiene manejadores MSW para los siete endpoints, con las mismas validaciones y códigos de estado que el contrato (422/404, formato `HH:mm`, inactivos), para que el frontend se pruebe contra el comportamiento real esperado.
+- `src/mocks/` contiene una base en memoria con datos semilla: 10 empleados (2 con `status` `Terminated`), unos 30 trabajos con la forma completa del contrato y una semana actual ya armada, con al menos una programación con comentario. También contiene manejadores MSW para los siete endpoints, con las mismas validaciones y códigos de estado que el contrato (422/404, formato `HH:mm`, inactivos), para que el frontend se pruebe contra el comportamiento real esperado.
 - Con `VITE_USE_MOCKS=true` se arranca el service worker antes de montar la app. Con `false`, las llamadas van a `VITE_API_URL`.
-- Los manejadores usan un comodín de origen y prefijo (`*/v1/employee`, `*/v1/schedules/:id`…), para interceptar las peticiones sea cual sea `VITE_API_URL`: vacía, `localhost` o el backend desplegado. Así los tests e2e y el desarrollo con datos de prueba funcionan aunque `.env.local` apunte al backend real.
+- Los manejadores usan un comodín de origen y prefijo (`*/v1/employee`, `*/v2/job-management/schedules/:id`…), para interceptar las peticiones sea cual sea `VITE_API_URL`: vacía, `localhost` o el backend desplegado. Así los tests e2e y el desarrollo con datos de prueba funcionan aunque `.env.local` apunte al backend real.
 - Los mocks añaden una latencia corta y configurable, para que se noten los estados de carga y las actualizaciones optimistas.
 - **Alternativa descartada:** json-server o un mock aparte. Exige otro proceso y no reproduce las validaciones del contrato.
 
@@ -163,7 +164,7 @@ Los componentes de tarjeta, catálogo y empleado se comparten. Solo cambia el co
 ## Risks / Trade-offs
 
 - **[El backend convierte fechas a UTC y los trabajos cambian de día]** → El contrato exige cadenas `YYYY-MM-DD`/`HH:mm` sin conversión, y los mocks validan el formato. Conviene probar la integración con una programación de domingo y otra de sábado.
-- **[Catálogo muy grande, más de unos miles de trabajos]** → La búsqueda se hace en el servidor con `search`, pero sin paginación `GET v1/job` devuelve todo. Si crece, añadir `limit` es compatible con el contrato actual.
+- **[Catálogo muy grande, más de unos miles de trabajos]** → `GET v1/job` devuelve todo sin paginación y la búsqueda se hace en el navegador. Si el catálogo crece mucho, habrá que volver a buscar en el servidor (`search`) y paginar (`limit`).
 - **[API de @dnd-kit/react en 0.x]** → Versión fijada. El arrastre queda aislado en un módulo propio para poder cambiar a `@dnd-kit/core` si hace falta.
 - **[La misma persona abre dos pestañas]** → Gana la última escritura. Se acepta, porque solo hay una persona planificando. Al volver a enfocar la pestaña, TanStack Query vuelve a pedir los datos.
 - **[Soltar con precisión en la tira de días del teléfono]** → Destinos grandes, resaltados durante el arrastre. El detalle ofrece además "Move to…" como alternativa sin arrastre.
