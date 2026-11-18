@@ -17,7 +17,7 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from
 import { createHandlers } from '../mocks/handlers'
 import { createSeed } from '../mocks/seed'
 import { useAuthStore } from '../stores/authStore'
-import { queryKeys, useEmployees, useJobs, useMe, useWeekSchedules } from './queries'
+import { queryKeys, useEmployees, useHoursSummary, useJobs, useMe, useWeekSchedules } from './queries'
 import { createQueryClient } from './queryClient'
 import type { Schedule } from './types'
 
@@ -87,6 +87,52 @@ describe('queryKeys', () => {
 
   it('la clave del usuario actual es ["me"]', () => {
     expect(queryKeys.me).toEqual(['me'])
+  })
+
+  it('la clave del resumen de horas es ["hoursSummary", from, to]', () => {
+    expect(queryKeys.hoursSummary('2026-11-01', '2026-11-07')).toEqual(['hoursSummary', '2026-11-01', '2026-11-07'])
+  })
+})
+
+describe('useHoursSummary', () => {
+  it('pide GET /v1/drEmployee/hours-summary con startDate y endDate y devuelve un Map id a horas', async () => {
+    const urls = capturarPeticiones('/v1/drEmployee/hours-summary')
+
+    const { result } = renderHook(() => useHoursSummary('2026-11-01', '2026-11-07'), { wrapper: envoltorio })
+
+    await waitFor(() => expect(result.current.isSuccess).toBe(true))
+    expect(urls).toHaveLength(1)
+    expect(parametros(urls[0])).toEqual({ startDate: '2026-11-01', endDate: '2026-11-07' })
+    expect(result.current.data).toBeInstanceOf(Map)
+    expect(Array.from(result.current.data?.entries() ?? [])).toEqual([
+      [1, 32.5],
+      [2, 40],
+      [3, 12],
+    ])
+  })
+
+  it('guarda las filas sin transformar en la caché con la clave de la semana', async () => {
+    const { result } = renderHook(() => useHoursSummary('2026-11-01', '2026-11-07'), { wrapper: envoltorio })
+    await waitFor(() => expect(result.current.isSuccess).toBe(true))
+
+    expect(client.getQueryData(['hoursSummary', '2026-11-01', '2026-11-07'])).toHaveLength(3)
+  })
+
+  it('un empleado ausente de la respuesta no está en el Map', async () => {
+    const { result } = renderHook(() => useHoursSummary('2026-11-01', '2026-11-07'), { wrapper: envoltorio })
+
+    await waitFor(() => expect(result.current.isSuccess).toBe(true))
+    expect(result.current.data?.has(4)).toBe(false)
+  })
+
+  it('si la petición falla no hay datos', async () => {
+    client.setDefaultOptions({ queries: { retry: false } })
+    server.use(http.get('*/v1/drEmployee/hours-summary', () => HttpResponse.json({ error: 'Fallo' }, { status: 500 })))
+
+    const { result } = renderHook(() => useHoursSummary('2026-11-01', '2026-11-07'), { wrapper: envoltorio })
+
+    await waitFor(() => expect(result.current.isError).toBe(true))
+    expect(result.current.data).toBeUndefined()
   })
 })
 

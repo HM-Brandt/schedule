@@ -10,6 +10,7 @@ export const queryKeys = {
   employees: ['employees'] as const,
   jobs: ['jobs'] as const,
   schedules: (from: IsoDate, to: IsoDate) => ['schedules', from, to] as const,
+  hoursSummary: (from: IsoDate, to: IsoDate) => ['hoursSummary', from, to] as const,
 }
 
 export function useMe() {
@@ -43,5 +44,13 @@ export function useWeekSchedules(from: IsoDate, to: IsoDate) {
       const jobsById = new Map(jobs.map((job) => [job.jobsId, job]))
       return responses.map((r) => toSchedule(r, jobsById.get(r.jobsId) ?? unknownJob(r.jobsId)))
     },
+  })
+}
+
+export function useHoursSummary(from: IsoDate, to: IsoDate) {
+  return useQuery({
+    queryKey: queryKeys.hoursSummary(from, to),
+    queryFn: () => api.getHoursSummary({ startDate: from, endDate: to }),
+    select: (rows) => new Map(rows.map((row) => [row.employeesId, row.totalHrs])),
   })
 }

@@ -8,7 +8,9 @@ import type { AuthUser } from '../types'
 import type {
   CreateScheduleBody,
   Employee,
+  EmployeeHours,
   EmployeesQuery,
+  HoursSummaryQuery,
   Job,
   ReplaceEmployeesBody,
   ScheduleResponse,
@@ -157,6 +159,14 @@ export function createApiClient(baseURL: string) {
         params: { from: params.from, to: params.to },
       })
       return response.data.map(normalizeSchedule)
+    },
+
+    /** `GET v1/drEmployee/hours-summary?startDate&endDate`. Total de horas trabajadas por empleado en el rango. */
+    async getHoursSummary(params: HoursSummaryQuery): Promise<EmployeeHours[]> {
+      const response = await http.get<EmployeeHours[]>('v1/drEmployee/hours-summary', {
+        params: { startDate: params.startDate, endDate: params.endDate },
+      })
+      return response.data
     },
 
     /** `POST /api/schedules`. Crea una programación y la devuelve. */

@@ -43,7 +43,7 @@ async function comprobarTarjetas(contenedor: Locator) {
         derecha: exterior.derecha - parseFloat(estilo.borderRightWidth) - parseFloat(estilo.paddingRight),
       }
       const iniciales = tarjeta.querySelector('[data-hue]')
-      const cargo = [...tarjeta.children].find((hijo) => /^(Supervisor|Labor)$/.test(hijo.textContent ?? ''))
+      const cargo = [...tarjeta.children].find((hijo) => /^(Supervisor|Labor)( · .+ h)?$/.test(hijo.textContent ?? ''))
       const semana = tarjeta.querySelector('[role="img"]')
       return {
         nombre: tarjeta.textContent,

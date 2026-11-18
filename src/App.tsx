@@ -1,7 +1,7 @@
 import { BriefcaseBusiness, Users } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import styles from './App.module.css'
-import { useEmployees, useWeekSchedules } from './api/queries'
+import { useEmployees, useHoursSummary, useWeekSchedules } from './api/queries'
 import type { Schedule } from './api/types'
 import { DayColumn } from './board/DayColumn'
 import { DayStrip } from './board/DayStrip'
@@ -33,6 +33,7 @@ function App() {
   const layout = useLayout()
   const schedules = useWeekSchedules(week.from, week.to)
   const employees = useEmployees()
+  const hours = useHoursSummary(week.from, week.to)
   const [selectedScheduleId, setSelectedScheduleId] = useState<number | null>(null)
 
   const employeesById = useMemo(
@@ -99,6 +100,7 @@ function App() {
       schedules={schedules.data ?? []}
       days={week.days}
       today={week.today}
+      hours={hours.data}
     />
   )
 

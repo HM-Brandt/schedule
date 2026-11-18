@@ -128,6 +128,7 @@ function Tablero() {
         schedules={schedules.data ?? []}
         days={DIAS}
         today={MARTES}
+        hours={undefined}
       />
     </ScheduleDndProvider>
   )

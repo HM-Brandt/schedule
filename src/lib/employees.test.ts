@@ -4,12 +4,30 @@
 // muestran las iniciales y el nombre completo al pasar el puntero.
 import { describe, expect, it } from 'vitest'
 import type { Employee } from '../api/types'
-import { fullName, initials } from './employees'
+import { formatHours, fullName, initials } from './employees'
 import { empleado as crearEmpleado } from '../test/fabricas'
 
 function empleado(firstName: string, lastName: string): Employee {
   return crearEmpleado(1, firstName, lastName, 'Pintora')
 }
+
+describe('formatHours', () => {
+  it('conserva un decimal: 32.5 da "32.5 h"', () => {
+    expect(formatHours(32.5)).toBe('32.5 h')
+  })
+
+  it('quita el ".0" de los enteros: 40 da "40 h"', () => {
+    expect(formatHours(40)).toBe('40 h')
+  })
+
+  it('0 da "0 h"', () => {
+    expect(formatHours(0)).toBe('0 h')
+  })
+
+  it('redondea a un decimal: 7.25 da "7.3 h"', () => {
+    expect(formatHours(7.25)).toBe('7.3 h')
+  })
+})
 
 describe('initials', () => {
   it('toma la primera letra del nombre y del apellido: "Ana López" da "AL"', () => {

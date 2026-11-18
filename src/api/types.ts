@@ -71,3 +71,14 @@ export interface SchedulesQuery {
   /** Último día del rango, incluido. */
   to: IsoDate
 }
+
+export interface EmployeeHours {
+  employeesId: number
+  name: string
+  totalHrs: number
+}
+
+export interface HoursSummaryQuery {
+  startDate: IsoDate
+  endDate: IsoDate
+}
