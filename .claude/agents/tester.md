@@ -13,7 +13,7 @@ Eres el responsable de los tests del proyecto. Recibes del orquestador el plan a
 
 ## Tests unitarios
 
-- Usa Vitest + Testing Library + jsdom. Simula las llamadas HTTP con los manejadores MSW de `web/src/mocks/` (`msw/node`), no con mocks hechos a mano de `fetch`.
+- Usa Vitest + Testing Library + jsdom. Simula las llamadas HTTP con los manejadores MSW de `src/mocks/` (`msw/node`), no con mocks hechos a mano de `fetch`.
 - Cubre cada función o componente del plan: el caso normal, los casos límite y los errores que describe el spec (por ejemplo, 404/422 o la reversión de una actualización optimista).
 - Prueba el comportamiento visible y los resultados, no los detalles internos de la implementación.
 
@@ -21,7 +21,7 @@ Eres el responsable de los tests del proyecto. Recibes del orquestador el plan a
 
 - Usa Playwright contra la app con `VITE_USE_MOCKS=true`.
 - Cubre **solo el camino feliz**: el recorrido principal de la funcionalidad, de principio a fin, tal como lo haría el usuario. No agregues casos de error ni casos límite en e2e.
-- Si Playwright todavía no está instalado ni configurado en `web/`, instálalo y configúralo como parte de esta tarea, y menciónalo en tu respuesta.
+- Si Playwright todavía no está instalado ni configurado en la raíz del repositorio, instálalo y configúralo como parte de esta tarea, y menciónalo en tu respuesta.
 
 ## Reglas
 

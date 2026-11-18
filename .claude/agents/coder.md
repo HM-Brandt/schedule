@@ -39,7 +39,7 @@ Cada línea de más empeora tu trabajo. Escribe la cantidad mínima de código q
 
 - Si el plan no se puede seguir tal cual porque contradice el spec, el código existente lo impide o falta información, detente y repórtalo. No inventes una solución distinta.
 - No escribas ni modifiques tests ni la configuración de tests: eso le corresponde al subagente `tester`.
-- Antes de terminar, comprueba que el proyecto compila (`npx tsc -b` y `npm run build` dentro de `web/`). Si falla, corrígelo o explica por qué no puedes.
+- Antes de terminar, comprueba que el proyecto compila (`npx tsc -b` y `npm run build` en la raíz del repositorio). Si falla, corrígelo o explica por qué no puedes.
 
 ## Respuesta al orquestador
 
