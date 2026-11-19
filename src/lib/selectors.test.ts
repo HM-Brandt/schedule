@@ -5,9 +5,9 @@
 // `specs/employee-assignment/spec.md`.
 import { describe, expect, it } from 'vitest'
 import { trabajo } from '../test/fabricas'
-import type { Job, Schedule } from '../api/types'
+import type { Absence, Job, Schedule } from '../api/types'
 import { getWeekDays } from './dates'
-import { compareSchedules, employeeDayCounts, jobWeekCounts, schedulesByDay } from './selectors'
+import { absenceLookup, compareSchedules, employeeDayCounts, jobWeekCounts, schedulesByDay } from './selectors'
 
 const PINTAR_OFICINA: Job = trabajo(7, 'J-1024', 'Pintar oficina')
 const JARDIN_PEREZ: Job = trabajo(14, 'J-1031', 'Jardín Pérez')
@@ -133,6 +133,43 @@ describe('jobWeekCounts', () => {
 
   it('sin programaciones devuelve un mapa vacío', () => {
     expect(jobWeekCounts([]).size).toBe(0)
+  })
+})
+
+describe('absenceLookup', () => {
+  const ausencia = (id: number, employeesId: number, date: string): Absence => ({
+    employeeAbsencesId: id,
+    employeesId,
+    date,
+    absenceType: 'Vacation',
+    absenceComment: null,
+  })
+
+  it('devuelve la ausencia del empleado en su fecha', () => {
+    const vacaciones = ausencia(1, ANA, LUNES)
+
+    const busqueda = absenceLookup([vacaciones])
+
+    expect(busqueda.get(ANA)?.get(LUNES)).toBe(vacaciones)
+  })
+
+  it('devuelve undefined en otra fecha y para otro empleado', () => {
+    const busqueda = absenceLookup([ausencia(1, ANA, LUNES)])
+
+    expect(busqueda.get(ANA)?.get(MARTES)).toBeUndefined()
+    expect(busqueda.get(LUIS)?.get(LUNES)).toBeUndefined()
+  })
+
+  it('agrupa varias fechas de un mismo empleado', () => {
+    const busqueda = absenceLookup([ausencia(1, ANA, LUNES), ausencia(2, ANA, MIERCOLES), ausencia(3, LUIS, LUNES)])
+
+    expect(busqueda.get(ANA)?.get(LUNES)?.employeeAbsencesId).toBe(1)
+    expect(busqueda.get(ANA)?.get(MIERCOLES)?.employeeAbsencesId).toBe(2)
+    expect(busqueda.get(LUIS)?.get(LUNES)?.employeeAbsencesId).toBe(3)
+  })
+
+  it('sin ausencias devuelve un mapa vacío', () => {
+    expect(absenceLookup([]).size).toBe(0)
   })
 })
 

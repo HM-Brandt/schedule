@@ -1,4 +1,4 @@
-import type { IsoDate, Schedule } from '../api/types'
+import type { Absence, IsoDate, Schedule } from '../api/types'
 
 export function compareSchedules(a: Schedule, b: Schedule): number {
   if (a.startTime !== b.startTime) return a.startTime < b.startTime ? -1 : 1
@@ -28,4 +28,14 @@ export function employeeDayCounts(schedules: Schedule[]) {
     }
   }
   return counts
+}
+
+export function absenceLookup(absences: Absence[]) {
+  const lookup = new Map<number, Map<IsoDate, Absence>>()
+  for (const absence of absences) {
+    const days = lookup.get(absence.employeesId) ?? new Map<IsoDate, Absence>()
+    days.set(absence.date, absence)
+    lookup.set(absence.employeesId, days)
+  }
+  return lookup
 }

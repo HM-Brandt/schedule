@@ -15,9 +15,9 @@
 
 ## 3. Datos del servidor y reglas
 
-- [ ] 3.1 Añadir la consulta `['absences', from, to]` y verificar con tests que cambiar de semana pide el nuevo rango
-- [ ] 3.2 Generalizar el optimismo y la reversión a varias claves, e implementar `useCreateAbsence` (ausencia temporal más retirada del empleado de las programaciones del día) y `useDeleteAbsence`; verificar con tests que ante un error simulado las dos cachés vuelven al estado anterior y se emite el mensaje de error
-- [ ] 3.3 Implementar el selector `absenceLookup` y verificar con tests que devuelve la ausencia de un empleado en una fecha y nada en otra
+- [x] 3.1 Añadir la consulta `['absences', from, to]` y verificar con tests que cambiar de semana pide el nuevo rango
+- [x] 3.2 Generalizar el optimismo y la reversión a varias claves, e implementar `useCreateAbsence` (ausencia temporal más retirada del empleado de las programaciones del día) y `useDeleteAbsence`; verificar con tests que ante un error simulado las dos cachés vuelven al estado anterior y se emite el mensaje de error
+- [x] 3.3 Implementar el selector `absenceLookup` y verificar con tests que devuelve la ausencia de un empleado en una fecha y nada en otra
 
 ## 4. Arrastre y diálogo
 

@@ -17,10 +17,17 @@ import type { ReactNode } from 'react'
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createHandlers } from '../mocks/handlers'
 import { createSeed } from '../mocks/seed'
-import { useCreateSchedule, useDeleteSchedule, useReplaceEmployees, useUpdateSchedule } from './mutations'
+import {
+  useCreateAbsence,
+  useCreateSchedule,
+  useDeleteAbsence,
+  useDeleteSchedule,
+  useReplaceEmployees,
+  useUpdateSchedule,
+} from './mutations'
 import { queryKeys, useWeekSchedules } from './queries'
 import { createQueryClient } from './queryClient'
-import type { Schedule } from './types'
+import type { Absence, Schedule } from './types'
 import { programacionesConTrabajo } from '../test/semilla'
 
 /** Martes 2026-11-03: la semilla arma la semana del 2026-11-01 al 2026-11-07. */
@@ -447,6 +454,154 @@ describe('useReplaceEmployees', () => {
     await waitFor(() => expect(result.current.isError).toBe(true))
     expect(semana(SEMANA_1)?.find((item) => item.jobSchedulesId === 1)?.employeesIds).toEqual([3, 5])
     expect(estadoCache()).toEqual(antes)
+    expect(onMutationError).toHaveBeenCalledTimes(1)
+    expect(onMutationError).toHaveBeenCalledWith(MENSAJE_ESPERADO)
+  })
+})
+
+describe('useCreateAbsence', () => {
+  const AUSENCIAS_1 = queryKeys.absences('2026-11-01', '2026-11-07')
+  const AUSENCIAS_2 = queryKeys.absences('2026-11-08', '2026-11-14')
+  const AUSENCIA_SEMILLA: Absence = {
+    employeeAbsencesId: 1,
+    employeesId: 7,
+    date: '2026-11-04',
+    absenceType: 'Vacation',
+    absenceComment: 'Viaje familiar',
+  }
+  const ausencias = (clave: readonly unknown[]) => client.getQueryData<Absence[]>(clave)
+  const empleadosDe = (id: number) => semana(SEMANA_1)?.find((item) => item.jobSchedulesId === id)?.employeesIds
+
+  beforeEach(() => {
+    client.setQueryData(AUSENCIAS_1, [{ ...AUSENCIA_SEMILLA }])
+    client.setQueryData(AUSENCIAS_2, [])
+  })
+
+  it('muestra la ausencia temporal y quita al empleado de las programaciones de esa fecha antes de la respuesta', async () => {
+    const liberar = pausar('post', '*/v2/job-management/absences')
+    // Ana (3) también está en una programación de otro día: esa no debe cambiar.
+    client.setQueryData(
+      SEMANA_1,
+      semana(SEMANA_1)?.map((item) => (item.jobSchedulesId === 3 ? { ...item, employeesIds: [3, 8] } : item)),
+    )
+    const { result } = renderHook(() => useCreateAbsence(), { wrapper: envoltorio })
+
+    act(() => {
+      result.current.mutate({ employeesId: 3, date: '2026-11-02', absenceType: 'Off' })
+    })
+
+    await waitFor(() => expect(ausencias(AUSENCIAS_1)).toHaveLength(2))
+    const temporal = ausencias(AUSENCIAS_1)?.find((item) => item.employeeAbsencesId < 0)
+    expect(temporal).toMatchObject({ employeesId: 3, date: '2026-11-02', absenceType: 'Off', absenceComment: null })
+    expect(ausencias(AUSENCIAS_2)).toEqual([])
+    expect(empleadosDe(1)).toEqual([5])
+    expect(empleadosDe(2)).toEqual([])
+    expect(empleadosDe(3)).toEqual([3, 8])
+    expect(result.current.isPending).toBe(true)
+
+    liberar()
+    await waitFor(() => expect(result.current.isSuccess).toBe(true))
+  })
+
+  it('tras el éxito la ausencia tiene el id del servidor y las programaciones reflejan updatedSchedules', async () => {
+    const { result } = renderHook(() => useCreateAbsence(), { wrapper: envoltorio })
+
+    act(() => {
+      result.current.mutate({ employeesId: 3, date: '2026-11-02', absenceType: 'Sick', absenceComment: 'Gripe' })
+    })
+
+    await waitFor(() => expect(result.current.isSuccess).toBe(true))
+    expect(ausencias(AUSENCIAS_1)).toEqual([
+      AUSENCIA_SEMILLA,
+      { employeeAbsencesId: 2, employeesId: 3, date: '2026-11-02', absenceType: 'Sick', absenceComment: 'Gripe' },
+    ])
+    expect(empleadosDe(1)).toEqual([5])
+    expect(empleadosDe(2)).toEqual([])
+    expect(semana(SEMANA_1)?.find((item) => item.jobSchedulesId === 1)?.job.jobsId).toBe(7)
+    expect(onMutationError).not.toHaveBeenCalled()
+  })
+
+  it('ante un 500 las dos cachés vuelven al estado anterior y se emite el mensaje de error', async () => {
+    const antes = { ...estadoCache(), ausencias1: structuredClone(ausencias(AUSENCIAS_1)), ausencias2: structuredClone(ausencias(AUSENCIAS_2)) }
+    const liberar = pausar('post', '*/v2/job-management/absences', error500)
+    const { result } = renderHook(() => useCreateAbsence(), { wrapper: envoltorio })
+
+    act(() => {
+      result.current.mutate({ employeesId: 3, date: '2026-11-02', absenceType: 'Off' })
+    })
+
+    await waitFor(() => expect(ausencias(AUSENCIAS_1)).toHaveLength(2))
+    expect(empleadosDe(1)).toEqual([5])
+    liberar()
+
+    await waitFor(() => expect(result.current.isError).toBe(true))
+    expect(estadoCache()).toEqual({ semana1: antes.semana1, semana2: antes.semana2 })
+    expect(ausencias(AUSENCIAS_1)).toEqual(antes.ausencias1)
+    expect(ausencias(AUSENCIAS_2)).toEqual(antes.ausencias2)
+    expect(onMutationError).toHaveBeenCalledTimes(1)
+    expect(onMutationError).toHaveBeenCalledWith(MENSAJE_ESPERADO)
+    expect(onMutationError.mock.calls[0][0].startsWith("Couldn't save the change.")).toBe(true)
+  })
+
+  it('al terminar invalida las ausencias y las programaciones', async () => {
+    const { result } = renderHook(() => useCreateAbsence(), { wrapper: envoltorio })
+
+    act(() => {
+      result.current.mutate({ employeesId: 3, date: '2026-11-02', absenceType: 'Off' })
+    })
+
+    await waitFor(() => expect(result.current.isSuccess).toBe(true))
+    expect(client.getQueryState(AUSENCIAS_1)?.isInvalidated).toBe(true)
+    expect(client.getQueryState(SEMANA_1)?.isInvalidated).toBe(true)
+  })
+})
+
+describe('useDeleteAbsence', () => {
+  const AUSENCIAS_1 = queryKeys.absences('2026-11-01', '2026-11-07')
+  const AUSENCIA_SEMILLA: Absence = {
+    employeeAbsencesId: 1,
+    employeesId: 7,
+    date: '2026-11-04',
+    absenceType: 'Vacation',
+    absenceComment: 'Viaje familiar',
+  }
+  const ausencias = () => client.getQueryData<Absence[]>(AUSENCIAS_1)
+
+  beforeEach(() => {
+    client.setQueryData(AUSENCIAS_1, [{ ...AUSENCIA_SEMILLA }])
+  })
+
+  it('quita la ausencia antes de la respuesta', async () => {
+    const liberar = pausar('delete', '*/v2/job-management/absences/:id')
+    const { result } = renderHook(() => useDeleteAbsence(), { wrapper: envoltorio })
+
+    act(() => {
+      result.current.mutate(1)
+    })
+
+    await waitFor(() => expect(ausencias()).toEqual([]))
+    expect(result.current.isPending).toBe(true)
+
+    liberar()
+
+    await waitFor(() => expect(result.current.isSuccess).toBe(true))
+    expect(ausencias()).toEqual([])
+    expect(onMutationError).not.toHaveBeenCalled()
+  })
+
+  it('ante un 500 la ausencia vuelve y se emite el mensaje de error', async () => {
+    const liberar = pausar('delete', '*/v2/job-management/absences/:id', error500)
+    const { result } = renderHook(() => useDeleteAbsence(), { wrapper: envoltorio })
+
+    act(() => {
+      result.current.mutate(1)
+    })
+
+    await waitFor(() => expect(ausencias()).toEqual([]))
+    liberar()
+
+    await waitFor(() => expect(result.current.isError).toBe(true))
+    expect(ausencias()).toEqual([AUSENCIA_SEMILLA])
     expect(onMutationError).toHaveBeenCalledTimes(1)
     expect(onMutationError).toHaveBeenCalledWith(MENSAJE_ESPERADO)
   })

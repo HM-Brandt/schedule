@@ -11,6 +11,7 @@ export const queryKeys = {
   jobs: ['jobs'] as const,
   schedules: (from: IsoDate, to: IsoDate) => ['schedules', from, to] as const,
   hoursSummary: (from: IsoDate, to: IsoDate) => ['hoursSummary', from, to] as const,
+  absences: (from: IsoDate, to: IsoDate) => ['absences', from, to] as const,
 }
 
 export function useMe() {
@@ -53,4 +54,8 @@ export function useHoursSummary(from: IsoDate, to: IsoDate) {
     queryFn: () => api.getHoursSummary({ startDate: from, endDate: to }),
     select: (rows) => new Map(rows.map((row) => [row.employeesId, row.totalHrs])),
   })
+}
+
+export function useWeekAbsences(from: IsoDate, to: IsoDate) {
+  return useQuery({ queryKey: queryKeys.absences(from, to), queryFn: () => api.getAbsences({ from, to }) })
 }
