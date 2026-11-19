@@ -532,7 +532,7 @@ describe('ScheduleDetail: cerrar el detalle', () => {
       <QueryClientProvider client={client}>
         <UndoProvider>
           <h1>Tablero</h1>
-          <ScheduleDetail scheduleId={id} schedules={programacionesConTrabajo(semilla)} days={DIAS} employeesById={porId} onClose={onClose} />
+          <ScheduleDetail scheduleId={id} schedules={programacionesConTrabajo(semilla)} absences={[]} days={DIAS} employeesById={porId} onClose={onClose} />
         </UndoProvider>
       </QueryClientProvider>,
     )
@@ -716,6 +716,62 @@ describe('ScheduleDetail: cerrar el detalle', () => {
   })
 })
 
+// Tarea 4.5 de `employee-absences`: "Move to…" a un día con algún asignado ausente no envía nada y
+// el aviso nombra a los ausentes (`specs/weekly-schedule-board/spec.md`, "Mover una programación
+// a un día con empleados ausentes"). La tarjeta 1 del lunes lleva a Ana (3) y a Luis (5).
+describe('ScheduleDetail: "Move to" con empleados ausentes', () => {
+  const ausente = (employeeAbsencesId: number, employeesId: number, date: string) =>
+    semilla.absences.push({ employeeAbsencesId, employeesId, date, absenceType: 'Sick', absenceComment: null })
+
+  const selectorDia = (detalle: HTMLElement) => within(detalle).getByRole('combobox', { name: 'Move to' })
+
+  it('con Luis ausente el jueves no envía nada, la tarjeta sigue el lunes y el aviso lo nombra', async () => {
+    ausente(2, 5, JUEVES)
+    await renderApp()
+    const detalle = abrirDetalle(tarjeta('Mon', '07:00'), 'J-1024 Pintar oficina')
+
+    fireEvent.change(selectorDia(detalle), { target: { value: JUEVES } })
+
+    const aviso = await screen.findByRole('alert')
+    expect(aviso.textContent).toContain("Can't move the job. Absent on Thu, Nov 5: Luis Martínez.")
+    await sinPeticiones()
+    expect(tarjetasDelDia('Mon')).toHaveLength(2)
+    expect(tarjeta('Mon', '07:00')).toHaveTextContent('J-1024')
+    expect(tarjetasDelDia('Thu')).toHaveLength(1)
+    expect(selectorDia(screen.getByRole('dialog', { name: 'J-1024 Pintar oficina' }))).toHaveValue(LUNES)
+    expect(screen.queryByRole('button', { name: 'Undo' })).not.toBeInTheDocument()
+  })
+
+  it('con varios asignados ausentes los nombra a todos', async () => {
+    ausente(2, 5, JUEVES)
+    ausente(3, 3, JUEVES)
+    await renderApp()
+    const detalle = abrirDetalle(tarjeta('Mon', '07:00'), 'J-1024 Pintar oficina')
+
+    fireEvent.change(selectorDia(detalle), { target: { value: JUEVES } })
+
+    const aviso = await screen.findByRole('alert')
+    expect(aviso.textContent).toContain("Can't move the job. Absent on Thu, Nov 5: Ana López, Luis Martínez.")
+    await sinPeticiones()
+  })
+
+  it('si el ausente ese día no está en la tarjeta, la mueve con normalidad', async () => {
+    // Sofía Romero (7) está ausente el miércoles en la semilla y no está en la tarjeta.
+    await renderApp()
+    const detalle = abrirDetalle(tarjeta('Mon', '07:00'), 'J-1024 Pintar oficina')
+
+    fireEvent.change(selectorDia(detalle), { target: { value: MIERCOLES } })
+
+    await waitFor(() => expect(tarjetasDelDia('Wed')).toHaveLength(1))
+    await waitFor(() =>
+      expect(peticiones).toEqual([
+        { metodo: 'PATCH', ruta: '/v2/job-management/schedules/1', cuerpo: { date: MIERCOLES, startTime: '07:00' } },
+      ]),
+    )
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+  })
+})
+
 // Debajo del nombre, el detalle muestra el tipo del trabajo y su dirección como enlace a Google
 // Maps, que se abre en otra pestaña. Cada uno se oculta si viene vacío.
 describe('ScheduleDetail: tipo y dirección del trabajo', () => {
@@ -740,7 +796,7 @@ describe('ScheduleDetail: tipo y dirección del trabajo', () => {
     render(
       <QueryClientProvider client={client}>
         <UndoProvider>
-          <ScheduleDetail scheduleId={schedule.jobSchedulesId} schedules={[schedule]} days={DIAS} employeesById={new Map()} onClose={onClose} />
+          <ScheduleDetail scheduleId={schedule.jobSchedulesId} schedules={[schedule]} absences={[]} days={DIAS} employeesById={new Map()} onClose={onClose} />
         </UndoProvider>
       </QueryClientProvider>,
     )

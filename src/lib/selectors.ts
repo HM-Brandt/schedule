@@ -12,6 +12,10 @@ export function schedulesByDay(schedules: Schedule[], days: IsoDate[]): Record<I
   )
 }
 
+export function absencesByDay(absences: Absence[], days: IsoDate[]): Record<IsoDate, Absence[]> {
+  return Object.fromEntries(days.map((day) => [day, absences.filter((absence) => absence.date === day)]))
+}
+
 export function jobWeekCounts(schedules: Schedule[]) {
   const counts = new Map<number, number>()
   for (const schedule of schedules) counts.set(schedule.job.jobsId, (counts.get(schedule.job.jobsId) ?? 0) + 1)
@@ -38,4 +42,12 @@ export function absenceLookup(absences: Absence[]) {
     lookup.set(absence.employeesId, days)
   }
   return lookup
+}
+
+export function absentEmployees(
+  employeesIds: number[],
+  date: IsoDate,
+  lookup: Map<number, Map<IsoDate, Absence>>,
+): number[] {
+  return employeesIds.filter((id) => lookup.get(id)?.has(date))
 }

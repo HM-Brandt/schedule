@@ -30,11 +30,13 @@ export function ScheduleCard({
   employeesById,
   onOpen,
   onAssign,
+  blockEmployeeDrop,
 }: {
   schedule: Schedule
   employeesById: Map<number, Employee>
   onOpen?: (schedule: Schedule) => void
   onAssign?: (schedule: Schedule) => void
+  blockEmployeeDrop?: boolean
 }) {
   const employees = schedule.employeesIds.flatMap((id) => employeesById.get(id) ?? [])
   const visible = employees.slice(0, MAX_INITIALS)
@@ -52,7 +54,7 @@ export function ScheduleCard({
     data: { kind: 'schedule-card', schedule },
     disabled: schedule.jobSchedulesId < 0,
   })
-  const accepting = useAcceptsDrag('schedule-card')
+  const accepting = useAcceptsDrag('schedule-card') && !blockEmployeeDrop
   const ref = useCallback(
     (element: Element | null) => {
       dragRef(element)
@@ -65,7 +67,7 @@ export function ScheduleCard({
     <article
       ref={ref}
       role="article"
-      className={[styles.card, accepting && styles.accepting, isDropTarget && styles.over].filter(Boolean).join(' ')}
+      className={[styles.card, accepting && styles.accepting, accepting && isDropTarget && styles.over].filter(Boolean).join(' ')}
       data-hue={jobHue(schedule.job.jobsId)}
       onClick={() => schedule.jobSchedulesId >= 0 && onOpen?.(schedule)}
     >

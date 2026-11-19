@@ -31,12 +31,12 @@ import { http } from 'msw'
 import { setupServer } from 'msw/node'
 import { useMemo } from 'react'
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
-import { useEmployees, useWeekSchedules } from '../api/queries'
+import { useEmployees, useWeekAbsences, useWeekSchedules } from '../api/queries'
 import { createQueryClient } from '../api/queryClient'
 import { WeekBoard } from '../board/WeekBoard'
 import { JobCatalog } from '../catalog/JobCatalog'
 import { EmployeePanel } from '../employees/EmployeePanel'
-import { schedulesByDay } from '../lib/selectors'
+import { absencesByDay, schedulesByDay } from '../lib/selectors'
 import { createHandlers } from '../mocks/handlers'
 import { createSeed } from '../mocks/seed'
 import { CapturadorDelGestor, arrastrar, simularApisDeArrastre } from '../test/dnd'
@@ -115,13 +115,21 @@ function Tablero() {
     () => new Map((employees.data ?? []).map((employee) => [employee.employeesId, employee])),
     [employees.data],
   )
+  const absences = useWeekAbsences(DIAS[0], DIAS[6])
   const byDay = useMemo(() => schedulesByDay(schedules.data ?? [], DIAS), [schedules.data])
+  const absencesOfDay = useMemo(() => absencesByDay(absences.data ?? [], DIAS), [absences.data])
 
   return (
-    <ScheduleDndProvider schedules={schedules.data ?? []}>
+    <ScheduleDndProvider schedules={schedules.data ?? []} absences={absences.data ?? []}>
       <CapturadorDelGestor />
       <JobCatalog counts={new Map()} />
-      <WeekBoard days={DIAS} today={MARTES} schedulesByDay={byDay} employeesById={employeesById} />
+      <WeekBoard
+        days={DIAS}
+        today={MARTES}
+        schedulesByDay={byDay}
+        absencesByDay={absencesOfDay}
+        employeesById={employeesById}
+      />
       <EmployeePanel
         employees={employees.data ?? []}
         error={employees.error}

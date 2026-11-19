@@ -7,7 +7,15 @@ import { describe, expect, it } from 'vitest'
 import { trabajo } from '../test/fabricas'
 import type { Absence, Job, Schedule } from '../api/types'
 import { getWeekDays } from './dates'
-import { absenceLookup, compareSchedules, employeeDayCounts, jobWeekCounts, schedulesByDay } from './selectors'
+import {
+  absenceLookup,
+  absencesByDay,
+  absentEmployees,
+  compareSchedules,
+  employeeDayCounts,
+  jobWeekCounts,
+  schedulesByDay,
+} from './selectors'
 
 const PINTAR_OFICINA: Job = trabajo(7, 'J-1024', 'Pintar oficina')
 const JARDIN_PEREZ: Job = trabajo(14, 'J-1031', 'Jardín Pérez')
@@ -170,6 +178,68 @@ describe('absenceLookup', () => {
 
   it('sin ausencias devuelve un mapa vacío', () => {
     expect(absenceLookup([]).size).toBe(0)
+  })
+})
+
+describe('absentEmployees', () => {
+  const ausencia = (id: number, employeesId: number, date: string): Absence => ({
+    employeeAbsencesId: id,
+    employeesId,
+    date,
+    absenceType: 'Sick',
+    absenceComment: null,
+  })
+
+  it('devuelve solo los ausentes de la lista en esa fecha, en el orden de la lista', () => {
+    const busqueda = absenceLookup([ausencia(1, LUIS, LUNES), ausencia(2, ANA, LUNES)])
+
+    expect(absentEmployees([ANA, 8, LUIS], LUNES, busqueda)).toEqual([ANA, LUIS])
+  })
+
+  it('un empleado ausente otro día no cuenta', () => {
+    const busqueda = absenceLookup([ausencia(1, ANA, MIERCOLES)])
+
+    expect(absentEmployees([ANA, LUIS], LUNES, busqueda)).toEqual([])
+  })
+
+  it('sin ausencias o sin empleados devuelve una lista vacía', () => {
+    expect(absentEmployees([ANA], LUNES, absenceLookup([]))).toEqual([])
+    expect(absentEmployees([], LUNES, absenceLookup([ausencia(1, ANA, LUNES)]))).toEqual([])
+  })
+})
+
+describe('absencesByDay', () => {
+  const ausencia = (id: number, employeesId: number, date: string): Absence => ({
+    employeeAbsencesId: id,
+    employeesId,
+    date,
+    absenceType: 'Off',
+    absenceComment: null,
+  })
+
+  it('incluye los 7 días aunque estén vacíos', () => {
+    const porDia = absencesByDay([ausencia(1, ANA, LUNES)], DIAS)
+
+    expect(Object.keys(porDia)).toEqual(DIAS)
+    expect(porDia[MARTES]).toEqual([])
+    expect(porDia[LUNES].map((item) => item.employeeAbsencesId)).toEqual([1])
+  })
+
+  it('reparte cada ausencia en su día y agrupa varias del mismo día', () => {
+    const porDia = absencesByDay([ausencia(1, ANA, LUNES), ausencia(2, LUIS, LUNES), ausencia(3, ANA, MIERCOLES)], DIAS)
+
+    expect(porDia[LUNES].map((item) => item.employeesId)).toEqual([ANA, LUIS])
+    expect(porDia[MIERCOLES].map((item) => item.employeesId)).toEqual([ANA])
+  })
+
+  it('ignora las ausencias de fuera de la semana', () => {
+    const porDia = absencesByDay([ausencia(1, ANA, '2026-11-09')], DIAS)
+
+    expect(Object.values(porDia).flat()).toEqual([])
+  })
+
+  it('sin ausencias devuelve los 7 días vacíos', () => {
+    expect(Object.values(absencesByDay([], DIAS))).toEqual(Array(7).fill([]))
   })
 })
 

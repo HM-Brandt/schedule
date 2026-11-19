@@ -1,7 +1,7 @@
 import { BriefcaseBusiness, Users } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import styles from './App.module.css'
-import { useEmployees, useHoursSummary, useWeekSchedules } from './api/queries'
+import { useEmployees, useHoursSummary, useWeekAbsences, useWeekSchedules } from './api/queries'
 import type { Schedule } from './api/types'
 import { DayColumn } from './board/DayColumn'
 import { DayStrip } from './board/DayStrip'
@@ -17,7 +17,7 @@ import { AppHeader } from './layout/AppHeader'
 import { BottomSheet } from './layout/BottomSheet'
 import { Drawer } from './layout/Drawer'
 import { useLayout } from './layout/useLayout'
-import { jobWeekCounts, schedulesByDay } from './lib/selectors'
+import { absencesByDay, jobWeekCounts, schedulesByDay } from './lib/selectors'
 import { UndoProvider } from './undo/UndoProvider'
 import { UndoToast } from './undo/UndoToast'
 import { useUndoShortcut } from './undo/useUndoShortcut'
@@ -34,6 +34,7 @@ function App() {
   const schedules = useWeekSchedules(week.from, week.to)
   const employees = useEmployees()
   const hours = useHoursSummary(week.from, week.to)
+  const absences = useWeekAbsences(week.from, week.to)
   const [selectedScheduleId, setSelectedScheduleId] = useState<number | null>(null)
 
   const employeesById = useMemo(
@@ -42,6 +43,7 @@ function App() {
   )
   const byDay = useMemo(() => schedulesByDay(schedules.data ?? [], week.days), [schedules.data, week.days])
   const counts = useMemo(() => jobWeekCounts(schedules.data ?? []), [schedules.data])
+  const absencesOfDay = useMemo(() => absencesByDay(absences.data ?? [], week.days), [absences.data, week.days])
 
   const defaultDay = week.days.includes(week.today) ? week.today : week.from
   const [visible, setVisible] = useState({ from: week.from, day: defaultDay })
@@ -88,6 +90,7 @@ function App() {
       days={week.days}
       today={week.today}
       schedulesByDay={byDay}
+      absencesByDay={absencesOfDay}
       employeesById={employeesById}
       onOpenSchedule={openSchedule}
     />
@@ -109,7 +112,7 @@ function App() {
       <UndoShortcut />
       <main className={styles.app}>
         <AppHeader />
-        <ScheduleDndProvider schedules={schedules.data ?? []}>
+        <ScheduleDndProvider schedules={schedules.data ?? []} absences={absences.data ?? []}>
           {layout === 'desktop' && (
             <div className={styles.layout}>
               <aside>{catalog}</aside>
@@ -151,6 +154,7 @@ function App() {
                 date={visible.day}
                 isToday={visible.day === week.today}
                 schedules={byDay[visible.day]}
+                absences={absencesOfDay[visible.day]}
                 employeesById={employeesById}
                 onOpenSchedule={openSchedule}
                 onAssignSchedule={setAssigning}
@@ -192,6 +196,7 @@ function App() {
           <ScheduleDetail
             scheduleId={selectedScheduleId}
             schedules={schedules.data ?? []}
+            absences={absences.data ?? []}
             days={week.days}
             employeesById={employeesById}
             onClose={() => setSelectedScheduleId(null)}

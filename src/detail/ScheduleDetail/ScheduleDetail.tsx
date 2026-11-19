@@ -1,10 +1,11 @@
 import { format } from 'date-fns'
 import { ArrowRightLeft, Copy, MapPin, Trash2, X } from 'lucide-react'
-import { useEffect, useRef } from 'react'
-import type { Employee, IsoDate, Schedule } from '../../api/types'
+import { useEffect, useMemo, useRef } from 'react'
+import type { Absence, Employee, IsoDate, Schedule } from '../../api/types'
 import { parseIsoDate } from '../../lib/dates'
 import { employeeHue, jobHue } from '../../lib/colors'
 import { fullName, initials } from '../../lib/employees'
+import { absenceLookup, absentEmployees } from '../../lib/selectors'
 import { useScheduleActions } from '../../undo/useScheduleActions'
 import styles from './ScheduleDetail.module.css'
 
@@ -13,17 +14,20 @@ const formatDate = (date: IsoDate) => format(parseIsoDate(date), 'EEE, MMM d')
 export function ScheduleDetail({
   scheduleId,
   schedules,
+  absences,
   days,
   employeesById,
   onClose,
 }: {
   scheduleId: number
   schedules: Schedule[]
+  absences: Absence[]
   days: IsoDate[]
   employeesById: Map<number, Employee>
   onClose: () => void
 }) {
   const actions = useScheduleActions(schedules)
+  const lookup = useMemo(() => absenceLookup(absences), [absences])
   const panelRef = useRef<HTMLElement>(null)
   const schedule = schedules.find((item) => item.jobSchedulesId === scheduleId)
 
@@ -43,6 +47,11 @@ export function ScheduleDetail({
   const employees = schedule.employeesIds.flatMap((id) => employeesById.get(id) ?? [])
   const saveTime = (value: string) => {
     if (value && value !== schedule.startTime) actions.setStartTime(schedule, value)
+  }
+  const moveTo = (date: IsoDate) => {
+    const absent = absentEmployees(schedule.employeesIds, date, lookup)
+    if (absent.length > 0) actions.blockMove(absent, date)
+    else actions.move(schedule, date)
   }
 
   return (
@@ -120,7 +129,7 @@ export function ScheduleDetail({
           className={styles.input}
           aria-label="Move to"
           value={schedule.date}
-          onChange={(event) => event.target.value !== schedule.date && actions.move(schedule, event.target.value)}
+          onChange={(event) => event.target.value !== schedule.date && moveTo(event.target.value)}
         >
           {days.map((day) => (
             <option key={day} value={day}>

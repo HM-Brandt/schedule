@@ -1,7 +1,17 @@
-import { useCreateSchedule, useDeleteSchedule, useReplaceEmployees, useUpdateSchedule } from '../api/mutations'
+import { format } from 'date-fns'
+import {
+  useCreateAbsence,
+  useCreateSchedule,
+  useDeleteAbsence,
+  useDeleteSchedule,
+  useReplaceEmployees,
+  useUpdateSchedule,
+} from '../api/mutations'
 import { useEmployees } from '../api/queries'
 import { mutationErrorMessage } from '../api/queryClient'
-import type { IsoDate, Job, Schedule, StartTime } from '../api/types'
+import type { Absence, AbsenceType, IsoDate, Job, Schedule, StartTime } from '../api/types'
+import { parseIsoDate } from '../lib/dates'
+import { fullName } from '../lib/employees'
 import { defaultStartTime, startTimeForMove } from '../lib/startTime'
 import { useUndo } from './UndoProvider'
 import type { InverseOp } from './undoStack'
@@ -12,6 +22,8 @@ export function useScheduleActions(schedules: Schedule[]) {
   const updateSchedule = useUpdateSchedule()
   const deleteSchedule = useDeleteSchedule()
   const replaceEmployees = useReplaceEmployees()
+  const createAbsence = useCreateAbsence()
+  const deleteAbsence = useDeleteAbsence()
   const employees = useEmployees()
 
   const run = (label: string, action: () => Promise<InverseOp[]>) =>
@@ -97,5 +109,36 @@ export function useScheduleActions(schedules: Schedule[]) {
         ])
         return [restoreEmployees(from), restoreEmployees(to)]
       }),
+    markAbsent: (employeeId: number, date: IsoDate, absenceType: AbsenceType, absenceComment: string | null) =>
+      run('Absence marked', async () => {
+        const response = await createAbsence.mutateAsync({ employeesId: employeeId, date, absenceType, absenceComment })
+        return [
+          { kind: 'delete-absence', id: response.absence.employeeAbsencesId },
+          ...response.updatedSchedules.flatMap((r) =>
+            schedules.filter((schedule) => schedule.jobSchedulesId === r.jobSchedulesId).map(restoreEmployees),
+          ),
+        ]
+      }),
+    removeAbsence: (absence: Absence) =>
+      run('Absence removed', async () => {
+        await deleteAbsence.mutateAsync(absence.employeeAbsencesId)
+        return [
+          {
+            kind: 'create-absence',
+            employeesId: absence.employeesId,
+            date: absence.date,
+            absenceType: absence.absenceType,
+            absenceComment: absence.absenceComment,
+            replacesId: absence.employeeAbsencesId,
+          },
+        ]
+      }),
+    blockMove: (employeeIds: number[], date: IsoDate) =>
+      showError(
+        `Can't move the job. Absent on ${format(parseIsoDate(date), 'EEE, MMM d')}: ${employeeIds
+          .flatMap((id) => employees.data?.filter((employee) => employee.employeesId === id) ?? [])
+          .map(fullName)
+          .join(', ')}.`,
+      ),
   }
 }

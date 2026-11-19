@@ -1,11 +1,18 @@
 import { useQueryClient } from '@tanstack/react-query'
 import { createContext, useCallback, useContext, useState } from 'react'
 import type { ReactNode } from 'react'
-import { useCreateSchedule, useDeleteSchedule, useReplaceEmployees, useUpdateSchedule } from '../api/mutations'
+import {
+  useCreateAbsence,
+  useCreateSchedule,
+  useDeleteAbsence,
+  useDeleteSchedule,
+  useReplaceEmployees,
+  useUpdateSchedule,
+} from '../api/mutations'
 import { useEmployees } from '../api/queries'
 import { mutationErrorMessage } from '../api/queryClient'
 import { findCachedSchedule } from '../api/scheduleCache'
-import { pushEntry, replaceScheduleId } from './undoStack'
+import { pushEntry, replaceAbsenceId, replaceScheduleId } from './undoStack'
 import type { InverseOp, UndoEntry } from './undoStack'
 
 type Toast = { message: string; kind: 'action' | 'error' }
@@ -28,6 +35,8 @@ export function UndoProvider({ children }: { children: ReactNode }) {
   const updateSchedule = useUpdateSchedule()
   const deleteSchedule = useDeleteSchedule()
   const replaceEmployees = useReplaceEmployees()
+  const createAbsence = useCreateAbsence()
+  const deleteAbsence = useDeleteAbsence()
   const employees = useEmployees()
   const queryClient = useQueryClient()
   const isInactive = (id: number) =>
@@ -60,6 +69,16 @@ export function UndoProvider({ children }: { children: ReactNode }) {
       })
       setStack((current) => replaceScheduleId(current, op.replacesId, created.jobSchedulesId))
     }
+    if (op.kind === 'delete-absence') await deleteAbsence.mutateAsync(op.id)
+    if (op.kind === 'create-absence') {
+      const created = await createAbsence.mutateAsync({
+        employeesId: op.employeesId,
+        date: op.date,
+        absenceType: op.absenceType,
+        absenceComment: op.absenceComment,
+      })
+      setStack((current) => replaceAbsenceId(current, op.replacesId, created.absence.employeeAbsencesId))
+    }
   }
 
   const undo = async () => {
@@ -68,7 +87,7 @@ export function UndoProvider({ children }: { children: ReactNode }) {
     setStack((current) => current.slice(0, -1))
     dismiss()
     try {
-      await Promise.all(entry.ops.map(runInverse))
+      for (const op of entry.ops) await runInverse(op)
     } catch (error) {
       setStack((current) => pushEntry(current, entry))
       showError(mutationErrorMessage(error))

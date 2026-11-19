@@ -66,4 +66,8 @@
   .cards > * {
     width: 160px;
   }
+
+  .absences {
+    grid-column: 1 / -1;
+  }
 }
