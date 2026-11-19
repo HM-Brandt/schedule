@@ -101,6 +101,7 @@ function App() {
       employees={employees.data ?? []}
       error={employees.error}
       schedules={schedules.data ?? []}
+      absences={absences.data ?? []}
       days={week.days}
       today={week.today}
       hours={hours.data}
@@ -184,6 +185,7 @@ function App() {
                   schedule={assigning}
                   employees={employees.data ?? []}
                   schedules={schedules.data ?? []}
+                  absences={absences.data ?? []}
                   days={week.days}
                   today={week.today}
                   onClose={() => setAssigning(null)}

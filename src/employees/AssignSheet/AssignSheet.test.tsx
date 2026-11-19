@@ -20,9 +20,9 @@ import { http } from 'msw'
 import { setupServer } from 'msw/node'
 import { useState } from 'react'
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
-import { useEmployees, useWeekSchedules } from '../../api/queries'
+import { useEmployees, useWeekAbsences, useWeekSchedules } from '../../api/queries'
 import { createQueryClient } from '../../api/queryClient'
-import type { Schedule } from '../../api/types'
+import type { AbsenceType, Schedule } from '../../api/types'
 import { ScheduleCard } from '../../board/ScheduleCard'
 import { createHandlers } from '../../mocks/handlers'
 import { createSeed } from '../../mocks/seed'
@@ -92,9 +92,10 @@ function prepararServidor() {
 function Arnes({ id, onClose }: { id: number; onClose: () => void }) {
   const schedules = useWeekSchedules('2026-11-01', '2026-11-07')
   const employees = useEmployees()
+  const absences = useWeekAbsences('2026-11-01', '2026-11-07')
   const [abierto, setAbierto] = useState(true)
   const schedule = schedules.data?.find((item) => item.jobSchedulesId === id)
-  if (!schedule || !employees.data) return null
+  if (!schedule || !employees.data || !absences.data) return null
   const porId = new Map(employees.data.map((empleado) => [empleado.employeesId, empleado]))
 
   return (
@@ -105,6 +106,7 @@ function Arnes({ id, onClose }: { id: number; onClose: () => void }) {
           schedule={schedule}
           employees={employees.data}
           schedules={schedules.data ?? []}
+          absences={absences.data ?? []}
           days={DIAS}
           today="2026-11-03"
           onClose={() => {
@@ -368,6 +370,104 @@ describe('AssignSheet', () => {
     })
   })
 
+  // Tarea 6.3 de `employee-absences`: requisito "Empleados ausentes en la lista del teléfono".
+  // Para que los datos sean coherentes, Ana se quita de las programaciones del lunes antes de
+  // marcarla ausente ese día (el servidor desasigna al marcar una ausencia).
+  describe('empleados ausentes', () => {
+    function ausente(employeeAbsencesId: number, employeesId: number, date: string, absenceType: AbsenceType) {
+      semilla.absences.push({ employeeAbsencesId, employeesId, date, absenceType, absenceComment: null })
+    }
+    function anaFueraDelLunes() {
+      semilla.schedules[0].employeesIds = [5]
+      semilla.schedules[1].employeesIds = []
+    }
+
+    it('escenario "Ana enferma el lunes": en la programación del lunes Ana aparece deshabilitada, con "Sick" y sin marcar', async () => {
+      anaFueraDelLunes()
+      ausente(2, 3, '2026-11-02', 'Sick')
+
+      const { panel } = await renderPanel()
+
+      await waitFor(() => expect(casilla('Ana López')).toBeDisabled())
+      expect(casilla('Ana López')).not.toBeChecked()
+      expect(fila(panel, 'Ana López')).toHaveTextContent('Sick')
+      expect(fila(panel, 'Ana López')).not.toHaveTextContent(/\d+ jobs?/)
+    })
+
+    // `fireEvent.click` no imita al navegador con una casilla deshabilitada (jsdom entrega el
+    // evento igualmente), así que se comprueba el estado que impide la interacción.
+    it('la casilla de Ana deshabilitada no se puede marcar: sigue sin marcar, sin PUT, y la tarjeta no la muestra', async () => {
+      anaFueraDelLunes()
+      ausente(2, 3, '2026-11-02', 'Sick')
+      await renderPanel()
+
+      await waitFor(() => expect(casilla('Ana López')).toBeDisabled())
+
+      expect(casilla('Ana López')).not.toBeChecked()
+      expect(reemplazos).toEqual([])
+      expect(iniciales()).toEqual(['LM'])
+    })
+
+    it('muestra el tipo de la ausencia de cada empleado ausente ese día: Vacation, Off y Other', async () => {
+      anaFueraDelLunes()
+      ausente(2, 3, '2026-11-02', 'Vacation')
+      ausente(3, 8, '2026-11-02', 'Off')
+      ausente(4, 7, '2026-11-02', 'Other')
+
+      const { panel } = await renderPanel()
+
+      await waitFor(() => expect(casilla('Ana López')).toBeDisabled())
+      expect(fila(panel, 'Ana López')).toHaveTextContent('Vacation')
+      expect(casilla('Carlos Ruiz')).toBeDisabled()
+      expect(fila(panel, 'Carlos Ruiz')).toHaveTextContent('Off')
+      expect(casilla('Sofía Romero')).toBeDisabled()
+      expect(fila(panel, 'Sofía Romero')).toHaveTextContent('Other')
+    })
+
+    it('la fila ausente también indica la ausencia en los recuadros de la semana', async () => {
+      anaFueraDelLunes()
+      ausente(2, 3, '2026-11-02', 'Sick')
+
+      const { panel } = await renderPanel()
+
+      await waitFor(() => expect(casilla('Ana López')).toBeDisabled())
+      expect(within(fila(panel, 'Ana López')).getByRole('img')).toHaveAccessibleName('Assigned: none. Absent: Mon (Sick)')
+    })
+
+    it('un empleado ausente otro día sigue habilitado y se puede marcar: Ana ausente el martes en la programación del lunes', async () => {
+      ausente(2, 3, '2026-11-03', 'Sick')
+      semilla.schedules[0].employeesIds = [5]
+
+      const { panel } = await renderPanel()
+      await waitFor(() => expect(fila(panel, 'Ana López')).toHaveTextContent(/1 job/))
+
+      expect(casilla('Ana López')).toBeEnabled()
+      expect(fila(panel, 'Ana López')).not.toHaveTextContent('Sick')
+      fireEvent.click(casilla('Ana López'))
+
+      await waitFor(() => expect(reemplazos).toHaveLength(1))
+      expect(reemplazos[0].cuerpo).toEqual({ employeesIds: [5, 3] })
+    })
+
+    it('la ausencia de la semilla de Sofía el miércoles no afecta a la programación del lunes', async () => {
+      const { panel } = await renderPanel()
+      await waitFor(() => expect(fila(panel, 'Ana López')).toHaveTextContent(/2 jobs/))
+
+      expect(casilla('Sofía Romero')).toBeEnabled()
+      expect(casilla('Ana López')).toBeEnabled()
+    })
+
+    it('un empleado ausente el día de la programación del jueves aparece deshabilitado en esa programación y los demás siguen habilitados', async () => {
+      ausente(2, 8, '2026-11-05', 'Sick')
+
+      const { panel } = await renderPanel(4)
+
+      await waitFor(() => expect(casilla('Carlos Ruiz')).toBeDisabled())
+      expect(fila(panel, 'Carlos Ruiz')).toHaveTextContent('Sick')
+      expect(casilla('Ana López')).toBeEnabled()
+    })
+  })
+
   it('si la programación ya no está en la semana, el panel se cierra solo', async () => {
     prepararServidor()
     const onClose = vi.fn()
@@ -379,6 +479,7 @@ describe('AssignSheet', () => {
             schedule={desaparecida}
             employees={semilla.employees}
             schedules={programacionesConTrabajo(semilla)}
+            absences={[]}
             days={DIAS}
             today="2026-11-03"
             onClose={onClose}

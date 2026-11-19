@@ -12,11 +12,12 @@ import { mutationErrorMessage } from '../api/queryClient'
 import type { Absence, AbsenceType, IsoDate, Job, Schedule, StartTime } from '../api/types'
 import { parseIsoDate } from '../lib/dates'
 import { fullName } from '../lib/employees'
+import { absenceLookup, absentEmployees } from '../lib/selectors'
 import { defaultStartTime, startTimeForMove } from '../lib/startTime'
 import { useUndo } from './UndoProvider'
 import type { InverseOp } from './undoStack'
 
-export function useScheduleActions(schedules: Schedule[]) {
+export function useScheduleActions(schedules: Schedule[], absences: Absence[] = []) {
   const { push, showError } = useUndo()
   const createSchedule = useCreateSchedule()
   const updateSchedule = useUpdateSchedule()
@@ -71,12 +72,15 @@ export function useScheduleActions(schedules: Schedule[]) {
     },
     duplicate: (schedule: Schedule, date: IsoDate) =>
       run('Job duplicated', async () => {
+        const absent = absentEmployees(schedule.employeesIds, date, absenceLookup(absences))
         const created = await createSchedule.mutateAsync({
           job: schedule.job,
           date,
           startTime: defaultStartTime(schedules, schedule.job.jobsId, date),
           employeesIds: schedule.employeesIds.filter(
-            (id) => !employees.data?.some((employee) => employee.employeesId === id && employee.status === 'Terminated'),
+            (id) =>
+              !absent.includes(id) &&
+              !employees.data?.some((employee) => employee.employeesId === id && employee.status === 'Terminated'),
           ),
         })
         return [{ kind: 'delete', id: created.jobSchedulesId }]

@@ -48,6 +48,7 @@ function renderTablero(ausencias: Absence[] = []) {
         employees={semilla.employees}
         error={null}
         schedules={PROGRAMACIONES}
+        absences={ausencias}
         days={DIAS}
         today="2026-11-03"
         hours={undefined}
@@ -215,6 +216,73 @@ describe('DayColumn: ausencias', () => {
     await waitFor(() => expect(tarjetas('Thu')[0]).toHaveClass(/accepting/))
     for (const tarjeta of tarjetas('Mon')) expect(tarjeta).not.toHaveClass(/accepting/)
     expect(tarjetas('Tue')[0]).toHaveClass(/accepting/)
+  })
+
+  // Tarea 6.2: requisito "Indicador de ausencia al arrastrar".
+  describe('indicador "Absent" al arrastrar', () => {
+    const AUSENTE_EL_MIERCOLES = (employeesId: number): Absence => ({
+      employeeAbsencesId: 9,
+      employeesId,
+      date: '2026-11-04',
+      absenceType: 'Sick',
+      absenceComment: null,
+    })
+    const ausente = (nombre: string) => within(columnaDelDia(nombre)).queryByText('Absent')
+
+    it('escenario "Arrastrar a Ana, ausente el miércoles": el lunes indica su carga y el miércoles "Absent"', async () => {
+      renderTablero([AUSENTE_EL_MIERCOLES(3)])
+
+      await empezarArrastre('employee-3')
+
+      await waitFor(() => expect(indicador('Mon')).toBe('2 jobs'))
+      expect(ausente('Wed')).toBeInTheDocument()
+      expect(indicador('Wed')).toBeNull()
+    })
+
+    it('con una sola programación el lunes indica "1 job" y el miércoles "Absent" (arrastrando a Luis desde su tarjeta)', async () => {
+      renderTablero([AUSENTE_EL_MIERCOLES(5)])
+
+      await empezarArrastre('employee-5-in-1')
+
+      await waitFor(() => expect(indicador('Mon')).toBe('1 job'))
+      expect(ausente('Wed')).toBeInTheDocument()
+    })
+
+    it('"Absent" solo aparece en los días de la ausencia, no en los demás', async () => {
+      renderTablero([AUSENTE_EL_MIERCOLES(3)])
+
+      await empezarArrastre('employee-3')
+
+      await waitFor(() => expect(screen.getAllByText('Absent')).toHaveLength(1))
+      for (const nombre of ['Sun', 'Mon', 'Tue', 'Thu', 'Fri', 'Sat']) expect(ausente(nombre)).not.toBeInTheDocument()
+    })
+
+    it('arrastrando a otro empleado que no está ausente el miércoles no indica "Absent"', async () => {
+      renderTablero([AUSENTE_EL_MIERCOLES(3)])
+
+      await empezarArrastre('employee-8')
+
+      await waitFor(() => expect(indicador('Tue')).toBe('1 job'))
+      expect(screen.queryByText('Absent')).not.toBeInTheDocument()
+    })
+
+    it('sin ningún arrastre en curso no se muestra "Absent"', () => {
+      renderTablero([AUSENTE_EL_MIERCOLES(3)])
+
+      expect(screen.queryByText('Absent')).not.toBeInTheDocument()
+    })
+
+    it('al terminar el arrastre "Absent" desaparece', async () => {
+      renderTablero([AUSENTE_EL_MIERCOLES(3)])
+      await empezarArrastre('employee-3')
+      await waitFor(() => expect(ausente('Wed')).toBeInTheDocument())
+
+      await act(async () => {
+        gestorActual().actions.stop({ canceled: true })
+      })
+
+      await waitFor(() => expect(screen.queryByText('Absent')).not.toBeInTheDocument())
+    })
   })
 
   describe('chip de ausencia', () => {

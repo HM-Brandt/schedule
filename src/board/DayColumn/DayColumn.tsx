@@ -46,7 +46,11 @@ export function DayColumn({
         .join(' ')}
     >
       <DayHeading date={date} isToday={isToday} />
-      {load > 0 && <div className={styles.load}>{load === 1 ? '1 job' : `${load} jobs`}</div>}
+      {blockEmployeeDrop ? (
+        <div className={styles.load}>Absent</div>
+      ) : (
+        load > 0 && <div className={styles.load}>{load === 1 ? '1 job' : `${load} jobs`}</div>
+      )}
       <div className={styles.cards}>
         {schedules.map((schedule) => (
           <ScheduleCard

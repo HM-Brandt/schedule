@@ -19,7 +19,7 @@ export function ScheduleDndProvider({
   absences: Absence[]
   children: ReactNode
 }) {
-  const actions = useScheduleActions(schedules)
+  const actions = useScheduleActions(schedules, absences)
   const employees = useEmployees()
   const lookup = useMemo(() => absenceLookup(absences), [absences])
   const [pending, setPending] = useState<{ employeeId: number; date: IsoDate } | null>(null)

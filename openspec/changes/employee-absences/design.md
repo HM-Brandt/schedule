@@ -77,12 +77,12 @@ CREATE TABLE employee_absences (
 | `employee` (panel o tarjeta) | `absences` de un día sin ausencia suya | `mark-absent` (abre el diálogo) |
 | `employee` | `absences` de un día con ausencia suya | `none` |
 | `employee` | `schedule-card` de un día en que está ausente | `none` |
-| `absence` | soltado fuera de cualquier destino | `remove-absence` |
-| `absence` | cualquier destino | `none` |
+| `absence` | soltado fuera de cualquier zona `absences` | `remove-absence` |
+| `absence` | una zona `absences` | `none` |
 | `schedule-card` | `day` donde algún asignado está ausente | `blocked-move` (mensaje de error, sin petición) |
 
-- Destino nuevo `{kind:'absences', date}` con id `absences-${date}`. En `ACCEPTS`, `absences` acepta `employee`.
-- Elemento arrastrable nuevo `{kind:'absence', employeeAbsencesId, employeeId, date}` con id `absence-${id}`. No lo acepta ningún destino.
+- Destino nuevo `{kind:'absences', date}` con id `absences-${date}`. En `ACCEPTS`, `absences` acepta `employee` y `absence`.
+- Elemento arrastrable nuevo `{kind:'absence', employeeAbsencesId, employeeId, date}` con id `absence-${id}`. Solo lo aceptan las zonas `absences` (decisión de Carlos): `@dnd-kit` ignora los destinos que no aceptan el elemento, así que sin esto el destino sería siempre `null` y soltar una ausencia dentro de su zona la quitaría. Las zonas no se resaltan al arrastrar una ausencia.
 - `resolveDrop` recibe el `absenceLookup` como argumento, igual que ya recibe las programaciones.
 - El resaltado de tarjetas (`useAcceptsDrag`) se apaga en las tarjetas de un día en que el empleado arrastrado está ausente.
 - `mark-absent` no guarda: `ScheduleDndProvider` guarda `{employeeId, date}` pendiente y muestra `AbsenceDialog`. "Save" llama a `actions.markAbsent`; "Cancel" descarta.

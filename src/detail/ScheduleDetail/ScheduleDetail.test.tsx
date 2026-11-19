@@ -402,6 +402,32 @@ describe('ScheduleDetail', () => {
       expect(await screen.findByText('Job duplicated')).toBeInTheDocument()
     })
 
+    // Tarea 5.2 de `employee-absences`. El botón duplica en el mismo día, así que para que Luis
+    // esté ausente el día de la copia la semilla lo deja ausente el lunes aunque siga en la tarjeta
+    // (un dato que el servidor real no permite, pero que fija el filtro de la copia).
+    it('la copia no lleva a los empleados ausentes el día de la copia: Luis ausente el lunes, la copia solo con Ana', async () => {
+      semilla.schedules = semilla.schedules.filter((programacion) => programacion.jobSchedulesId !== 2)
+      semilla.absences.push({ employeeAbsencesId: 2, employeesId: 5, date: LUNES, absenceType: 'Sick', absenceComment: null })
+      await renderApp(3)
+      await waitFor(() => expect(within(columnaDelDia('Mon')).getByText('Luis Martínez')).toBeInTheDocument())
+      const detalle = abrirDetalle(tarjeta('Mon', '07:00'), 'J-1024 Pintar oficina')
+
+      fireEvent.click(within(detalle).getByRole('button', { name: 'Duplicate' }))
+
+      await waitFor(() =>
+        expect(peticiones).toEqual([
+          {
+            metodo: 'POST',
+            ruta: '/v2/job-management/schedules',
+            cuerpo: { jobsId: 7, date: LUNES, startTime: '08:00', employeesIds: [3] },
+          },
+        ]),
+      )
+      await waitFor(() => expect(tarjetasDelDia('Mon')).toHaveLength(2))
+      expect(iniciales(tarjeta('Mon', '08:00'))).toEqual(['AL'])
+      expect(await screen.findByText('Job duplicated')).toBeInTheDocument()
+    })
+
     it('la copia no lleva a los empleados inactivos', async () => {
       semilla.schedules.push({ jobSchedulesId: 10, jobsId: semilla.jobs[13].jobsId, date: MIERCOLES, startTime: '07:00', employeesIds: [3, 9], scheduleComment: null })
       await renderApp(5)

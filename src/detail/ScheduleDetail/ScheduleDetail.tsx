@@ -26,7 +26,7 @@ export function ScheduleDetail({
   employeesById: Map<number, Employee>
   onClose: () => void
 }) {
-  const actions = useScheduleActions(schedules)
+  const actions = useScheduleActions(schedules, absences)
   const lookup = useMemo(() => absenceLookup(absences), [absences])
   const panelRef = useRef<HTMLElement>(null)
   const schedule = schedules.find((item) => item.jobSchedulesId === scheduleId)

@@ -1,9 +1,9 @@
 import { useEffect, useMemo } from 'react'
-import type { Employee, IsoDate, Schedule } from '../../api/types'
+import type { Absence, Employee, IsoDate, Schedule } from '../../api/types'
 import { BottomSheet } from '../../layout/BottomSheet'
 import { employeeHue } from '../../lib/colors'
 import { fullName, initials, panelEmployees } from '../../lib/employees'
-import { employeeDayCounts } from '../../lib/selectors'
+import { absenceLookup, employeeDayCounts } from '../../lib/selectors'
 import { useScheduleActions } from '../../undo/useScheduleActions'
 import { WeekLoad } from '../WeekLoad'
 import styles from './AssignSheet.module.css'
@@ -12,6 +12,7 @@ export function AssignSheet({
   schedule,
   employees,
   schedules,
+  absences,
   days,
   today,
   onClose,
@@ -19,12 +20,14 @@ export function AssignSheet({
   schedule: Schedule
   employees: Employee[]
   schedules: Schedule[]
+  absences: Absence[]
   days: IsoDate[]
   today: IsoDate
   onClose: () => void
 }) {
   const actions = useScheduleActions(schedules)
   const counts = useMemo(() => employeeDayCounts(schedules), [schedules])
+  const lookup = useMemo(() => absenceLookup(absences), [absences])
   const current = schedules.find((item) => item.jobSchedulesId === schedule.jobSchedulesId)
 
   useEffect(() => {
@@ -42,13 +45,15 @@ export function AssignSheet({
             const load = schedules.filter(
               (item) => item.date === current.date && item.employeesIds.includes(employee.employeesId),
             ).length
+            const absence = lookup.get(employee.employeesId)?.get(current.date)
             return (
-              <li key={employee.employeesId} className={styles.row}>
+              <li key={employee.employeesId} className={absence ? `${styles.row} ${styles.absent}` : styles.row}>
                 <label className={styles.label}>
                   <input
                     type="checkbox"
                     aria-label={fullName(employee)}
                     checked={assigned}
+                    disabled={!!absence}
                     onChange={() =>
                       actions.setEmployees(
                         current,
@@ -63,10 +68,19 @@ export function AssignSheet({
                   </span>
                   <span className={styles.name}>
                     {fullName(employee)}
-                    <WeekLoad days={days} today={today} load={counts.get(employee.employeesId)} />
+                    <WeekLoad
+                      days={days}
+                      today={today}
+                      load={counts.get(employee.employeesId)}
+                      absences={lookup.get(employee.employeesId)}
+                    />
                   </span>
                 </label>
-                {load > 0 && <span className={styles.load}>{load === 1 ? '1 job' : `${load} jobs`}</span>}
+                {absence ? (
+                  <span className={styles.load}>{absence.absenceType}</span>
+                ) : (
+                  load > 0 && <span className={styles.load}>{load === 1 ? '1 job' : `${load} jobs`}</span>
+                )}
               </li>
             )
           })}

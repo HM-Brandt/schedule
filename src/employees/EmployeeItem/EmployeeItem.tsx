@@ -1,5 +1,5 @@
 import { useDraggable } from '@dnd-kit/react'
-import type { Employee, IsoDate } from '../../api/types'
+import type { Absence, Employee, IsoDate } from '../../api/types'
 import { employeeHue } from '../../lib/colors'
 import { formatHours, fullName, initials } from '../../lib/employees'
 import { WeekLoad } from '../WeekLoad'
@@ -10,12 +10,14 @@ export function EmployeeItem({
   days,
   today,
   load,
+  absences,
   hours,
 }: {
   employee: Employee
   days: IsoDate[]
   today: IsoDate
   load: Map<IsoDate, number> | undefined
+  absences?: Map<IsoDate, Absence>
   hours: number | undefined
 }) {
   const { ref } = useDraggable({
@@ -34,7 +36,7 @@ export function EmployeeItem({
         {employee.title}
         {hours !== undefined && ` · ${formatHours(hours)}`}
       </span>
-      <WeekLoad days={days} today={today} load={load} fill className={styles.week} />
+      <WeekLoad days={days} today={today} load={load} absences={absences} fill className={styles.week} />
     </li>
   )
 }

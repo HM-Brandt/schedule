@@ -150,6 +150,7 @@ function Tablero() {
         employees={employees.data ?? []}
         error={employees.error}
         schedules={schedules.data ?? []}
+        absences={absences.data ?? []}
         days={DIAS}
         today={MARTES}
         hours={undefined}
@@ -512,6 +513,64 @@ describe('ausencias: mover una programación a un día con ausentes', () => {
     await waitFor(() => expect(peticiones).toHaveLength(1))
     expect(peticiones[0].metodo).toBe('PATCH')
     expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+  })
+})
+
+// Tarea 6.1 de `employee-absences`: los recuadros del panel se actualizan al marcar y al quitar.
+describe('ausencias: recuadros del panel de empleados', () => {
+  /** Recuadros (`role="img"`) de la fila del empleado `nombre` en el panel. */
+  function recuadrosDe(nombre: string) {
+    const panel = screen.getByRole('heading', { level: 2, name: 'Employees' }).closest('section') as HTMLElement
+    const fila = within(panel)
+      .getAllByRole('listitem')
+      .find((item) => item.textContent?.includes(nombre)) as HTMLElement
+    const contenedor = within(fila).getByRole('img')
+    return { contenedor, niveles: Array.from(contenedor.children).map((item) => item.getAttribute('data-level')) }
+  }
+
+  it('escenario "Marcar actualiza los recuadros": con una programación el jueves, al guardar su ausencia el jueves el recuadro pasa a "absent"', async () => {
+    semilla.schedules[3].employeesIds = [8]
+    await renderTablero()
+    await waitFor(() => expect(recuadrosDe('Carlos Ruiz').niveles).toEqual(['0', '0', '1', '0', '1', '0', '0']))
+
+    await arrastrar('employee-8', `absences-${JUEVES}`)
+    await screen.findByRole('dialog', { name: 'Mark absence' })
+    guardarDialogo('Vacation')
+
+    await waitFor(() => expect(recuadrosDe('Carlos Ruiz').niveles[4]).toBe('absent'))
+    // El martes conserva su tono claro.
+    expect(recuadrosDe('Carlos Ruiz').niveles).toEqual(['0', '0', '1', '0', 'absent', '0', '0'])
+    expect(recuadrosDe('Carlos Ruiz').contenedor).toHaveAccessibleName('Assigned: Tue (1). Absent: Thu (Vacation)')
+  })
+
+  it('la ausencia de la semilla de Sofía el miércoles ya sale en sus recuadros', async () => {
+    await renderTablero()
+
+    await waitFor(() => expect(recuadrosDe('Sofía Romero').niveles).toEqual(['0', '0', '0', 'absent', '0', '0', '0']))
+    expect(recuadrosDe('Sofía Romero').contenedor).toHaveAccessibleName('Assigned: none. Absent: Wed (Vacation)')
+  })
+
+  it('al quitar la ausencia el recuadro vuelve a su estado sin ausencia', async () => {
+    await renderTablero()
+    await waitFor(() => expect(chip('Wed', 'Sofía Romero')).toHaveAttribute('aria-disabled', 'false'))
+
+    await arrastrar('absence-1', null)
+
+    await waitFor(() => expect(recuadrosDe('Sofía Romero').niveles).toEqual(['0', '0', '0', '0', '0', '0', '0']))
+    expect(recuadrosDe('Sofía Romero').contenedor).toHaveAccessibleName('Assigned: none')
+  })
+
+  it('al deshacer la ausencia marcada el recuadro vuelve a su tono de carga', async () => {
+    semilla.schedules[3].employeesIds = [8]
+    await renderTablero()
+    await arrastrar('employee-8', `absences-${JUEVES}`)
+    await screen.findByRole('dialog', { name: 'Mark absence' })
+    guardarDialogo('Off')
+    await waitFor(() => expect(recuadrosDe('Carlos Ruiz').niveles[4]).toBe('absent'))
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Undo' }))
+
+    await waitFor(() => expect(recuadrosDe('Carlos Ruiz').niveles).toEqual(['0', '0', '1', '0', '1', '0', '0']))
   })
 })
 

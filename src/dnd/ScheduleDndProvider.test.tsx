@@ -134,6 +134,7 @@ function Tablero() {
         employees={employees.data ?? []}
         error={employees.error}
         schedules={schedules.data ?? []}
+        absences={absences.data ?? []}
         days={DIAS}
         today={MARTES}
         hours={undefined}
@@ -301,6 +302,88 @@ describe('ScheduleDndProvider', () => {
         ruta: '/v2/job-management/schedules',
         cuerpo: { jobsId: 12, date: VIERNES, startTime: '07:00', employeesIds: [] },
       })
+    })
+
+    // Tarea 5.2 de `employee-absences`: requisito "Duplicar a un día con empleados ausentes".
+    it('escenario "Duplicar con Luis ausente el viernes": el POST solo lleva a Ana y la copia del viernes muestra solo a Ana', async () => {
+      semilla.absences.push({
+        employeeAbsencesId: 2,
+        employeesId: 5,
+        date: VIERNES,
+        absenceType: 'Sick',
+        absenceComment: null,
+      })
+      await renderTablero()
+      await waitFor(() => expect(within(columnaDelDia('Fri')).getByText('Luis Martínez')).toBeInTheDocument())
+
+      await arrastrar('schedule-1', `day-${VIERNES}`, { altKey: true })
+
+      await waitFor(() =>
+        expect(peticiones).toEqual([
+          {
+            metodo: 'POST',
+            ruta: '/v2/job-management/schedules',
+            cuerpo: { jobsId: 7, date: VIERNES, startTime: '07:00', employeesIds: [3] },
+          },
+        ]),
+      )
+      await waitFor(() => expect(tarjetasDelDia('Fri')).toHaveLength(1))
+      const copia = tarjetasDelDia('Fri')[0]
+      expect(copia).toHaveTextContent('J-1024')
+      expect(iniciales(copia)).toEqual(['AL'])
+      // La original del lunes conserva a Ana y Luis.
+      expect(iniciales(tarjetasDelDia('Mon')[0])).toEqual(['AL', 'LM'])
+      expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    })
+
+    it('si la ausente el viernes es otra persona que no está en la tarjeta, la copia lleva a Ana y Luis', async () => {
+      semilla.absences.push({
+        employeeAbsencesId: 2,
+        employeesId: 8,
+        date: VIERNES,
+        absenceType: 'Off',
+        absenceComment: null,
+      })
+      await renderTablero()
+      await waitFor(() => expect(within(columnaDelDia('Fri')).getByText('Carlos Ruiz')).toBeInTheDocument())
+
+      await arrastrar('schedule-1', `day-${VIERNES}`, { altKey: true })
+
+      await waitFor(() => expect(peticiones).toHaveLength(1))
+      expect(peticiones[0].cuerpo).toEqual({ jobsId: 7, date: VIERNES, startTime: '07:00', employeesIds: [3, 5] })
+    })
+
+    it('si todos los de la tarjeta están ausentes el viernes, la copia se crea sin empleados', async () => {
+      semilla.absences.push(
+        { employeeAbsencesId: 2, employeesId: 3, date: VIERNES, absenceType: 'Vacation', absenceComment: null },
+        { employeeAbsencesId: 3, employeesId: 5, date: VIERNES, absenceType: 'Sick', absenceComment: null },
+      )
+      await renderTablero()
+      await waitFor(() => expect(within(columnaDelDia('Fri')).getByText('Luis Martínez')).toBeInTheDocument())
+
+      await arrastrar('schedule-1', `day-${VIERNES}`, { altKey: true })
+
+      await waitFor(() => expect(peticiones).toHaveLength(1))
+      expect(peticiones[0].cuerpo).toEqual({ jobsId: 7, date: VIERNES, startTime: '07:00', employeesIds: [] })
+      await waitFor(() => expect(tarjetasDelDia('Fri')).toHaveLength(1))
+      expect(iniciales(tarjetasDelDia('Fri')[0])).toEqual([])
+    })
+
+    it('la ausencia de Luis el viernes no quita a Luis al duplicar a otro día: el sábado la copia lleva a Ana y Luis', async () => {
+      semilla.absences.push({
+        employeeAbsencesId: 2,
+        employeesId: 5,
+        date: VIERNES,
+        absenceType: 'Sick',
+        absenceComment: null,
+      })
+      await renderTablero()
+      await waitFor(() => expect(within(columnaDelDia('Fri')).getByText('Luis Martínez')).toBeInTheDocument())
+
+      await arrastrar('schedule-1', `day-${SABADO}`, { altKey: true })
+
+      await waitFor(() => expect(peticiones).toHaveLength(1))
+      expect(peticiones[0].cuerpo).toEqual({ jobsId: 7, date: SABADO, startTime: '07:00', employeesIds: [3, 5] })
     })
 
     it('en su mismo día: la copia queda a la hora siguiente a la más alta de ese trabajo, 09:00', async () => {

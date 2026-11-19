@@ -91,6 +91,11 @@ test('marcar a Ana de vacaciones el lunes: arrastrarla a "Absences", elegir "Vac
   // Ana deja de estar en los dos trabajos del lunes; Luis se queda en el suyo.
   await expect(dia(page, 'Mon').getByRole('article').getByTitle('Ana López')).toHaveCount(0)
   await expect(dia(page, 'Mon').getByRole('article').getByTitle('Luis Martínez')).toHaveCount(1)
+  // En el panel de empleados, el lunes de Ana pasa al estilo de ausencia y su texto accesible lo dice.
+  const recuadrosDeAna = enElPanel(page, 'Ana López').getByRole('img')
+  await expect(recuadrosDeAna).toHaveAccessibleName(/Absent: Mon \(Vacation\)/)
+  await expect(recuadrosDeAna.locator('[data-level="absent"]')).toHaveCount(1)
+  await expect(recuadrosDeAna.locator('[data-level="absent"]')).toHaveText('M')
   // Las demás zonas no la muestran.
   await expect(zona(page, 'Tue')).not.toContainText('Ana López')
   await expect(page.getByRole('status').filter({ hasText: 'Absence marked' })).toBeVisible()

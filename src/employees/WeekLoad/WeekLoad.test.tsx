@@ -9,7 +9,7 @@
 // son decorativos (`aria-hidden`) y el texto accesible va en el contenedor (`role="img"`).
 import { render, screen } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
-import type { IsoDate } from '../../api/types'
+import type { Absence, IsoDate } from '../../api/types'
 import { WeekLoad } from './WeekLoad'
 import styles from './WeekLoad.module.css'
 
@@ -139,6 +139,70 @@ describe('WeekLoad', () => {
     const { recuadros } = renderSemana(undefined, MARTES, siguiente)
 
     expect(recuadros.some((recuadro) => recuadro.hasAttribute('data-today'))).toBe(false)
+  })
+
+  // Tarea 6.1 de `employee-absences`: un día ausente usa el nivel `absent` y el texto accesible
+  // añade ". Absent: " con los días ausentes y su tipo.
+  describe('días de ausencia', () => {
+    const ausencia = (date: IsoDate, absenceType: Absence['absenceType']): [IsoDate, Absence] => [
+      date,
+      { employeeAbsencesId: 1, employeesId: 11, date, absenceType, absenceComment: null },
+    ]
+
+    it('escenario "Juan de vacaciones el martes": lunes en tono claro, martes "absent" y el texto lo indica', () => {
+      render(
+        <WeekLoad days={DIAS} today={MARTES} load={new Map([[LUNES, 1]])} absences={new Map([ausencia(MARTES, 'Vacation')])} />,
+      )
+      const contenedor = screen.getByRole('img')
+      const recuadros = Array.from(contenedor.children) as HTMLElement[]
+
+      expect(niveles(recuadros)).toEqual(['0', '1', 'absent', '0', '0', '0', '0'])
+      expect(contenedor).toHaveAccessibleName('Assigned: Mon (1). Absent: Tue (Vacation)')
+    })
+
+    it('varias ausencias se listan separadas por coma en orden de la semana', () => {
+      render(
+        <WeekLoad
+          days={DIAS}
+          today={MARTES}
+          load={undefined}
+          absences={new Map([ausencia(JUEVES, 'Sick'), ausencia(MARTES, 'Vacation')])}
+        />,
+      )
+
+      expect(screen.getByRole('img')).toHaveAccessibleName('Assigned: none. Absent: Tue (Vacation), Thu (Sick)')
+    })
+
+    it('el estilo de ausencia sustituye al tono de carga del mismo día', () => {
+      render(<WeekLoad days={DIAS} today={MARTES} load={new Map([[LUNES, 2]])} absences={new Map([ausencia(LUNES, 'Off')])} />)
+
+      const recuadros = Array.from(screen.getByRole('img').children) as HTMLElement[]
+      expect(recuadros[1]).toHaveAttribute('data-level', 'absent')
+    })
+
+    it('sin ausencias o con un mapa vacío el texto accesible no cambia y ningún recuadro es "absent"', () => {
+      const { unmount } = render(<WeekLoad days={DIAS} today={MARTES} load={new Map([[LUNES, 1]])} absences={new Map()} />)
+      expect(screen.getByRole('img')).toHaveAccessibleName('Assigned: Mon (1)')
+      expect(niveles(Array.from(screen.getByRole('img').children) as HTMLElement[])).not.toContain('absent')
+      unmount()
+
+      render(<WeekLoad days={DIAS} today={MARTES} load={new Map([[LUNES, 1]])} />)
+      expect(screen.getByRole('img')).toHaveAccessibleName('Assigned: Mon (1)')
+    })
+
+    it('ignora las ausencias de fechas fuera de la semana visible', () => {
+      render(<WeekLoad days={DIAS} today={MARTES} load={undefined} absences={new Map([ausencia('2026-11-09', 'Off')])} />)
+
+      expect(screen.getByRole('img')).toHaveAccessibleName('Assigned: none')
+    })
+
+    it('el día actual ausente conserva la marca de hoy', () => {
+      render(<WeekLoad days={DIAS} today={MARTES} load={undefined} absences={new Map([ausencia(MARTES, 'Other')])} />)
+
+      const recuadros = Array.from(screen.getByRole('img').children) as HTMLElement[]
+      expect(recuadros[2]).toHaveAttribute('data-level', 'absent')
+      expect(recuadros[2]).toHaveAttribute('data-today')
+    })
   })
 
   // Variante que reparte los siete recuadros a todo el ancho de la fila del empleado

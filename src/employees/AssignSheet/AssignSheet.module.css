@@ -30,6 +30,10 @@
   gap: 2px;
 }
 
+.absent {
+  opacity: 0.5;
+}
+
 .label input {
   accent-color: var(--color-accent);
 }
