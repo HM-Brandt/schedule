@@ -46,6 +46,7 @@ export function DayColumn({
         .join(' ')}
     >
       <DayHeading date={date} isToday={isToday} />
+      <AbsenceZone date={date} absences={absences} employeesById={employeesById} className={styles.absences} />
       {blockEmployeeDrop ? (
         <div className={styles.load}>Absent</div>
       ) : (
@@ -62,9 +63,6 @@ export function DayColumn({
             blockEmployeeDrop={blockEmployeeDrop}
           />
         ))}
-      </div>
-      <div className={styles.absences}>
-        <AbsenceZone date={date} absences={absences} employeesById={employeesById} />
       </div>
     </div>
   )

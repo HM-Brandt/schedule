@@ -30,19 +30,19 @@
 ## 5. Acciones y deshacer
 
 - [x] 5.1 Añadir `markAbsent` y `removeAbsence` a las acciones del tablero, con sus inversas (`DELETE` y después los `PUT` en una sola entrada; `POST` con reasignación de id), y verificar con tests los escenarios de "Deshacer ausencias" y de "Desasignación al marcar una ausencia"
-- [ ] 5.2 Filtrar a los ausentes del día de destino al duplicar y verificar con tests el escenario "Duplicar con Luis ausente el viernes"
+- [x] 5.2 Filtrar a los ausentes del día de destino al duplicar y verificar con tests el escenario "Duplicar con Luis ausente el viernes"
 
 ## 6. Panel y teléfono
 
-- [ ] 6.1 Mostrar en `WeekLoad` el nivel `absent` con su texto accesible, y verificar con tests los escenarios de "Días de ausencia en los recuadros del empleado"
-- [ ] 6.2 Mostrar "Absent" en el indicador del día al arrastrar a un empleado ausente, y verificar con tests el escenario de "Indicador de ausencia al arrastrar"
-- [ ] 6.3 Deshabilitar en `AssignSheet` a los ausentes del día con su tipo, y verificar con tests el escenario "Ana enferma el lunes"
+- [x] 6.1 Mostrar en `WeekLoad` el nivel `absent` con su texto accesible, y verificar con tests los escenarios de "Días de ausencia en los recuadros del empleado"
+- [x] 6.2 Mostrar "Absent" en el indicador del día al arrastrar a un empleado ausente, y verificar con tests el escenario de "Indicador de ausencia al arrastrar"
+- [x] 6.3 Deshabilitar en `AssignSheet` a los ausentes del día con su tipo, y verificar con tests el escenario "Ana enferma el lunes"
 
 ## 7. Integración
 
 - [ ] 7.1 Recorrer con datos de prueba a 1280, 800 y 390 px el flujo completo (marcar con el diálogo, ver la desasignación, intentar asignar a un ausente, mover y duplicar con ausentes, quitar la ausencia y deshacer cada paso), y verificar que se cumplen los escenarios de `specs/`
 - [x] 7.2 Añadir un test e2e del camino feliz (arrastrar a Ana a "Absences" del lunes, elegir "Vacation", guardar y ver que sale de sus trabajos del lunes y aparece en la zona) y verificar que `npx playwright test` pasa
-- [ ] 7.3 Ejecutar `npm test`, `npm run test:tz`, `tsc --noEmit` y `npm run build` y verificar que terminan sin errores
+- [x] 7.3 Ejecutar `npm test`, `npm run test:tz`, `tsc --noEmit` y `npm run build` y verificar que terminan sin errores
 
 ## Workflow follow-up
 

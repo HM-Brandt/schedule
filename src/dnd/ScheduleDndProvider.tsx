@@ -1,5 +1,5 @@
 import { DragDropProvider, DragOverlay } from '@dnd-kit/react'
-import { useMemo, useState } from 'react'
+import { createContext, useMemo, useState } from 'react'
 import type { ReactNode } from 'react'
 import { AbsenceDialog } from '../absences/AbsenceDialog'
 import { useEmployees } from '../api/queries'
@@ -9,6 +9,13 @@ import { useScheduleActions } from '../undo/useScheduleActions'
 import { DragPreview } from './DragPreview'
 import { resolveDrop } from './dropResolution'
 import type { DragData, DropData } from './dropResolution'
+
+type AbsenceAlert = { date: IsoDate; n: number }
+
+export const AbsenceAlertContext = createContext<{ absenceAlert: AbsenceAlert | null; clearAbsenceAlert: () => void }>({
+  absenceAlert: null,
+  clearAbsenceAlert: () => {},
+})
 
 export function ScheduleDndProvider({
   schedules,
@@ -23,7 +30,8 @@ export function ScheduleDndProvider({
   const employees = useEmployees()
   const lookup = useMemo(() => absenceLookup(absences), [absences])
   const [pending, setPending] = useState<{ employeeId: number; date: IsoDate } | null>(null)
-  const pendingEmployee = employees.data?.find((employee) => employee.employeesId === pending?.employeeId)
+  const [absenceAlert, setAbsenceAlert] = useState<AbsenceAlert | null>(null)
+  const pendingEmployee =employees.data?.find((employee) => employee.employeesId === pending?.employeeId)
 
   return (
     <DragDropProvider
@@ -54,9 +62,14 @@ export function ScheduleDndProvider({
           if (absence) actions.removeAbsence(absence)
         }
         if (action.kind === 'blocked-move') actions.blockMove(action.employeeIds, action.date)
+        if (action.kind === 'blocked-assign') {
+          setAbsenceAlert((current) => ({ date: action.date, n: (current?.n ?? 0) + 1 }))
+        }
       }}
     >
-      {children}
+      <AbsenceAlertContext.Provider value={{ absenceAlert, clearAbsenceAlert: () => setAbsenceAlert(null) }}>
+        {children}
+      </AbsenceAlertContext.Provider>
       <DragOverlay
         dropAnimation={null}
         disabled={(source) => {

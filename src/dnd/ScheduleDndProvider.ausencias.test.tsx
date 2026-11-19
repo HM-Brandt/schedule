@@ -443,7 +443,7 @@ describe('ausencias: empleados ausentes no asignables', () => {
     expect(peticiones[0].cuerpo).toEqual({ employeesIds: [LUIS, 8] })
   })
 
-  it('Ana ausente el lunes, arrastrada desde su tarjeta del martes a una tarjeta del lunes: no hace nada', async () => {
+  it('Ana ausente el lunes, arrastrada desde su tarjeta del martes a una tarjeta del lunes: no la asigna ni envía peticiones', async () => {
     semilla.schedules[0].employeesIds = [LUIS]
     semilla.schedules[1].employeesIds = []
     semilla.schedules[2].employeesIds = [8, ANA]
@@ -452,6 +452,119 @@ describe('ausencias: empleados ausentes no asignables', () => {
 
     await arrastrar(`employee-${ANA}-in-3`, 'card-2')
 
+    await sinPeticiones()
+    expect(iniciales(tarjeta('Tue', 'J-1019'))).toEqual(['CR', 'AL'])
+  })
+})
+
+// Escenario "Aviso en la zona con la zona fuera de la vista" de "Empleados ausentes no asignables":
+// al soltar a un ausente sobre una tarjeta de su día, la zona de ese día parpadea y se desplaza a la vista.
+describe('ausencias: aviso en la zona al soltar a un ausente sobre una tarjeta de su día', () => {
+  let desplazar: ReturnType<typeof vi.fn>
+  let original: typeof Element.prototype.scrollIntoView | undefined
+
+  /** Hace que `prefers-reduced-motion: reduce` no coincida (el simulador global siempre coincide). */
+  function sinReduccionDeMovimiento() {
+    vi.spyOn(window, 'matchMedia').mockImplementation(
+      (consulta: string) => ({ matches: false, media: consulta, addEventListener() {}, removeEventListener() {} }) as unknown as MediaQueryList,
+    )
+  }
+
+  beforeEach(() => {
+    original = Element.prototype.scrollIntoView
+    desplazar = vi.fn()
+    Element.prototype.scrollIntoView = desplazar as unknown as typeof Element.prototype.scrollIntoView
+    semilla.schedules[0].employeesIds = [LUIS]
+    semilla.schedules[1].employeesIds = []
+    ausente(2, ANA, LUNES, 'Vacation')
+  })
+
+  afterEach(() => {
+    vi.restoreAllMocks()
+    if (original) Element.prototype.scrollIntoView = original
+    else delete (Element.prototype as { scrollIntoView?: unknown }).scrollIntoView
+  })
+
+  it('no hay petición, Ana no queda asignada, la zona del lunes recibe "blocked" y se desplaza con "nearest" y "smooth"', async () => {
+    sinReduccionDeMovimiento()
+    await renderTablero()
+    await waitFor(() => expect(within(zona('Mon')).getByText('Ana López')).toBeInTheDocument())
+
+    await arrastrar(`employee-${ANA}`, 'card-1')
+
+    await waitFor(() => expect(zona('Mon')).toHaveClass(/blocked/))
+    await sinPeticiones()
+    expect(iniciales(tarjeta('Mon', '07:00'))).toEqual(['LM'])
+    expect(desplazar).toHaveBeenCalledTimes(1)
+    expect(desplazar).toHaveBeenCalledWith({ block: 'nearest', behavior: 'smooth' })
+    expect(desplazar.mock.contexts[0]).toBe(zona('Mon'))
+    for (const otro of ['Sun', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']) expect(zona(otro)).not.toHaveClass(/blocked/)
+  })
+
+  it('con "prefers-reduced-motion: reduce" se desplaza con "auto"', async () => {
+    await renderTablero()
+    await waitFor(() => expect(within(zona('Mon')).getByText('Ana López')).toBeInTheDocument())
+
+    await arrastrar(`employee-${ANA}`, 'card-1')
+
+    await waitFor(() => expect(desplazar).toHaveBeenCalledTimes(1))
+    expect(desplazar).toHaveBeenCalledWith({ block: 'nearest', behavior: 'auto' })
+  })
+
+  it('al terminar la animación la zona pierde "blocked" y un segundo intento vuelve a dar el aviso', async () => {
+    await renderTablero()
+    await waitFor(() => expect(within(zona('Mon')).getByText('Ana López')).toBeInTheDocument())
+    await arrastrar(`employee-${ANA}`, 'card-1')
+    await waitFor(() => expect(zona('Mon')).toHaveClass(/blocked/))
+
+    // jsdom no tiene `AnimationEvent`, así que React escucha la variante con prefijo; se lanzan las dos.
+    fireEvent.animationEnd(zona('Mon'))
+    fireEvent(zona('Mon'), new Event('webkitAnimationEnd', { bubbles: true }))
+
+    await waitFor(() => expect(zona('Mon')).not.toHaveClass(/blocked/))
+
+    await arrastrar(`employee-${ANA}`, 'card-2')
+
+    await waitFor(() => expect(zona('Mon')).toHaveClass(/blocked/))
+    expect(desplazar).toHaveBeenCalledTimes(2)
+    await sinPeticiones()
+  })
+
+  it('un segundo intento sin esperar a que acabe la animación reinicia el aviso (la zona se remonta)', async () => {
+    await renderTablero()
+    await waitFor(() => expect(within(zona('Mon')).getByText('Ana López')).toBeInTheDocument())
+    await arrastrar(`employee-${ANA}`, 'card-1')
+    await waitFor(() => expect(zona('Mon')).toHaveClass(/blocked/))
+    const primera = zona('Mon')
+
+    await arrastrar(`employee-${ANA}`, 'card-1')
+
+    await waitFor(() => expect(desplazar).toHaveBeenCalledTimes(2))
+    expect(zona('Mon')).toHaveClass(/blocked/)
+    expect(zona('Mon')).not.toBe(primera)
+  })
+
+  it('el mismo empleado sobre una tarjeta de otro día se asigna y no da aviso', async () => {
+    await renderTablero()
+    await waitFor(() => expect(within(zona('Mon')).getByText('Ana López')).toBeInTheDocument())
+
+    await arrastrar(`employee-${ANA}`, 'card-3')
+
+    await waitFor(() => expect(peticiones).toHaveLength(1))
+    expect(peticiones[0].cuerpo).toEqual({ employeesIds: [8, ANA] })
+    await waitFor(() => expect(iniciales(tarjeta('Tue', 'J-1019'))).toEqual(['CR', 'AL']))
+    for (const nombre of ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']) expect(zona(nombre)).not.toHaveClass(/blocked/)
+    expect(desplazar).not.toHaveBeenCalled()
+  })
+
+  it('desde otra tarjeta de otro día hacia una tarjeta de su día de ausencia también avisa sin enviar nada', async () => {
+    semilla.schedules[2].employeesIds = [8, ANA]
+    await renderTablero()
+    await waitFor(() => expect(within(zona('Mon')).getByText('Ana López')).toBeInTheDocument())
+
+    await arrastrar(`employee-${ANA}-in-3`, 'card-2')
+
+    await waitFor(() => expect(zona('Mon')).toHaveClass(/blocked/))
     await sinPeticiones()
     expect(iniciales(tarjeta('Tue', 'J-1019'))).toEqual(['CR', 'AL'])
   })

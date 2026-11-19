@@ -100,3 +100,23 @@ test('marcar a Ana de vacaciones el lunes: arrastrarla a "Absences", elegir "Vac
   await expect(zona(page, 'Tue')).not.toContainText('Ana López')
   await expect(page.getByRole('status').filter({ hasText: 'Absence marked' })).toBeVisible()
 })
+
+test('soltar a una ausente sobre una tarjeta de su día: la zona "Absences" de ese día da el aviso y Ana no queda en la tarjeta', async ({
+  page,
+}) => {
+  // Se marca a Ana ausente el lunes, como en el test anterior.
+  await arrastrar(page, enElPanel(page, 'Ana López'), zona(page, 'Mon'))
+  const dialogo = page.getByRole('dialog', { name: 'Mark absence' })
+  await dialogo.getByRole('radio', { name: 'Vacation' }).check()
+  await dialogo.getByRole('button', { name: 'Save' }).click()
+  await expect(dialogo).toBeHidden()
+  await expect(zona(page, 'Mon')).toContainText('Ana López')
+
+  // Se la suelta desde el panel sobre la primera tarjeta del lunes.
+  const tarjetaDelLunes = dia(page, 'Mon').getByRole('article').first()
+  await arrastrar(page, enElPanel(page, 'Ana López'), tarjetaDelLunes)
+
+  await expect(zona(page, 'Mon')).toHaveClass(/blocked/)
+  await expect(dia(page, 'Mon').getByRole('article').getByTitle('Ana López')).toHaveCount(0)
+  await expect(zona(page, 'Tue')).not.toHaveClass(/blocked/)
+})

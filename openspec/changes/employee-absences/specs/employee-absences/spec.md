@@ -7,7 +7,7 @@ Registro de ausencias de empleados por día en el tablero semanal (libre, vacaci
 ## ADDED Requirements
 
 ### Requirement: Zona de ausencias por día
-Cada día del tablero SHALL mostrar al pie una zona "Absences" con los empleados ausentes ese día, en todas las disposiciones (escritorio, tablet y teléfono). Cada ausencia SHALL mostrarse con el nombre del empleado y su tipo. Si tiene comentario, SHALL verse al pasar el puntero. Una zona sin ausencias SHALL indicarlo visualmente.
+Cada día del tablero SHALL mostrar al pie una zona "Absences" con los empleados ausentes ese día, en todas las disposiciones (escritorio, tablet y teléfono). Cada ausencia SHALL mostrarse con el nombre del empleado y su tipo. Si tiene comentario, SHALL verse al pasar el puntero. Una zona sin ausencias SHALL indicarlo visualmente. La zona SHALL distinguirse a simple vista del resto del día con un acento rojo, y una zona con ausencias SHALL distinguirse de una vacía. El nombre y el tipo SHALL quedar dentro de la zona en cualquier ancho de pantalla.
 
 #### Scenario: Ana de vacaciones el lunes
 - **WHEN** Ana tiene una ausencia `Vacation` el lunes de la semana visible
@@ -61,11 +61,15 @@ El sistema SHALL permitir quitar una ausencia arrastrándola desde la zona "Abse
 - **THEN** la zona del lunes deja de mostrar a Ana y Ana no aparece en ninguna tarjeta del lunes
 
 ### Requirement: Empleados ausentes no asignables
-El sistema SHALL NOT asignar a un empleado a una programación de un día en que está ausente. Mientras se arrastra a ese empleado, las tarjetas de ese día SHALL NOT resaltarse como destino, y soltarlo sobre una de ellas SHALL NOT producir cambios.
+El sistema SHALL NOT asignar a un empleado a una programación de un día en que está ausente. Mientras se arrastra a ese empleado, las tarjetas de ese día SHALL NOT resaltarse como destino, y soltarlo sobre una de ellas SHALL NOT producir cambios. Al soltarlo sobre una de ellas, la zona "Absences" de ese día SHALL desplazarse a la vista si no se ve y SHALL parpadear en rojo claro como aviso de que el empleado está ausente.
 
 #### Scenario: Arrastrar a una ausente a una tarjeta de su día
 - **WHEN** Ana está ausente el lunes y la persona la arrastra sobre "J-1024 Pintar oficina" del lunes
 - **THEN** la tarjeta no se resalta y, al soltar, Ana no queda asignada
+
+#### Scenario: Aviso en la zona con la zona fuera de la vista
+- **WHEN** en el teléfono el lunes tiene tantas programaciones que la zona "Absences" quedó fuera de la vista, Ana está ausente el lunes y la persona la suelta sobre una tarjeta del lunes
+- **THEN** la página se desplaza hasta mostrar la zona "Absences" del lunes, la zona parpadea en rojo claro y Ana no queda asignada
 
 #### Scenario: Otro día sí se puede
 - **WHEN** Ana está ausente el lunes y la persona la suelta sobre "J-1040 Mudanza López" del martes

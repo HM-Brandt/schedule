@@ -226,14 +226,20 @@ describe('resolveDrop', () => {
   })
 
   describe('empleado ausente en una tarjeta de su día', () => {
-    it('del panel, en una tarjeta del día en que está ausente: no hace nada', () => {
+    it('del panel, en una tarjeta del día en que está ausente: devuelve blocked-assign con la fecha de la tarjeta', () => {
       // Ana está ausente el lunes y la tarjeta B es del lunes.
-      expect(resolveDrop(empleadoDelPanel(3), tarjetaDestino(TARJETA_B), SIN_ALT_CON_AUSENCIAS)).toEqual({ kind: 'none' })
+      expect(resolveDrop(empleadoDelPanel(3), tarjetaDestino(TARJETA_B), SIN_ALT_CON_AUSENCIAS)).toEqual({
+        kind: 'blocked-assign',
+        employeeId: 3,
+        date: LUNES,
+      })
     })
 
-    it('de otra tarjeta, en una tarjeta del día en que está ausente: no hace nada', () => {
+    it('de otra tarjeta, en una tarjeta del día en que está ausente: devuelve blocked-assign con la fecha de la tarjeta', () => {
       expect(resolveDrop(empleadoDeTarjeta(3, TARJETA_MARTES.jobSchedulesId), tarjetaDestino(TARJETA_A), SIN_ALT_CON_AUSENCIAS)).toEqual({
-        kind: 'none',
+        kind: 'blocked-assign',
+        employeeId: 3,
+        date: LUNES,
       })
     })
 

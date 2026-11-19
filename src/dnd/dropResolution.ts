@@ -25,6 +25,7 @@ export type DropAction =
   | { kind: 'mark-absent'; employeeId: number; date: IsoDate }
   | { kind: 'remove-absence'; employeeAbsencesId: number }
   | { kind: 'blocked-move'; schedule: Schedule; date: IsoDate; employeeIds: number[] }
+  | { kind: 'blocked-assign'; employeeId: number; date: IsoDate }
 
 export const ACCEPTS: Record<DropData['kind'], DragData['kind'][]> = {
   day: ['catalog-job', 'schedule-card'],
@@ -59,7 +60,7 @@ export function resolveDrop(
   if (source.kind === 'employee' && target?.kind === 'schedule-card') {
     const { employeeId, fromScheduleId } = source
     const { schedule } = target
-    if (absences.get(employeeId)?.has(schedule.date)) return NONE
+    if (absences.get(employeeId)?.has(schedule.date)) return { kind: 'blocked-assign', employeeId, date: schedule.date }
     if (fromScheduleId === undefined) {
       return schedule.employeesIds.includes(employeeId) ? NONE : { kind: 'assign', employeeId, schedule }
     }

@@ -1,5 +1,7 @@
 .chip {
   display: flex;
+  flex-wrap: wrap;
+  min-width: 0;
   align-items: center;
   justify-content: space-between;
   gap: var(--space-1);
@@ -14,6 +16,7 @@
 }
 
 .name {
+  min-width: 0;
   overflow: hidden;
   color: var(--color-text);
   text-overflow: ellipsis;

@@ -3,9 +3,11 @@
   flex-wrap: wrap;
   align-items: baseline;
   gap: var(--space-1) var(--space-2);
+  min-width: 0;
   margin: 0 var(--space-2) var(--space-2);
   padding: var(--space-1) var(--space-2);
   border: 1px dashed var(--color-border);
+  border-left: 3px solid var(--color-danger-light);
   border-radius: var(--radius-sm);
   transition:
     border-color var(--duration-fast),
@@ -13,13 +15,50 @@
     box-shadow var(--duration-fast);
 }
 
+.filled {
+  background: var(--color-danger-soft);
+  border-style: solid;
+}
+
 .accepting {
   border-color: var(--color-accent);
+  border-left-color: var(--color-danger-light);
 }
 
 .over {
   background: var(--color-accent-soft);
   box-shadow: 0 0 0 2px var(--color-accent);
+}
+
+.blocked {
+  animation: blink 1.2s ease-in-out;
+}
+
+@keyframes blink {
+  25%,
+  75% {
+    background-color: var(--color-danger-light);
+    box-shadow: 0 0 0 2px var(--color-danger-light);
+  }
+
+  50% {
+    background-color: var(--color-danger-soft);
+    box-shadow: 0 0 0 0 var(--color-danger-light);
+  }
+}
+
+@keyframes hold {
+  from,
+  to {
+    background-color: var(--color-danger-light);
+    box-shadow: 0 0 0 2px var(--color-danger-light);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .blocked {
+    animation-name: hold;
+  }
 }
 
 .title {
@@ -37,5 +76,6 @@
   display: flex;
   flex-direction: column;
   flex-basis: 100%;
+  min-width: 0;
   gap: var(--space-1);
 }

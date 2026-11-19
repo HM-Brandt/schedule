@@ -76,7 +76,7 @@ CREATE TABLE employee_absences (
 |---|---|---|
 | `employee` (panel o tarjeta) | `absences` de un día sin ausencia suya | `mark-absent` (abre el diálogo) |
 | `employee` | `absences` de un día con ausencia suya | `none` |
-| `employee` | `schedule-card` de un día en que está ausente | `none` |
+| `employee` | `schedule-card` de un día en que está ausente | `blocked-assign` (aviso en la zona de ausencias, sin petición) |
 | `absence` | soltado fuera de cualquier zona `absences` | `remove-absence` |
 | `absence` | una zona `absences` | `none` |
 | `schedule-card` | `day` donde algún asignado está ausente | `blocked-move` (mensaje de error, sin petición) |
@@ -85,6 +85,8 @@ CREATE TABLE employee_absences (
 - Elemento arrastrable nuevo `{kind:'absence', employeeAbsencesId, employeeId, date}` con id `absence-${id}`. Solo lo aceptan las zonas `absences` (decisión de Carlos): `@dnd-kit` ignora los destinos que no aceptan el elemento, así que sin esto el destino sería siempre `null` y soltar una ausencia dentro de su zona la quitaría. Las zonas no se resaltan al arrastrar una ausencia.
 - `resolveDrop` recibe el `absenceLookup` como argumento, igual que ya recibe las programaciones.
 - El resaltado de tarjetas (`useAcceptsDrag`) se apaga en las tarjetas de un día en que el empleado arrastrado está ausente.
+- `blocked-assign` (decisión de Carlos): `ScheduleDndProvider` guarda en un contexto la fecha del aviso con un contador, para que se repita en cada intento. La `AbsenceZone` de esa fecha se desplaza a la vista (`scrollIntoView` con `block: 'nearest'`) y parpadea en rojo claro; al terminar la animación se borra el aviso. Con `prefers-reduced-motion`, el desplazamiento es instantáneo y la zona queda en rojo claro sin parpadear. El aviso se da al soltar y no al pasar por encima: desplazar la página en mitad de un arrastre cambiaría lo que hay bajo el puntero.
+- Aspecto de la zona: barra izquierda en `--color-danger-light` siempre; fondo `--color-danger-soft` si tiene ausencias; vacía, fondo transparente y borde discontinuo. No se usa gris porque es el fondo de los fines de semana.
 - `mark-absent` no guarda: `ScheduleDndProvider` guarda `{employeeId, date}` pendiente y muestra `AbsenceDialog`. "Save" llama a `actions.markAbsent`; "Cancel" descarta.
 - **Alternativa descartada:** guardar al soltar con un tipo por defecto y editar después. Carlos prefiere elegir el tipo al soltar.
 
