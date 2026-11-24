@@ -40,7 +40,7 @@
 
 ## 7. Integración
 
-- [ ] 7.1 Recorrer con datos de prueba a 1280, 800 y 390 px el flujo completo (marcar con el diálogo, ver la desasignación, intentar asignar a un ausente, mover y duplicar con ausentes, quitar la ausencia y deshacer cada paso), y verificar que se cumplen los escenarios de `specs/`
+- [x] 7.1 Recorrer con datos de prueba a 1280, 800 y 390 px el flujo completo (marcar con el diálogo, ver la desasignación, intentar asignar a un ausente, mover y duplicar con ausentes, quitar la ausencia y deshacer cada paso), y verificar que se cumplen los escenarios de `specs/`
 - [x] 7.2 Añadir un test e2e del camino feliz (arrastrar a Ana a "Absences" del lunes, elegir "Vacation", guardar y ver que sale de sus trabajos del lunes y aparece en la zona) y verificar que `npx playwright test` pasa
 - [x] 7.3 Ejecutar `npm test`, `npm run test:tz`, `tsc --noEmit` y `npm run build` y verificar que terminan sin errores
 
