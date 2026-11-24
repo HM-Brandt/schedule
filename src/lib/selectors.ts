@@ -1,4 +1,4 @@
-import type { IsoDate, Schedule } from '../api/types'
+import type { Absence, IsoDate, Schedule } from '../api/types'
 
 export function compareSchedules(a: Schedule, b: Schedule): number {
   if (a.startTime !== b.startTime) return a.startTime < b.startTime ? -1 : 1
@@ -10,6 +10,10 @@ export function schedulesByDay(schedules: Schedule[], days: IsoDate[]): Record<I
   return Object.fromEntries(
     days.map((day) => [day, schedules.filter((schedule) => schedule.date === day).sort(compareSchedules)]),
   )
+}
+
+export function absencesByDay(absences: Absence[], days: IsoDate[]): Record<IsoDate, Absence[]> {
+  return Object.fromEntries(days.map((day) => [day, absences.filter((absence) => absence.date === day)]))
 }
 
 export function jobWeekCounts(schedules: Schedule[]) {
@@ -28,4 +32,22 @@ export function employeeDayCounts(schedules: Schedule[]) {
     }
   }
   return counts
+}
+
+export function absenceLookup(absences: Absence[]) {
+  const lookup = new Map<number, Map<IsoDate, Absence>>()
+  for (const absence of absences) {
+    const days = lookup.get(absence.employeesId) ?? new Map<IsoDate, Absence>()
+    days.set(absence.date, absence)
+    lookup.set(absence.employeesId, days)
+  }
+  return lookup
+}
+
+export function absentEmployees(
+  employeesIds: number[],
+  date: IsoDate,
+  lookup: Map<number, Map<IsoDate, Absence>>,
+): number[] {
+  return employeesIds.filter((id) => lookup.get(id)?.has(date))
 }

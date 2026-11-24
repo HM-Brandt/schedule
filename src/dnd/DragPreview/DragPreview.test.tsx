@@ -106,7 +106,7 @@ describe('ScheduleDndProvider: vista previa del arrastre', () => {
     render(
       conConsultas(
         <UndoProvider>
-          <ScheduleDndProvider schedules={[]}>
+          <ScheduleDndProvider schedules={[]} absences={[]}>
             <CapturadorDelGestor />
             <Arrastrable id="trabajo" data={{ kind: 'catalog-job', job: PINTAR }} />
             <Arrastrable id="empleado" data={{ kind: 'employee', employeeId: 3 }} />

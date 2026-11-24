@@ -1,4 +1,4 @@
-import type { IsoDate, Job, StartTime, UpdateScheduleBody } from '../api/types'
+import type { AbsenceType, IsoDate, Job, StartTime, UpdateScheduleBody } from '../api/types'
 
 export type InverseOp =
   | { kind: 'delete'; id: number }
@@ -13,6 +13,15 @@ export type InverseOp =
       replacesId: number
     }
   | { kind: 'put'; id: number; employeesIds: number[] }
+  | { kind: 'delete-absence'; id: number }
+  | {
+      kind: 'create-absence'
+      employeesId: number
+      date: IsoDate
+      absenceType: AbsenceType
+      absenceComment: string | null
+      replacesId: number
+    }
 
 export type UndoEntry = { label: string; ops: InverseOp[] }
 
@@ -25,6 +34,15 @@ export function pushEntry(stack: UndoEntry[], entry: UndoEntry): UndoEntry[] {
 export function replaceScheduleId(stack: UndoEntry[], oldId: number, newId: number): UndoEntry[] {
   return stack.map((entry) => ({
     ...entry,
-    ops: entry.ops.map((op) => (op.kind !== 'create' && op.id === oldId ? { ...op, id: newId } : op)),
+    ops: entry.ops.map((op) =>
+      (op.kind === 'delete' || op.kind === 'patch' || op.kind === 'put') && op.id === oldId ? { ...op, id: newId } : op,
+    ),
+  }))
+}
+
+export function replaceAbsenceId(stack: UndoEntry[], oldId: number, newId: number): UndoEntry[] {
+  return stack.map((entry) => ({
+    ...entry,
+    ops: entry.ops.map((op) => (op.kind === 'delete-absence' && op.id === oldId ? { ...op, id: newId } : op)),
   }))
 }

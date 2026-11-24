@@ -17,7 +17,7 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from
 import { createHandlers } from '../mocks/handlers'
 import { createSeed } from '../mocks/seed'
 import { useAuthStore } from '../stores/authStore'
-import { queryKeys, useEmployees, useHoursSummary, useJobs, useMe, useWeekSchedules } from './queries'
+import { queryKeys, useEmployees, useHoursSummary, useJobs, useMe, useWeekAbsences, useWeekSchedules } from './queries'
 import { createQueryClient } from './queryClient'
 import type { Schedule } from './types'
 
@@ -254,6 +254,43 @@ describe('useWeekSchedules', () => {
 
     await waitFor(() => expect(result.current.data?.map((item) => item.job.number)).toEqual(['J-1018']))
     expect(urls).toHaveLength(1)
+  })
+})
+
+describe('useWeekAbsences', () => {
+  it('la clave de una semana es ["absences", from, to]', () => {
+    expect(queryKeys.absences('2026-11-01', '2026-11-07')).toEqual(['absences', '2026-11-01', '2026-11-07'])
+  })
+
+  it('pide GET /v2/job-management/absences con from y to y devuelve las ausencias del rango', async () => {
+    const urls = capturarPeticiones('/v2/job-management/absences')
+
+    const { result } = renderHook(() => useWeekAbsences('2026-11-01', '2026-11-07'), { wrapper: envoltorio })
+
+    await waitFor(() => expect(result.current.isSuccess).toBe(true))
+    expect(urls).toHaveLength(1)
+    expect(parametros(urls[0])).toEqual({ from: '2026-11-01', to: '2026-11-07' })
+    expect(result.current.data).toEqual([
+      { employeeAbsencesId: 1, employeesId: 7, date: '2026-11-04', absenceType: 'Vacation', absenceComment: 'Viaje familiar' },
+    ])
+  })
+
+  it('al cambiar de semana pide el nuevo rango y devuelve sus datos', async () => {
+    const urls = capturarPeticiones('/v2/job-management/absences')
+    const { result, rerender } = renderHook(({ from, to }) => useWeekAbsences(from, to), {
+      wrapper: envoltorio,
+      initialProps: { from: '2026-11-01', to: '2026-11-07' },
+    })
+    await waitFor(() => expect(result.current.data).toHaveLength(1))
+
+    rerender({ from: '2026-11-08', to: '2026-11-14' })
+
+    await waitFor(() => expect(result.current.data).toEqual([]))
+    expect(urls.map(parametros)).toEqual([
+      { from: '2026-11-01', to: '2026-11-07' },
+      { from: '2026-11-08', to: '2026-11-14' },
+    ])
+    expect(client.getQueryData(['absences', '2026-11-01', '2026-11-07'])).toHaveLength(1)
   })
 })
 

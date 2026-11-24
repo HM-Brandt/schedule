@@ -80,7 +80,7 @@
 - [x] 11.3 Ajustar la semilla y los manejadores MSW a la forma nueva (2 empleados `Terminated`, jobs con todos sus campos, validaciones 422 con `Terminated`) y verificar con tests en `msw/node`
 - [x] 11.4 Ajustar componentes, selectores, arrastre, deshacer y regla de hora a los nombres nuevos, y verificar que `npm test`, `tsc --noEmit` y `npm run build` pasan
 - [x] 11.5 Actualizar `docs/schema.sql` con el DDL de `design.md` (decisión 1)
-- [ ] 11.6 Actualizar `docs/api.md` con el contrato nuevo (lo redacta Carlos)
+- [x] 11.6 Actualizar `docs/api.md` con el contrato nuevo (lo redacta Carlos)
 - [x] 11.7 Usar en el cliente HTTP las rutas `v1/...` relativas a `VITE_API_URL` para los siete endpoints, y en los manejadores MSW (incluida la latencia) un comodín de origen, y verificar con datos de prueba que con `VITE_API_URL` vacía y con una URL absoluta con prefijo `/api` las peticiones se interceptan
 
 ## 12. Comentario de una programación

@@ -9,10 +9,6 @@ export function snapshotSchedules(client: QueryClient) {
   return client.getQueriesData<Schedule[]>(schedulesFilter)
 }
 
-export function restoreSchedules(client: QueryClient, snapshot: ReturnType<typeof snapshotSchedules>) {
-  snapshot.forEach(([key, data]) => client.setQueryData(key, data))
-}
-
 export function findCachedSchedule(client: QueryClient, id: number) {
   return snapshotSchedules(client)
     .flatMap(([, data]) => data ?? [])

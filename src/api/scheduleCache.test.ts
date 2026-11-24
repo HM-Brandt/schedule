@@ -10,7 +10,6 @@ import {
   nextTempId,
   putSchedule,
   removeCachedSchedule,
-  restoreSchedules,
   snapshotSchedules,
 } from './scheduleCache'
 import type { Job, Schedule } from './types'
@@ -35,7 +34,7 @@ beforeEach(() => {
 
 const semana = (clave: readonly unknown[]) => client.getQueryData<Schedule[]>(clave)
 
-describe('snapshotSchedules y restoreSchedules', () => {
+describe('snapshotSchedules', () => {
   it('la instantánea contiene todas las semanas cacheadas', () => {
     const instantanea = snapshotSchedules(client)
 
@@ -48,17 +47,6 @@ describe('snapshotSchedules y restoreSchedules', () => {
     client.setQueryData(['employees'], [])
 
     expect(snapshotSchedules(client)).toHaveLength(2)
-  })
-
-  it('restaurar deja todas las semanas como estaban', () => {
-    const instantanea = snapshotSchedules(client)
-    removeCachedSchedule(client, 1)
-    putSchedule(client, { ...LUNES_2, date: '2026-11-04' })
-
-    restoreSchedules(client, instantanea)
-
-    expect(semana(SEMANA_1)).toEqual([LUNES_1, MARTES_1])
-    expect(semana(SEMANA_2)).toEqual([LUNES_2])
   })
 })
 

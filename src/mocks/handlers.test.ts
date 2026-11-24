@@ -929,6 +929,432 @@ describe('PUT /v2/job-management/schedules/{id}/employees', () => {
   })
 })
 
+describe('ausencias (grupo 2 de `employee-absences`)', () => {
+  const RUTA = '/v2/job-management/absences'
+  const SEMANA = `${RUTA}?from=2026-11-01&to=2026-11-07`
+  // La semilla trae la ausencia 1: empleado 7, miércoles 2026-11-04, Vacation, "Viaje familiar".
+  const AUSENCIA_SEMILLA = {
+    employeeAbsencesId: 1,
+    employeesId: 7,
+    date: '2026-11-04',
+    absenceType: 'Vacation',
+    absenceComment: 'Viaje familiar',
+  }
+
+  const ausencias = async () => {
+    const respuesta = await pedir('GET', SEMANA)
+    expect(respuesta.status).toBe(200)
+    return respuesta.cuerpo as Array<typeof AUSENCIA_SEMILLA>
+  }
+
+  describe('GET', () => {
+    it('Ausencia con comentario: la de la semilla tiene la forma del contrato', async () => {
+      expect(await ausencias()).toEqual([AUSENCIA_SEMILLA])
+    })
+
+    it('Semana completa: incluye la del último día y excluye las de fuera del rango', async () => {
+      const sabado = await pedir('POST', RUTA, { employeesId: 3, date: '2026-11-07', absenceType: 'Off' })
+      const antes = await pedir('POST', RUTA, { employeesId: 3, date: '2026-10-31', absenceType: 'Off' })
+      const despues = await pedir('POST', RUTA, { employeesId: 3, date: '2026-11-08', absenceType: 'Off' })
+
+      const ids = (await ausencias()).map((ausencia) => ausencia.employeeAbsencesId)
+
+      expect(ids).toContain(sabado.cuerpo.absence.employeeAbsencesId)
+      expect(ids).not.toContain(antes.cuerpo.absence.employeeAbsencesId)
+      expect(ids).not.toContain(despues.cuerpo.absence.employeeAbsencesId)
+      expect(ids).toHaveLength(2)
+    })
+
+    it('ordena por fecha y, a igual fecha, por id', async () => {
+      const b = await pedir('POST', RUTA, { employeesId: 5, date: '2026-11-04', absenceType: 'Sick' })
+      const a = await pedir('POST', RUTA, { employeesId: 3, date: '2026-11-04', absenceType: 'Off' })
+      const domingo = await pedir('POST', RUTA, { employeesId: 3, date: '2026-11-01', absenceType: 'Off' })
+
+      const ids = (await ausencias()).map((ausencia) => ausencia.employeeAbsencesId)
+
+      expect(ids).toEqual([
+        domingo.cuerpo.absence.employeeAbsencesId,
+        1,
+        b.cuerpo.absence.employeeAbsencesId,
+        a.cuerpo.absence.employeeAbsencesId,
+      ])
+    })
+
+    it('from igual a to devuelve solo ese día', async () => {
+      const respuesta = await pedir('GET', `${RUTA}?from=2026-11-04&to=2026-11-04`)
+
+      expect(respuesta.status).toBe(200)
+      expect(respuesta.cuerpo).toEqual([AUSENCIA_SEMILLA])
+    })
+
+    it('un rango sin ausencias devuelve una lista vacía', async () => {
+      const respuesta = await pedir('GET', `${RUTA}?from=2026-11-05&to=2026-11-07`)
+
+      expect(respuesta.status).toBe(200)
+      expect(respuesta.cuerpo).toEqual([])
+    })
+
+    it('Rango invertido: 422 con el mismo mensaje que el de programaciones', async () => {
+      esperarError(
+        await pedir('GET', `${RUTA}?from=2026-11-07&to=2026-11-01`),
+        422,
+        'La fecha from no puede ser posterior a to',
+      )
+    })
+
+    it.each([
+      ['falta from', '?to=2026-11-07'],
+      ['falta to', '?from=2026-11-01'],
+      ['faltan los dos', ''],
+      ['from no es una fecha', '?from=hoy&to=2026-11-07'],
+      ['to con un día que no existe', '?from=2026-02-01&to=2026-02-30'],
+    ])('422 cuando %s', async (_descripcion, query) => {
+      esperarError(
+        await pedir('GET', `${RUTA}${query}`),
+        422,
+        'Los parámetros from y to deben ser fechas AAAA-MM-DD',
+      )
+    })
+  })
+
+  describe('POST', () => {
+    it('Ausencia de un empleado con dos trabajos ese día: 201 y las dos programaciones sin el empleado', async () => {
+      // En la semilla el empleado 3 está en las programaciones 1 ([3, 5]) y 2 ([3]) del 2026-11-02.
+      const respuesta = await pedir('POST', RUTA, { employeesId: 3, date: '2026-11-02', absenceType: 'Off' })
+
+      expect(respuesta.status).toBe(201)
+      expect(respuesta.cuerpo.absence).toEqual({
+        employeeAbsencesId: expect.any(Number),
+        employeesId: 3,
+        date: '2026-11-02',
+        absenceType: 'Off',
+        absenceComment: null,
+      })
+      const actualizadas = respuesta.cuerpo.updatedSchedules as ScheduleResponse[]
+      expect(actualizadas.map((programacion) => programacion.jobSchedulesId).sort()).toEqual([1, 2])
+      expect(actualizadas.find((programacion) => programacion.jobSchedulesId === 1)?.employeesIds).toEqual([5])
+      expect(actualizadas.find((programacion) => programacion.jobSchedulesId === 2)?.employeesIds).toEqual([])
+      expect((await buscarProgramacion(1))?.employeesIds).toEqual([5])
+      expect((await buscarProgramacion(2))?.employeesIds).toEqual([])
+      expect(await ausencias()).toContainEqual(respuesta.cuerpo.absence)
+    })
+
+    it('no toca las programaciones del empleado de otro día', async () => {
+      usarSemilla((semilla) => {
+        semilla.schedules.push({ ...PROGRAMACION_101, employeesIds: [3], date: '2026-11-06' })
+      })
+
+      const respuesta = await pedir('POST', RUTA, { employeesId: 3, date: '2026-11-02', absenceType: 'Off' })
+
+      expect(respuesta.status).toBe(201)
+      expect((respuesta.cuerpo.updatedSchedules as ScheduleResponse[]).map((p) => p.jobSchedulesId)).not.toContain(101)
+      expect((await buscarProgramacion(101))?.employeesIds).toEqual([3])
+      expect((await buscarProgramacion(3))?.employeesIds).toEqual([8])
+    })
+
+    it('Ausencia sin trabajos ese día: 201 con updatedSchedules vacío y el comentario guardado', async () => {
+      const respuesta = await pedir('POST', RUTA, {
+        employeesId: 5,
+        date: '2026-11-04',
+        absenceType: 'Sick',
+        absenceComment: 'Gripe',
+      })
+
+      expect(respuesta.status).toBe(201)
+      expect(respuesta.cuerpo.absence).toMatchObject({
+        employeesId: 5,
+        date: '2026-11-04',
+        absenceType: 'Sick',
+        absenceComment: 'Gripe',
+      })
+      expect(respuesta.cuerpo.updatedSchedules).toEqual([])
+      expect(await ausencias()).toContainEqual(respuesta.cuerpo.absence)
+    })
+
+    it('asigna un id nuevo, distinto del de la semilla', async () => {
+      const respuesta = await pedir('POST', RUTA, { employeesId: 5, date: '2026-11-04', absenceType: 'Other' })
+
+      expect(respuesta.cuerpo.absence.employeeAbsencesId).not.toBe(1)
+    })
+
+    it.each(['Off', 'Vacation', 'Sick', 'Other'])('acepta el tipo %s', async (tipo) => {
+      const respuesta = await pedir('POST', RUTA, { employeesId: 5, date: '2026-11-04', absenceType: tipo })
+
+      expect(respuesta.status).toBe(201)
+      expect(respuesta.cuerpo.absence.absenceType).toBe(tipo)
+    })
+
+    it.each<[string, string | null]>([
+      ['null', null],
+      ['vacío', ''],
+      ['solo espacios', '   '],
+    ])('con absenceComment %s guarda null', async (_descripcion, comentario) => {
+      const respuesta = await pedir('POST', RUTA, {
+        employeesId: 5,
+        date: '2026-11-04',
+        absenceType: 'Off',
+        absenceComment: comentario,
+      })
+
+      expect(respuesta.status).toBe(201)
+      expect(respuesta.cuerpo.absence.absenceComment).toBeNull()
+      expect(await ausencias()).toContainEqual(respuesta.cuerpo.absence)
+    })
+
+    it('sin absenceComment guarda null', async () => {
+      const respuesta = await pedir('POST', RUTA, { employeesId: 5, date: '2026-11-04', absenceType: 'Off' })
+
+      expect(respuesta.cuerpo.absence.absenceComment).toBeNull()
+    })
+
+    it.each<[string, Record<string, unknown>, string]>([
+      [
+        'Ya ausente ese día',
+        { employeesId: 7, date: '2026-11-04', absenceType: 'Sick' },
+        'El empleado 7 ya está ausente el 2026-11-04',
+      ],
+      [
+        'Tipo inválido',
+        { employeesId: 3, date: '2026-11-02', absenceType: 'Holiday' },
+        'El tipo de ausencia no es válido',
+      ],
+      [
+        'falta el tipo',
+        { employeesId: 3, date: '2026-11-02' },
+        'El tipo de ausencia no es válido',
+      ],
+      [
+        'el empleado no existe',
+        { employeesId: 999, date: '2026-11-02', absenceType: 'Off' },
+        'No existe el empleado 999',
+      ],
+      [
+        'el empleado está Terminated',
+        { employeesId: 9, date: '2026-11-02', absenceType: 'Off' },
+        'El empleado 9 está inactivo',
+      ],
+      ['falta la fecha', { employeesId: 3, absenceType: 'Off' }, 'La fecha no es válida'],
+      [
+        'la fecha no existe',
+        { employeesId: 3, date: '2026-02-30', absenceType: 'Off' },
+        'La fecha no es válida',
+      ],
+      [
+        'la fecha no es AAAA-MM-DD',
+        { employeesId: 3, date: '02/11/2026', absenceType: 'Off' },
+        'La fecha no es válida',
+      ],
+      [
+        'falta employeesId',
+        { date: '2026-11-02', absenceType: 'Off' },
+        'El cuerpo de la petición no es válido',
+      ],
+      [
+        'employeesId no es un número',
+        { employeesId: '3', date: '2026-11-02', absenceType: 'Off' },
+        'El cuerpo de la petición no es válido',
+      ],
+      [
+        'absenceComment no es texto',
+        { employeesId: 3, date: '2026-11-02', absenceType: 'Off', absenceComment: 5 },
+        'El cuerpo de la petición no es válido',
+      ],
+    ])('422 sin cambios en ausencias ni programaciones: %s', async (_descripcion, cuerpo, mensaje) => {
+      const programacionesAntes = await semana()
+
+      esperarError(await pedir('POST', RUTA, cuerpo), 422, mensaje)
+
+      expect(await ausencias()).toEqual([AUSENCIA_SEMILLA])
+      expect(await semana()).toEqual(programacionesAntes)
+    })
+
+    it('422 cuando el cuerpo no es JSON', async () => {
+      esperarError(
+        await pedir('POST', RUTA, { crudo: '{"employeesId": 3,' }),
+        422,
+        'El cuerpo de la petición no es válido',
+      )
+      expect(await ausencias()).toEqual([AUSENCIA_SEMILLA])
+    })
+
+    it('Ya ausente ese día: tras el 422 sigue habiendo una sola ausencia del empleado ese día', async () => {
+      await pedir('POST', RUTA, { employeesId: 3, date: '2026-11-02', absenceType: 'Off' })
+
+      const repetida = await pedir('POST', RUTA, { employeesId: 3, date: '2026-11-02', absenceType: 'Sick' })
+
+      expect(repetida.status).toBe(422)
+      const delEmpleado = (await ausencias()).filter((a) => a.employeesId === 3 && a.date === '2026-11-02')
+      expect(delEmpleado).toHaveLength(1)
+      expect(delEmpleado[0].absenceType).toBe('Off')
+    })
+
+    it('el mismo empleado puede ausentarse en otro día', async () => {
+      const respuesta = await pedir('POST', RUTA, { employeesId: 7, date: '2026-11-05', absenceType: 'Vacation' })
+
+      expect(respuesta.status).toBe(201)
+    })
+  })
+
+  describe('DELETE', () => {
+    it('Eliminación: 204 sin cuerpo y la ausencia ya no aparece en el listado', async () => {
+      const respuesta = await pedir('DELETE', `${RUTA}/1`)
+
+      expect(respuesta.status).toBe(204)
+      expect(respuesta.texto).toBe('')
+      expect(await ausencias()).toEqual([])
+    })
+
+    it('no reasigna al empleado a ninguna programación', async () => {
+      const creada = await pedir('POST', RUTA, { employeesId: 3, date: '2026-11-02', absenceType: 'Off' })
+      const antes = await semana()
+
+      const respuesta = await pedir('DELETE', `${RUTA}/${creada.cuerpo.absence.employeeAbsencesId}`)
+
+      expect(respuesta.status).toBe(204)
+      expect(await semana()).toEqual(antes)
+      expect((await buscarProgramacion(1))?.employeesIds).toEqual([5])
+      expect((await buscarProgramacion(2))?.employeesIds).toEqual([])
+    })
+
+    it('Ausencia inexistente: 404 con el mensaje exacto', async () => {
+      esperarError(await pedir('DELETE', `${RUTA}/99999`), 404, 'No existe la ausencia 99999')
+      expect(await ausencias()).toEqual([AUSENCIA_SEMILLA])
+    })
+
+    it('borrar dos veces da 404 la segunda', async () => {
+      await pedir('DELETE', `${RUTA}/1`)
+
+      esperarError(await pedir('DELETE', `${RUTA}/1`), 404, 'No existe la ausencia 1')
+    })
+
+    it('tras eliminarla se puede volver a crear la ausencia del mismo empleado y día', async () => {
+      await pedir('DELETE', `${RUTA}/1`)
+
+      const respuesta = await pedir('POST', RUTA, { employeesId: 7, date: '2026-11-04', absenceType: 'Sick' })
+
+      expect(respuesta.status).toBe(201)
+    })
+  })
+
+  describe('ausentes en programaciones', () => {
+    /** Crea una ausencia de `employeesId` ese día y comprueba que se creó. */
+    const ausentar = async (employeesId: number, date: string) => {
+      const respuesta = await pedir('POST', RUTA, { employeesId, date, absenceType: 'Off' })
+      expect(respuesta.status).toBe(201)
+      return respuesta.cuerpo.absence.employeeAbsencesId as number
+    }
+
+    it('Asignar a un ausente: PUT 422 y los empleados no cambian', async () => {
+      conProgramacion101([5])
+      await ausentar(3, '2026-11-02')
+
+      const respuesta = await pedir('PUT', '/v2/job-management/schedules/101/employees', { employeesIds: [3] })
+
+      esperarError(respuesta, 422, 'El empleado 3 está ausente el 2026-11-02')
+      expect((await buscarProgramacion(101))?.employeesIds).toEqual([5])
+    })
+
+    it('Asignar a un ausente: también 422 si va junto a otros empleados', async () => {
+      conProgramacion101([5])
+      await ausentar(3, '2026-11-02')
+
+      const respuesta = await pedir('PUT', '/v2/job-management/schedules/101/employees', { employeesIds: [5, 8, 3] })
+
+      expect(respuesta.status).toBe(422)
+      expect((await buscarProgramacion(101))?.employeesIds).toEqual([5])
+    })
+
+    it('la ausencia de otro día no impide asignar', async () => {
+      conProgramacion101([5])
+      await ausentar(3, '2026-11-03')
+
+      const respuesta = await pedir('PUT', '/v2/job-management/schedules/101/employees', { employeesIds: [3] })
+
+      expect(respuesta.status).toBe(200)
+    })
+
+    it('Caso de control: tras eliminar la ausencia el mismo PUT responde 200', async () => {
+      conProgramacion101([5])
+      const id = await ausentar(3, '2026-11-02')
+      const bloqueado = await pedir('PUT', '/v2/job-management/schedules/101/employees', { employeesIds: [3] })
+      expect(bloqueado.status).toBe(422)
+
+      await pedir('DELETE', `${RUTA}/${id}`)
+      const respuesta = await pedir('PUT', '/v2/job-management/schedules/101/employees', { employeesIds: [3] })
+
+      expect(respuesta.status).toBe(200)
+      expect(respuesta.cuerpo.employeesIds).toEqual([3])
+    })
+
+    it('Crear con un ausente: POST 422 y no se crea la programación', async () => {
+      await ausentar(3, '2026-11-02')
+
+      const respuesta = await pedir('POST', '/v2/job-management/schedules', {
+        jobsId: 7,
+        date: '2026-11-02',
+        startTime: '07:00',
+        employeesIds: [3],
+      })
+
+      esperarError(respuesta, 422, 'El empleado 3 está ausente el 2026-11-02')
+      expect(await semana()).toHaveLength(4)
+    })
+
+    it('Crear con el ausente de la semilla (empleado 7, 2026-11-04): 422', async () => {
+      const respuesta = await pedir('POST', '/v2/job-management/schedules', {
+        jobsId: 7,
+        date: '2026-11-04',
+        startTime: '07:00',
+        employeesIds: [7],
+      })
+
+      expect(respuesta.status).toBe(422)
+      expect(await semana()).toHaveLength(4)
+    })
+
+    it('Mover con un ausente: PATCH con date 422 y la programación sigue en su fecha con el empleado', async () => {
+      conProgramacion101([3])
+      await ausentar(3, '2026-11-03')
+
+      const respuesta = await pedir('PATCH', '/v2/job-management/schedules/101', { date: '2026-11-03' })
+
+      esperarError(respuesta, 422, 'El empleado 3 está ausente el 2026-11-03')
+      expect(await buscarProgramacion(101)).toEqual({ ...PROGRAMACION_101, employeesIds: [3] })
+    })
+
+    it('Mover con un ausente: no aplica tampoco la hora enviada a la vez', async () => {
+      conProgramacion101([3])
+      await ausentar(3, '2026-11-03')
+
+      const respuesta = await pedir('PATCH', '/v2/job-management/schedules/101', {
+        date: '2026-11-03',
+        startTime: '10:00',
+      })
+
+      expect(respuesta.status).toBe(422)
+      expect((await buscarProgramacion(101))?.startTime).toBe('08:00')
+    })
+
+    it('PATCH sin date no se ve afectado por ausencias', async () => {
+      conProgramacion101([3])
+      await pedir('DELETE', `${RUTA}/1`)
+
+      const respuesta = await pedir('PATCH', '/v2/job-management/schedules/101', { startTime: '10:00' })
+
+      expect(respuesta.status).toBe(200)
+    })
+
+    it('mover a un día sin ausentes sigue funcionando', async () => {
+      conProgramacion101([3])
+      await ausentar(3, '2026-11-03')
+
+      const respuesta = await pedir('PATCH', '/v2/job-management/schedules/101', { date: '2026-11-05' })
+
+      expect(respuesta.status).toBe(200)
+    })
+  })
+})
+
 describe('comodín de origen: interceptan la misma ruta v1/... desde cualquier URL base (tarea 11.7)', () => {
   // `fetch` de Node no aplica CORS, así que se puede pedir a otro origen sin cabeceras extra.
   it.each([

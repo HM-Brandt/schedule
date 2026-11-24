@@ -24,7 +24,8 @@ import { http, HttpResponse } from 'msw'
 import { setupServer } from 'msw/node'
 import type { ReactNode } from 'react'
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest'
-import { useEmployees, useWeekSchedules } from '../api/queries'
+import { useDeleteAbsence, useDeleteSchedule } from '../api/mutations'
+import { useEmployees, useWeekAbsences, useWeekSchedules } from '../api/queries'
 import { createQueryClient } from '../api/queryClient'
 import type { Schedule } from '../api/types'
 import { createHandlers } from '../mocks/handlers'
@@ -739,5 +740,143 @@ describe('empleados inactivos', () => {
       { metodo: 'PUT', ruta: '/v2/job-management/schedules/10/employees', cuerpo: { employeesIds: [3, RAUL] } },
     ])
     await waitFor(() => expect(programacion(arnes, 10).employeesIds).toEqual([3, RAUL]))
+  })
+})
+
+// Cola de deshacer en `UndoProvider`: varias llamadas seguidas a `undo()` sin esperar se
+// ejecutan una tras otra y cada una toma la entrada de lo alto de la pila con los ids ya
+// sustituidos (las inversas `create` y `create-absence` recrean el elemento con id nuevo).
+describe('UndoProvider: cola de deshacer', () => {
+  function prepararServidorConAusencias() {
+    const anotar = async ({ request }: { request: Request }) => {
+      const texto = await request.clone().text()
+      peticiones.push({
+        metodo: request.method,
+        ruta: new URL(request.url).pathname,
+        cuerpo: texto ? JSON.parse(texto) : null,
+      })
+      return undefined
+    }
+    server.resetHandlers(
+      http.post('*/v2/job-management/schedules', anotar),
+      http.delete('*/v2/job-management/schedules/:id', anotar),
+      http.post('*/v2/job-management/absences', anotar),
+      http.delete('*/v2/job-management/absences/:id', anotar),
+      ...createHandlers(semilla),
+    )
+  }
+
+  function useArnesCola() {
+    const semana = useWeekSchedules(DOMINGO, SABADO)
+    const ausencias = useWeekAbsences(DOMINGO, SABADO)
+    const empleados = useEmployees()
+    return {
+      cargado: !!semana.data && !!ausencias.data && !!empleados.data,
+      programaciones: semana.data ?? [],
+      ausencias: ausencias.data ?? [],
+      deshacer: useUndo(),
+      borrarProgramacion: useDeleteSchedule(),
+      borrarAusencia: useDeleteAbsence(),
+    }
+  }
+
+  async function montarCola() {
+    prepararServidorConAusencias()
+    const vista = renderHook(() => useArnesCola(), { wrapper: envoltorio })
+    await waitFor(() => expect(vista.result.current.cargado).toBe(true))
+    return vista.result
+  }
+
+  it('dos deshacer seguidos con ausencias: el segundo borra la ausencia con el id nuevo, sin 404 ni aviso', async () => {
+    const arnes = await montarCola()
+    // La semilla tiene la ausencia 1 (empleado 7, miércoles). Se "quita" en el servidor.
+    const ausencia = arnes.current.ausencias[0]
+    expect(ausencia.employeeAbsencesId).toBe(1)
+    await act(async () => {
+      await arnes.current.borrarAusencia.mutateAsync(1)
+    })
+    act(() => {
+      arnes.current.deshacer.push({ label: 'Absence marked', ops: [{ kind: 'delete-absence', id: 1 }] })
+      arnes.current.deshacer.push({
+        label: 'Absence removed',
+        ops: [
+          {
+            kind: 'create-absence',
+            employeesId: ausencia.employeesId,
+            date: ausencia.date,
+            absenceType: ausencia.absenceType,
+            absenceComment: ausencia.absenceComment,
+            replacesId: 1,
+          },
+        ],
+      })
+    })
+    peticiones = []
+
+    await act(async () => {
+      const primera = arnes.current.deshacer.undo()
+      const segunda = arnes.current.deshacer.undo()
+      await Promise.all([primera, segunda])
+    })
+
+    expect(peticiones.map((item) => `${item.metodo} ${item.ruta}`)).toEqual([
+      'POST /v2/job-management/absences',
+      'DELETE /v2/job-management/absences/2',
+    ])
+    await waitFor(() => expect(arnes.current.ausencias).toEqual([]))
+    expect(arnes.current.deshacer.stack).toEqual([])
+    expect(arnes.current.deshacer.toast).toBeNull()
+  })
+
+  it('dos deshacer seguidos con programaciones: la segunda operación usa el id sustituido', async () => {
+    const arnes = await montarCola()
+    await act(async () => {
+      await arnes.current.borrarProgramacion.mutateAsync(4)
+    })
+    act(() => {
+      arnes.current.deshacer.push({ label: 'Job scheduled', ops: [{ kind: 'delete', id: 4 }] })
+      arnes.current.deshacer.push({
+        label: 'Job removed',
+        ops: [
+          {
+            kind: 'create',
+            job: semilla.jobs[11],
+            date: JUEVES,
+            startTime: '09:30',
+            employeesIds: [],
+            scheduleComment: null,
+            replacesId: 4,
+          },
+        ],
+      })
+    })
+    peticiones = []
+
+    await act(async () => {
+      const primera = arnes.current.deshacer.undo()
+      const segunda = arnes.current.deshacer.undo()
+      await Promise.all([primera, segunda])
+    })
+
+    expect(peticiones.map((item) => `${item.metodo} ${item.ruta}`)).toEqual([
+      'POST /v2/job-management/schedules',
+      'DELETE /v2/job-management/schedules/5',
+    ])
+    await waitFor(() => expect(arnes.current.programaciones.find((item) => item.jobSchedulesId === 5)).toBeUndefined())
+    expect(arnes.current.deshacer.stack).toEqual([])
+    expect(arnes.current.deshacer.toast).toBeNull()
+  })
+
+  it('deshacer con la pila vacía no envía peticiones ni muestra avisos', async () => {
+    const arnes = await montarCola()
+    peticiones = []
+
+    await act(async () => {
+      await arnes.current.deshacer.undo()
+    })
+
+    expect(peticiones).toEqual([])
+    expect(arnes.current.deshacer.stack).toEqual([])
+    expect(arnes.current.deshacer.toast).toBeNull()
   })
 })

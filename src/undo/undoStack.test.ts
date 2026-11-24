@@ -8,7 +8,7 @@
 import { describe, expect, it } from 'vitest'
 import { trabajo } from '../test/fabricas'
 import type { Job } from '../api/types'
-import { pushEntry, replaceScheduleId } from './undoStack'
+import { pushEntry, replaceAbsenceId, replaceScheduleId } from './undoStack'
 import type { InverseOp, UndoEntry } from './undoStack'
 
 const PINTAR: Job = trabajo(7, 'J-1024', 'Pintar oficina')
@@ -39,6 +39,21 @@ const INVERSAS: Record<string, InverseOp[]> = {
   'Mover un empleado (2 PUT): 2 PUT con los conjuntos anteriores en una sola entrada': [
     { kind: 'put', id: 1, employeesIds: [3, 5] },
     { kind: 'put', id: 3, employeesIds: [8] },
+  ],
+  'Marcar ausencia (POST absences): DELETE de la ausencia y después los PUT con el conjunto anterior, en una sola entrada': [
+    { kind: 'delete-absence', id: 1 },
+    { kind: 'put', id: 1, employeesIds: [3, 5] },
+    { kind: 'put', id: 2, employeesIds: [3] },
+  ],
+  'Quitar ausencia (DELETE absences): POST con el mismo empleado, fecha, tipo y comentario': [
+    {
+      kind: 'create-absence',
+      employeesId: 3,
+      date: LUNES,
+      absenceType: 'Sick',
+      absenceComment: 'Gripe',
+      replacesId: 1,
+    },
   ],
 }
 
@@ -186,5 +201,93 @@ describe('replaceScheduleId', () => {
 
   it('con la pila vacía devuelve una pila vacía', () => {
     expect(replaceScheduleId([], 1, 9)).toEqual([])
+  })
+
+  it('no toca la inversa delete-absence aunque su id coincida con el de la programación', () => {
+    const pila = [entrada('Marcar ausencia', [{ kind: 'delete-absence', id: 1 }, { kind: 'put', id: 1, employeesIds: [3] }])]
+
+    expect(replaceScheduleId(pila, 1, 9)).toEqual([
+      entrada('Marcar ausencia', [{ kind: 'delete-absence', id: 1 }, { kind: 'put', id: 9, employeesIds: [3] }]),
+    ])
+  })
+
+  it('no cambia una inversa create-absence', () => {
+    const quitar: InverseOp = {
+      kind: 'create-absence',
+      employeesId: 3,
+      date: LUNES,
+      absenceType: 'Off',
+      absenceComment: null,
+      replacesId: 1,
+    }
+
+    expect(replaceScheduleId([entrada('Quitar ausencia', [quitar])], 1, 9)).toEqual([entrada('Quitar ausencia', [quitar])])
+  })
+})
+
+describe('replaceAbsenceId', () => {
+  it('cambia el id viejo por el nuevo en la inversa delete-absence', () => {
+    const pila = [entrada('Marcar ausencia', [{ kind: 'delete-absence', id: 1 }])]
+
+    expect(replaceAbsenceId(pila, 1, 9)).toEqual([entrada('Marcar ausencia', [{ kind: 'delete-absence', id: 9 }])])
+  })
+
+  it('en una entrada con DELETE y PUT solo cambia el DELETE de la ausencia, no los PUT con el mismo id', () => {
+    const pila = [
+      entrada('Marcar ausencia', [
+        { kind: 'delete-absence', id: 1 },
+        { kind: 'put', id: 1, employeesIds: [3, 5] },
+      ]),
+    ]
+
+    expect(replaceAbsenceId(pila, 1, 9)).toEqual([
+      entrada('Marcar ausencia', [
+        { kind: 'delete-absence', id: 9 },
+        { kind: 'put', id: 1, employeesIds: [3, 5] },
+      ]),
+    ])
+  })
+
+  it('no toca las inversas DELETE, PATCH y PUT de programaciones con el mismo id', () => {
+    const pila = [
+      entrada('Programar', [{ kind: 'delete', id: 1 }]),
+      entrada('Mover', [{ kind: 'patch', id: 1, changes: { startTime: '08:00' } }]),
+      entrada('Empleados', [{ kind: 'put', id: 1, employeesIds: [3] }]),
+    ]
+
+    expect(replaceAbsenceId(pila, 1, 9)).toEqual(pila)
+  })
+
+  it('no toca las inversas de otras ausencias', () => {
+    const pila = [entrada('Marcar ausencia', [{ kind: 'delete-absence', id: 2 }])]
+
+    expect(replaceAbsenceId(pila, 1, 9)).toEqual(pila)
+  })
+
+  it('no cambia una inversa create-absence, que no tiene id de ausencia', () => {
+    const quitar: InverseOp = {
+      kind: 'create-absence',
+      employeesId: 3,
+      date: LUNES,
+      absenceType: 'Sick',
+      absenceComment: 'Gripe',
+      replacesId: 1,
+    }
+
+    expect(replaceAbsenceId([entrada('Quitar ausencia', [quitar])], 1, 9)).toEqual([entrada('Quitar ausencia', [quitar])])
+  })
+
+  it('conserva el orden de las entradas y no modifica la pila que recibe', () => {
+    const pila = [entrada('A', [{ kind: 'delete-absence', id: 1 }]), entrada('B', [{ kind: 'delete-absence', id: 2 }])]
+    const copia = structuredClone(pila)
+
+    const nueva = replaceAbsenceId(pila, 1, 9)
+
+    expect(nueva.map((item) => item.label)).toEqual(['A', 'B'])
+    expect(pila).toEqual(copia)
+  })
+
+  it('con la pila vacía devuelve una pila vacía', () => {
+    expect(replaceAbsenceId([], 1, 9)).toEqual([])
   })
 })

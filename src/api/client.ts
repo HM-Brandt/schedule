@@ -6,6 +6,10 @@ import { normalizeTime } from '../lib/dates'
 import { useAuthStore } from '../stores/authStore'
 import type { AuthUser } from '../types'
 import type {
+  Absence,
+  AbsencesQuery,
+  CreateAbsenceBody,
+  CreateAbsenceResponse,
   CreateScheduleBody,
   Employee,
   EmployeeHours,
@@ -82,6 +86,10 @@ function normalizeSchedule(schedule: ScheduleResponse): ScheduleResponse {
     employeesIds: schedule.employeesIds ?? [],
     scheduleComment: schedule.scheduleComment ?? null,
   }
+}
+
+function normalizeAbsence(absence: Absence): Absence {
+  return { ...absence, absenceComment: absence.absenceComment ?? null }
 }
 
 /**
@@ -190,6 +198,25 @@ export function createApiClient(baseURL: string) {
     async replaceScheduleEmployees(id: number, body: ReplaceEmployeesBody): Promise<ScheduleResponse> {
       const response = await http.put<ScheduleResponse>(`v2/job-management/schedules/${id}/employees`, body)
       return normalizeSchedule(response.data)
+    },
+
+    async getAbsences(params: AbsencesQuery): Promise<Absence[]> {
+      const response = await http.get<Absence[]>('v2/job-management/absences', {
+        params: { from: params.from, to: params.to },
+      })
+      return response.data.map(normalizeAbsence)
+    },
+
+    async createAbsence(body: CreateAbsenceBody): Promise<CreateAbsenceResponse> {
+      const { data } = await http.post<CreateAbsenceResponse>('v2/job-management/absences', body)
+      return {
+        absence: normalizeAbsence(data.absence),
+        updatedSchedules: (data.updatedSchedules ?? []).map(normalizeSchedule),
+      }
+    },
+
+    async deleteAbsence(id: number): Promise<void> {
+      await http.delete(`v2/job-management/absences/${id}`)
     },
 
     async getMe(): Promise<AuthUser> {

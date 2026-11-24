@@ -1,6 +1,6 @@
 import { render, screen, within } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
-import type { Employee, IsoDate, Schedule } from '../../api/types'
+import type { Absence, Employee, IsoDate, Schedule } from '../../api/types'
 import { employeeHue } from '../../lib/colors'
 import { createSeed } from '../../mocks/seed'
 import { simularApisDeArrastre } from '../../test/dnd'
@@ -24,9 +24,18 @@ function renderPanel(
   schedules: Schedule[] = [],
   days = DIAS,
   hours: Map<number, number> | undefined = undefined,
+  absences: Absence[] = [],
 ) {
   const resultado = render(
-    <EmployeePanel employees={employees} error={error} schedules={schedules} days={days} today={HOY} hours={hours} />,
+    <EmployeePanel
+      employees={employees}
+      error={error}
+      schedules={schedules}
+      absences={absences}
+      days={days}
+      today={HOY}
+      hours={hours}
+    />,
   )
   return { lista: screen.getByRole('list'), rerender: resultado.rerender }
 }
@@ -295,7 +304,15 @@ describe('EmployeePanel', () => {
       expect(recuadros(fila(lista, 'Juan García')).niveles).toEqual(['0', '1', '1', '0', '0', '0', '0'])
 
       rerender(
-        <EmployeePanel employees={[JUAN]} error={null} schedules={[]} days={SIGUIENTE} today={HOY} hours={undefined} />,
+        <EmployeePanel
+          employees={[JUAN]}
+          error={null}
+          schedules={[]}
+          absences={[]}
+          days={SIGUIENTE}
+          today={HOY}
+          hours={undefined}
+        />,
       )
 
       const { contenedor, niveles } = recuadros(fila(screen.getByRole('list'), 'Juan García'))
@@ -314,6 +331,7 @@ describe('EmployeePanel', () => {
           employees={[JUAN]}
           error={null}
           schedules={[programacion(LUNES, [11]), programacion(DIAS[4], [11])]}
+          absences={[]}
           days={DIAS}
           today={HOY}
           hours={undefined}
@@ -323,6 +341,87 @@ describe('EmployeePanel', () => {
       const { contenedor, niveles } = recuadros(fila(screen.getByRole('list'), 'Juan García'))
       expect(niveles[4]).toBe('1')
       expect(contenedor).toHaveAccessibleName('Assigned: Mon (1), Thu (1)')
+    })
+  })
+
+  // Tarea 6.1 de `employee-absences`: requisito "Días de ausencia en los recuadros del empleado".
+  describe('días de ausencia en los recuadros', () => {
+    const JUAN: Employee = empleado(11, 'Juan', 'García', 'Labor')
+    const LUNES = DIAS[1]
+    const MARTES = DIAS[2]
+    const JUEVES = DIAS[4]
+
+    const ausencia = (employeesId: number, date: IsoDate, absenceType: Absence['absenceType']): Absence => ({
+      employeeAbsencesId: 50 + employeesId,
+      employeesId,
+      date,
+      absenceType,
+      absenceComment: null,
+    })
+
+    it('escenario "Juan de vacaciones el martes": lunes en tono claro, martes con estilo de ausencia y texto con "Absent: Tue (Vacation)"', () => {
+      const { lista } = renderPanel(
+        [ANA, JUAN],
+        null,
+        [programacion(LUNES, [11])],
+        DIAS,
+        undefined,
+        [ausencia(11, MARTES, 'Vacation')],
+      )
+
+      const { contenedor, niveles } = recuadros(fila(lista, 'Juan García'))
+      expect(niveles).toEqual(['0', '1', 'absent', '0', '0', '0', '0'])
+      expect(contenedor).toHaveAccessibleName('Assigned: Mon (1). Absent: Tue (Vacation)')
+      // La ausencia de Juan no toca la fila de Ana.
+      expect(recuadros(fila(lista, 'Ana López')).niveles).toEqual(['0', '0', '0', '0', '0', '0', '0'])
+      expect(recuadros(fila(lista, 'Ana López')).contenedor).toHaveAccessibleName('Assigned: none')
+    })
+
+    it('sin ausencias el texto accesible no cambia', () => {
+      const { lista } = renderPanel([JUAN], null, [programacion(LUNES, [11])])
+
+      expect(recuadros(fila(lista, 'Juan García')).contenedor).toHaveAccessibleName('Assigned: Mon (1)')
+    })
+
+    it('con varias ausencias las lista en orden de la semana con su tipo', () => {
+      const { lista } = renderPanel([JUAN], null, [], DIAS, undefined, [
+        ausencia(11, JUEVES, 'Sick'),
+        ausencia(11, MARTES, 'Vacation'),
+      ])
+
+      const { contenedor, niveles } = recuadros(fila(lista, 'Juan García'))
+      expect(niveles).toEqual(['0', '0', 'absent', '0', 'absent', '0', '0'])
+      expect(contenedor).toHaveAccessibleName('Assigned: none. Absent: Tue (Vacation), Thu (Sick)')
+    })
+
+    it('las ausencias de otra semana no marcan ningún recuadro', () => {
+      const { lista } = renderPanel([JUAN], null, [], DIAS, undefined, [ausencia(11, SIGUIENTE[1], 'Off')])
+
+      const { contenedor, niveles } = recuadros(fila(lista, 'Juan García'))
+      expect(niveles).toEqual(['0', '0', '0', '0', '0', '0', '0'])
+      expect(contenedor).toHaveAccessibleName('Assigned: none')
+    })
+
+    it('al recibir una ausencia nueva el recuadro pasa al estilo de ausencia (marcar actualiza los recuadros)', () => {
+      const conTrabajo = [programacion(JUEVES, [11])]
+      const { lista, rerender } = renderPanel([JUAN], null, conTrabajo)
+      expect(recuadros(fila(lista, 'Juan García')).niveles[4]).toBe('1')
+
+      rerender(
+        <EmployeePanel
+          employees={[JUAN]}
+          error={null}
+          schedules={[]}
+          absences={[ausencia(11, JUEVES, 'Off')]}
+          days={DIAS}
+          today={HOY}
+          hours={undefined}
+        />,
+      )
+
+      const { contenedor, niveles } = recuadros(fila(screen.getByRole('list'), 'Juan García'))
+      expect(niveles[4]).toBe('absent')
+      expect(contenedor).toHaveAccessibleName('Assigned: none. Absent: Thu (Off)')
     })
   })
 })

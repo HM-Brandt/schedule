@@ -14,9 +14,9 @@
 import { DragDropProvider } from '@dnd-kit/react'
 import { act, render, screen, waitFor, within } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
-import type { Employee } from '../../api/types'
+import type { Absence, Employee } from '../../api/types'
 import { EmployeePanel } from '../../employees/EmployeePanel'
-import { schedulesByDay } from '../../lib/selectors'
+import { absencesByDay, schedulesByDay } from '../../lib/selectors'
 import { createSeed } from '../../mocks/seed'
 import { CapturadorDelGestor, empezarArrastre, gestorActual, simularApisDeArrastre } from '../../test/dnd'
 import { programacionesConTrabajo } from '../../test/semilla'
@@ -33,7 +33,7 @@ const semilla = createSeed(new Date(2026, 10, 3))
 const PROGRAMACIONES = programacionesConTrabajo(semilla)
 const EMPLEADOS = new Map<number, Employee>(semilla.employees.map((empleado) => [empleado.employeesId, empleado]))
 
-function renderTablero() {
+function renderTablero(ausencias: Absence[] = []) {
   render(
     <DragDropProvider>
       <CapturadorDelGestor />
@@ -41,12 +41,14 @@ function renderTablero() {
         days={DIAS}
         today="2026-11-03"
         schedulesByDay={schedulesByDay(PROGRAMACIONES, DIAS)}
+        absencesByDay={absencesByDay(ausencias, DIAS)}
         employeesById={EMPLEADOS}
       />
       <EmployeePanel
         employees={semilla.employees}
         error={null}
         schedules={PROGRAMACIONES}
+        absences={ausencias}
         days={DIAS}
         today="2026-11-03"
         hours={undefined}
@@ -141,6 +143,178 @@ describe('DayColumn: indicador de carga al arrastrar un empleado', () => {
   })
 })
 
+// Tareas 4.3 y 4.4 de `employee-absences`: la zona "Absences" al pie de cada día se resalta al
+// arrastrar un empleado, y las tarjetas de un día en que ese empleado está ausente no se resaltan.
+describe('DayColumn: ausencias', () => {
+  const ANA_AUSENTE_EL_LUNES: Absence = {
+    employeeAbsencesId: 1,
+    employeesId: 3,
+    date: '2026-11-02',
+    absenceType: 'Vacation',
+    absenceComment: null,
+  }
+
+  /** Zona "Absences" del día `nombre`. */
+  const zona = (nombre: string) => within(columnaDelDia(nombre)).getByText('Absences').parentElement as HTMLElement
+  const tarjetas = (nombre: string) => within(columnaDelDia(nombre)).getAllByRole('article')
+
+  it('sin ningún arrastre ninguna zona de ausencias está resaltada', () => {
+    renderTablero()
+
+    for (const nombre of NOMBRES) expect(zona(nombre)).not.toHaveClass(/accepting/)
+  })
+
+  it.each([
+    ['un empleado del panel', 'employee-3'],
+    ['un empleado de una tarjeta', 'employee-5-in-1'],
+  ])('arrastrando %s las siete zonas se resaltan como destinos válidos', async (_origen, id) => {
+    renderTablero()
+
+    await empezarArrastre(id)
+
+    await waitFor(() => expect(zona('Mon')).toHaveClass(/accepting/))
+    for (const nombre of NOMBRES) expect(zona(nombre)).toHaveClass(/accepting/)
+  })
+
+  it('arrastrando una tarjeta o una ausencia las zonas no se resaltan', async () => {
+    renderTablero([ANA_AUSENTE_EL_LUNES])
+
+    await empezarArrastre('schedule-1')
+    expect(zona('Mon')).not.toHaveClass(/accepting/)
+    await act(async () => {
+      gestorActual().actions.stop({ canceled: true })
+    })
+    await empezarArrastre('absence-1')
+
+    expect(zona('Mon')).not.toHaveClass(/accepting/)
+  })
+
+  it('escenario "Arrastrar a una ausente a una tarjeta de su día": las tarjetas del lunes no se resaltan, las de otros días sí', async () => {
+    renderTablero([ANA_AUSENTE_EL_LUNES])
+
+    await empezarArrastre('employee-3')
+
+    await waitFor(() => expect(tarjetas('Tue')[0]).toHaveClass(/accepting/))
+    expect(tarjetas('Thu')[0]).toHaveClass(/accepting/)
+    for (const tarjeta of tarjetas('Mon')) expect(tarjeta).not.toHaveClass(/accepting/)
+  })
+
+  it('arrastrando a otro empleado que no está ausente las tarjetas del lunes sí se resaltan', async () => {
+    renderTablero([ANA_AUSENTE_EL_LUNES])
+
+    await empezarArrastre('employee-8')
+
+    await waitFor(() => expect(tarjetas('Tue')[0]).toHaveClass(/accepting/))
+    for (const tarjeta of tarjetas('Mon')) expect(tarjeta).toHaveClass(/accepting/)
+  })
+
+  it('un empleado ausente el lunes arrastrado desde su tarjeta del martes no resalta las tarjetas del lunes', async () => {
+    renderTablero([{ ...ANA_AUSENTE_EL_LUNES, employeesId: 8 }])
+
+    await empezarArrastre('employee-8-in-3')
+
+    await waitFor(() => expect(tarjetas('Thu')[0]).toHaveClass(/accepting/))
+    for (const tarjeta of tarjetas('Mon')) expect(tarjeta).not.toHaveClass(/accepting/)
+    expect(tarjetas('Tue')[0]).toHaveClass(/accepting/)
+  })
+
+  // Tarea 6.2: requisito "Indicador de ausencia al arrastrar".
+  describe('indicador "Absent" al arrastrar', () => {
+    const AUSENTE_EL_MIERCOLES = (employeesId: number): Absence => ({
+      employeeAbsencesId: 9,
+      employeesId,
+      date: '2026-11-04',
+      absenceType: 'Sick',
+      absenceComment: null,
+    })
+    const ausente = (nombre: string) => within(columnaDelDia(nombre)).queryByText('Absent')
+
+    it('escenario "Arrastrar a Ana, ausente el miércoles": el lunes indica su carga y el miércoles "Absent"', async () => {
+      renderTablero([AUSENTE_EL_MIERCOLES(3)])
+
+      await empezarArrastre('employee-3')
+
+      await waitFor(() => expect(indicador('Mon')).toBe('2 jobs'))
+      expect(ausente('Wed')).toBeInTheDocument()
+      expect(indicador('Wed')).toBeNull()
+    })
+
+    it('con una sola programación el lunes indica "1 job" y el miércoles "Absent" (arrastrando a Luis desde su tarjeta)', async () => {
+      renderTablero([AUSENTE_EL_MIERCOLES(5)])
+
+      await empezarArrastre('employee-5-in-1')
+
+      await waitFor(() => expect(indicador('Mon')).toBe('1 job'))
+      expect(ausente('Wed')).toBeInTheDocument()
+    })
+
+    it('"Absent" solo aparece en los días de la ausencia, no en los demás', async () => {
+      renderTablero([AUSENTE_EL_MIERCOLES(3)])
+
+      await empezarArrastre('employee-3')
+
+      await waitFor(() => expect(screen.getAllByText('Absent')).toHaveLength(1))
+      for (const nombre of ['Sun', 'Mon', 'Tue', 'Thu', 'Fri', 'Sat']) expect(ausente(nombre)).not.toBeInTheDocument()
+    })
+
+    it('arrastrando a otro empleado que no está ausente el miércoles no indica "Absent"', async () => {
+      renderTablero([AUSENTE_EL_MIERCOLES(3)])
+
+      await empezarArrastre('employee-8')
+
+      await waitFor(() => expect(indicador('Tue')).toBe('1 job'))
+      expect(screen.queryByText('Absent')).not.toBeInTheDocument()
+    })
+
+    it('sin ningún arrastre en curso no se muestra "Absent"', () => {
+      renderTablero([AUSENTE_EL_MIERCOLES(3)])
+
+      expect(screen.queryByText('Absent')).not.toBeInTheDocument()
+    })
+
+    it('al terminar el arrastre "Absent" desaparece', async () => {
+      renderTablero([AUSENTE_EL_MIERCOLES(3)])
+      await empezarArrastre('employee-3')
+      await waitFor(() => expect(ausente('Wed')).toBeInTheDocument())
+
+      await act(async () => {
+        gestorActual().actions.stop({ canceled: true })
+      })
+
+      await waitFor(() => expect(screen.queryByText('Absent')).not.toBeInTheDocument())
+    })
+  })
+
+  describe('chip de ausencia', () => {
+    const renderZona = (employeeAbsencesId: number) =>
+      render(
+        <DragDropProvider>
+          <DayColumn
+            date="2026-11-02"
+            isToday={false}
+            schedules={[]}
+            absences={[{ ...ANA_AUSENTE_EL_LUNES, employeeAbsencesId }]}
+            employeesById={EMPLEADOS}
+          />
+        </DragDropProvider>,
+      )
+
+    it('con id real se puede arrastrar', async () => {
+      renderZona(1)
+
+      const chip = screen.getByText('Ana López').parentElement as HTMLElement
+      await waitFor(() => expect(chip).toHaveAttribute('aria-disabled', 'false'))
+    })
+
+    it('con id temporal negativo (antes de que el servidor confirme) no se puede arrastrar', async () => {
+      renderZona(-1)
+
+      const chip = screen.getByText('Ana López').parentElement as HTMLElement
+      await waitFor(() => expect(chip).toHaveAttribute('aria-disabled', 'true'))
+    })
+  })
+})
+
 // Tarea 9.6: los sábados y domingos llevan la clase `weekend` del CSS Module y el día de hoy, la
 // clase `today`. Del 1 al 7 de noviembre de 2026: el 1 es domingo y el 7, sábado.
 describe('DayColumn: fin de semana y hoy', () => {
@@ -149,7 +323,7 @@ describe('DayColumn: fin de semana y hoy', () => {
     render(
       <DragDropProvider>
         {DIAS.map((dia) => (
-          <DayColumn key={dia} date={dia} isToday={dia === hoy} schedules={[]} employeesById={EMPLEADOS} />
+          <DayColumn key={dia} date={dia} isToday={dia === hoy} schedules={[]} absences={[]} employeesById={EMPLEADOS} />
         ))}
       </DragDropProvider>,
     )
@@ -193,8 +367,8 @@ describe('DayColumn: fin de semana y hoy', () => {
   it('un lunes de otra semana no es fin de semana y un domingo sí', () => {
     render(
       <DragDropProvider>
-        <DayColumn date="2026-12-28" isToday={false} schedules={[]} employeesById={EMPLEADOS} />
-        <DayColumn date="2027-01-03" isToday={false} schedules={[]} employeesById={EMPLEADOS} />
+        <DayColumn date="2026-12-28" isToday={false} schedules={[]} absences={[]} employeesById={EMPLEADOS} />
+        <DayColumn date="2027-01-03" isToday={false} schedules={[]} absences={[]} employeesById={EMPLEADOS} />
       </DragDropProvider>,
     )
 

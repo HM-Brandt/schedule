@@ -1,18 +1,20 @@
 ﻿<#
 .SYNOPSIS
   Verifica que docs/schema.sql se ejecuta sin errores en un MySQL de prueba
-  (tarea 2.4 del cambio OpenSpec `schedule-assign`).
+  (tarea 2.4 de `schedule-assign` y grupo 1 de `employee-absences`).
 
 .DESCRIPTION
   1. Levanta un contenedor MySQL desechable, sin publicar puertos: todo se hace
      con `docker exec`, así no choca con el servicio MySQL local del 3306.
   2. Espera a que MySQL acepte conexiones.
-  3. Crea las tablas `jobs` y `employees` equivalentes a las existentes.
+  3. Crea las tablas `jobs` y `employees` equivalentes a las existentes
+     (`jobs_id INT` y `employees_id INT`, con signo).
   4. Guarda sus columnas (information_schema.COLUMNS) antes de aplicar el esquema.
   5. Ejecuta docs/schema.sql por stdin y falla si MySQL devuelve un error.
-  6. Comprueba que existen las tablas nuevas, que las columnas de `jobs` y
+  6. Comprueba que existen las tres tablas nuevas, que las columnas de `jobs` y
      `employees` no cambiaron (escenario "Instalación del esquema") y hace un
-     humo de las restricciones (PK compuesta, claves foráneas y ON DELETE CASCADE).
+     humo de las restricciones (PK compuesta, claves foráneas, ON DELETE CASCADE
+     y, en `employee_absences`, UNIQUE por empleado y día, FK y ENUM).
   7. Muestra OK o FALLO por cada comprobación y sale con 1 si algo falla.
   8. Borra el contenedor siempre, también si algo falla.
 
@@ -188,18 +190,18 @@ try {
   # --- 3. Tablas equivalentes a las existentes ---------------------------------
   $null = Assert-MySql -Paso 'Crear jobs y employees' -Sql @"
 CREATE TABLE jobs (
-  id     INT UNSIGNED NOT NULL AUTO_INCREMENT,
-  number VARCHAR(50)  NOT NULL,
-  name   VARCHAR(255) NOT NULL,
-  PRIMARY KEY (id)
+  jobs_id INT          NOT NULL AUTO_INCREMENT,
+  number  VARCHAR(50)  NOT NULL,
+  name    VARCHAR(255) NOT NULL,
+  PRIMARY KEY (jobs_id)
 );
 CREATE TABLE employees (
-  id         INT UNSIGNED NOT NULL AUTO_INCREMENT,
-  first_name VARCHAR(100) NOT NULL,
-  last_name  VARCHAR(100) NOT NULL,
-  title      VARCHAR(100) NOT NULL,
-  status     ENUM('activo', 'inactivo') NOT NULL DEFAULT 'activo',
-  PRIMARY KEY (id)
+  employees_id INT          NOT NULL AUTO_INCREMENT,
+  first_name   VARCHAR(100) NOT NULL,
+  last_name    VARCHAR(100) NOT NULL,
+  title        VARCHAR(100) NOT NULL,
+  status       ENUM('Active', 'Terminated') NOT NULL DEFAULT 'Active',
+  PRIMARY KEY (employees_id)
 );
 "@
 
@@ -216,15 +218,15 @@ CREATE TABLE employees (
   }
 
   # --- 6. Comprobaciones -------------------------------------------------------
-  # 6.1 Existen las dos tablas nuevas.
+  # 6.1 Existen las tres tablas nuevas.
   $tablas = Assert-MySql -Paso 'Buscar las tablas nuevas' -Sql @"
 SELECT TABLE_NAME FROM information_schema.TABLES
-WHERE TABLE_SCHEMA = '$BaseDatos' AND TABLE_NAME IN ('job_schedules', 'job_schedule_employees')
+WHERE TABLE_SCHEMA = '$BaseDatos' AND TABLE_NAME IN ('job_schedules', 'job_schedule_employees', 'employee_absences')
 ORDER BY TABLE_NAME;
 "@
   $listaTablas = @($tablas -split "`n" | Where-Object { $_ -ne '' })
-  Add-Resultado -Comprobacion 'Existen job_schedules y job_schedule_employees' `
-    -Ok (($listaTablas -join ',') -eq 'job_schedule_employees,job_schedules') `
+  Add-Resultado -Comprobacion 'Existen job_schedules, job_schedule_employees y employee_absences' `
+    -Ok (($listaTablas -join ',') -eq 'employee_absences,job_schedule_employees,job_schedules') `
     -Detalle "Encontradas: $($listaTablas -join ', ')"
 
   # 6.2 Las columnas de jobs y employees no cambiaron.
@@ -235,43 +237,73 @@ ORDER BY TABLE_NAME;
 
   # 6.3 Humo: un trabajo, un empleado, una programación y su asignación.
   $insertar = Invoke-MySql -Sql @"
-INSERT INTO jobs (id, number, name) VALUES (7, 'J-1024', 'Pintar oficina');
-INSERT INTO employees (id, first_name, last_name, title, status) VALUES (3, 'Ana', 'Lopez', 'Pintora', 'activo');
-INSERT INTO job_schedules (id, job_id, scheduled_date, start_time) VALUES (101, 7, '2026-11-02', '08:00');
-INSERT INTO job_schedule_employees (job_schedule_id, employee_id) VALUES (101, 3);
+INSERT INTO jobs (jobs_id, number, name) VALUES (7, 'J-1024', 'Pintar oficina');
+INSERT INTO employees (employees_id, first_name, last_name, title, status) VALUES (3, 'Ana', 'Lopez', 'Pintora', 'Active');
+INSERT INTO job_schedules (job_schedules_id, jobs_id, scheduled_date, start_time) VALUES (101, 7, '2026-11-02', '08:00');
+INSERT INTO job_schedule_employees (job_schedules_id, employees_id) VALUES (101, 3);
 "@
   Add-Resultado -Comprobacion 'Se insertan un trabajo, un empleado, una programación y su asignación' `
     -Ok ($insertar.Codigo -eq 0) -Detalle $insertar.Salida
 
   # La fecha y la hora se guardan tal cual (sin conversión de zona horaria).
-  $guardada = Invoke-MySql -Sql "SELECT scheduled_date, TIME_FORMAT(start_time, '%H:%i') FROM job_schedules WHERE id = 101;"
+  $guardada = Invoke-MySql -Sql "SELECT scheduled_date, TIME_FORMAT(start_time, '%H:%i') FROM job_schedules WHERE job_schedules_id = 101;"
   Add-Resultado -Comprobacion 'La programación guarda la fecha 2026-11-02 y la hora 08:00' `
     -Ok ($guardada.Codigo -eq 0 -and $guardada.Salida.Trim() -eq "2026-11-02`t08:00") -Detalle $guardada.Salida
 
   # Asignación duplicada: la PK compuesta debe rechazarla (error 1062).
-  $duplicada = Invoke-MySql -Sql 'INSERT INTO job_schedule_employees (job_schedule_id, employee_id) VALUES (101, 3);'
+  $duplicada = Invoke-MySql -Sql 'INSERT INTO job_schedule_employees (job_schedules_id, employees_id) VALUES (101, 3);'
   Add-Resultado -Comprobacion 'Una asignación duplicada falla por la PK compuesta (error 1062)' `
     -Ok ($duplicada.Codigo -ne 0 -and $duplicada.Salida -match 'ERROR 1062') -Detalle $duplicada.Salida
 
   # Claves foráneas: un trabajo o un empleado inexistentes se rechazan (error 1452).
-  $sinTrabajo = Invoke-MySql -Sql "INSERT INTO job_schedules (job_id, scheduled_date, start_time) VALUES (999, '2026-11-02', '08:00');"
+  $sinTrabajo = Invoke-MySql -Sql "INSERT INTO job_schedules (jobs_id, scheduled_date, start_time) VALUES (999, '2026-11-02', '08:00');"
   Add-Resultado -Comprobacion 'Una programación con un trabajo inexistente falla por la FK (error 1452)' `
     -Ok ($sinTrabajo.Codigo -ne 0 -and $sinTrabajo.Salida -match 'ERROR 1452') -Detalle $sinTrabajo.Salida
 
-  $sinEmpleado = Invoke-MySql -Sql 'INSERT INTO job_schedule_employees (job_schedule_id, employee_id) VALUES (101, 999);'
+  $sinEmpleado = Invoke-MySql -Sql 'INSERT INTO job_schedule_employees (job_schedules_id, employees_id) VALUES (101, 999);'
   Add-Resultado -Comprobacion 'Una asignación con un empleado inexistente falla por la FK (error 1452)' `
     -Ok ($sinEmpleado.Codigo -ne 0 -and $sinEmpleado.Salida -match 'ERROR 1452') -Detalle $sinEmpleado.Salida
 
   # Borrar la programación borra su asignación (ON DELETE CASCADE) y conserva el trabajo.
-  $borrar = Invoke-MySql -Sql 'DELETE FROM job_schedules WHERE id = 101;'
-  $restantes = Invoke-MySql -Sql 'SELECT COUNT(*) FROM job_schedule_employees WHERE job_schedule_id = 101;'
+  $borrar = Invoke-MySql -Sql 'DELETE FROM job_schedules WHERE job_schedules_id = 101;'
+  $restantes = Invoke-MySql -Sql 'SELECT COUNT(*) FROM job_schedule_employees WHERE job_schedules_id = 101;'
   Add-Resultado -Comprobacion 'Borrar la programación borra su asignación (ON DELETE CASCADE)' `
     -Ok ($borrar.Codigo -eq 0 -and $restantes.Codigo -eq 0 -and $restantes.Salida.Trim() -eq '0') `
     -Detalle "DELETE: $($borrar.Salida)`nAsignaciones restantes: $($restantes.Salida)"
 
-  $trabajo = Invoke-MySql -Sql 'SELECT COUNT(*) FROM jobs WHERE id = 7;'
+  $trabajo = Invoke-MySql -Sql 'SELECT COUNT(*) FROM jobs WHERE jobs_id = 7;'
   Add-Resultado -Comprobacion 'El trabajo 7 sigue en jobs después de borrar la programación' `
     -Ok ($trabajo.Codigo -eq 0 -and $trabajo.Salida.Trim() -eq '1') -Detalle $trabajo.Salida
+
+  # 6.4 Humo de employee_absences (grupo 1 de `employee-absences`).
+  $ausencia = Invoke-MySql -Sql "INSERT INTO employee_absences (employees_id, absence_date, absence_type, absence_comment) VALUES (3, '2026-11-03', 'Vacation', 'Viaje familiar');"
+  Add-Resultado -Comprobacion 'Se inserta una ausencia válida' `
+    -Ok ($ausencia.Codigo -eq 0) -Detalle $ausencia.Salida
+
+  # La fecha se guarda tal cual (sin conversión de zona horaria).
+  $fechaAusencia = Invoke-MySql -Sql "SELECT absence_date, absence_type, absence_comment FROM employee_absences WHERE employees_id = 3;"
+  Add-Resultado -Comprobacion 'La ausencia guarda la fecha 2026-11-03, el tipo y el comentario' `
+    -Ok ($fechaAusencia.Codigo -eq 0 -and $fechaAusencia.Salida.Trim() -eq "2026-11-03`tVacation`tViaje familiar") -Detalle $fechaAusencia.Salida
+
+  # Comentario opcional: sin comentario queda en NULL.
+  $sinComentario = Invoke-MySql -Sql "INSERT INTO employee_absences (employees_id, absence_date, absence_type) VALUES (3, '2026-11-04', 'Off'); SELECT absence_comment IS NULL FROM employee_absences WHERE absence_date = '2026-11-04';"
+  Add-Resultado -Comprobacion 'Una ausencia sin comentario guarda absence_comment NULL' `
+    -Ok ($sinComentario.Codigo -eq 0 -and $sinComentario.Salida.Trim() -eq '1') -Detalle $sinComentario.Salida
+
+  # Dos ausencias del mismo empleado el mismo día: la UNIQUE lo rechaza (error 1062).
+  $mismoDia = Invoke-MySql -Sql "INSERT INTO employee_absences (employees_id, absence_date, absence_type) VALUES (3, '2026-11-03', 'Sick');"
+  Add-Resultado -Comprobacion 'Una segunda ausencia del mismo empleado el mismo día falla por la UNIQUE (error 1062)' `
+    -Ok ($mismoDia.Codigo -ne 0 -and $mismoDia.Salida -match 'ERROR 1062') -Detalle $mismoDia.Salida
+
+  # Un empleado inexistente se rechaza por la FK (error 1452).
+  $ausenciaSinEmpleado = Invoke-MySql -Sql "INSERT INTO employee_absences (employees_id, absence_date, absence_type) VALUES (999, '2026-11-03', 'Off');"
+  Add-Resultado -Comprobacion 'Una ausencia con un empleado inexistente falla por la FK (error 1452)' `
+    -Ok ($ausenciaSinEmpleado.Codigo -ne 0 -and $ausenciaSinEmpleado.Salida -match 'ERROR 1452') -Detalle $ausenciaSinEmpleado.Salida
+
+  # Un absence_type fuera del ENUM se rechaza (error 1265 en modo estricto, el de MySQL 8).
+  $tipoInvalido = Invoke-MySql -Sql "INSERT INTO employee_absences (employees_id, absence_date, absence_type) VALUES (3, '2026-11-05', 'Holiday');"
+  Add-Resultado -Comprobacion 'Una ausencia con un absence_type fuera del ENUM falla (error 1265)' `
+    -Ok ($tipoInvalido.Codigo -ne 0 -and $tipoInvalido.Salida -match 'ERROR 1265') -Detalle $tipoInvalido.Salida
 } catch {
   Add-Resultado -Comprobacion 'La verificación terminó sin errores inesperados' -Ok $false -Detalle "$_"
 } finally {

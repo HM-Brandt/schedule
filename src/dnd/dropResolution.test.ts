@@ -4,7 +4,8 @@
 // produce `resolveDrop` y qué tipos acepta cada destino según `ACCEPTS`.
 import { describe, expect, it } from 'vitest'
 import { trabajo } from '../test/fabricas'
-import type { Job, Schedule } from '../api/types'
+import type { Absence, Job, Schedule } from '../api/types'
+import { absenceLookup } from '../lib/selectors'
 import { ACCEPTS, resolveDrop } from './dropResolution'
 import type { DragData, DropData } from './dropResolution'
 
@@ -19,8 +20,22 @@ const TARJETA_A: Schedule = { jobSchedulesId: 1, job: PINTAR_OFICINA, date: LUNE
 // Tarjeta B: lunes, solo con Ana López (3).
 const TARJETA_B: Schedule = { jobSchedulesId: 2, job: PINTAR_OFICINA, date: LUNES, startTime: '08:00', employeesIds: [3], scheduleComment: null }
 
-const SIN_ALT = { altKey: false }
-const CON_ALT = { altKey: true }
+const MARTES = '2026-11-03'
+
+// Ana (3) está ausente el lunes; Luis (5), el jueves.
+const AUSENCIA_ANA: Absence = { employeeAbsencesId: 1, employeesId: 3, date: LUNES, absenceType: 'Vacation', absenceComment: null }
+const AUSENCIA_LUIS: Absence = { employeeAbsencesId: 2, employeesId: 5, date: JUEVES, absenceType: 'Sick', absenceComment: 'Gripe' }
+
+const SIN_AUSENCIAS = absenceLookup([])
+const CON_AUSENCIAS = absenceLookup([AUSENCIA_ANA, AUSENCIA_LUIS])
+
+// Tarjeta del martes con Carlos Ruiz (8).
+const TARJETA_MARTES: Schedule = { jobSchedulesId: 3, job: PINTAR_OFICINA, date: MARTES, startTime: '07:00', employeesIds: [8], scheduleComment: null }
+
+const SIN_ALT = { altKey: false, absences: SIN_AUSENCIAS }
+const CON_ALT = { altKey: true, absences: SIN_AUSENCIAS }
+const SIN_ALT_CON_AUSENCIAS = { altKey: false, absences: CON_AUSENCIAS }
+const CON_ALT_CON_AUSENCIAS = { altKey: true, absences: CON_AUSENCIAS }
 
 const trabajoDelCatalogo: DragData = { kind: 'catalog-job', job: JARDIN_PEREZ }
 const tarjetaArrastrada = (schedule: Schedule): DragData => ({ kind: 'schedule-card', schedule })
@@ -34,6 +49,13 @@ const empleadoDeTarjeta = (employeeId: number, fromScheduleId: number): DragData
 const dia = (date: string): DropData => ({ kind: 'day', date })
 const tarjetaDestino = (schedule: Schedule): DropData => ({ kind: 'schedule-card', schedule })
 const catalogo: DropData = { kind: 'catalog' }
+const zonaAusencias = (date: string): DropData => ({ kind: 'absences', date })
+const ausenciaArrastrada = (absence: Absence): DragData => ({
+  kind: 'absence',
+  employeeAbsencesId: absence.employeeAbsencesId,
+  employeeId: absence.employeesId,
+  date: absence.date,
+})
 
 describe('resolveDrop', () => {
   describe('trabajo del catálogo', () => {
@@ -156,9 +178,158 @@ describe('resolveDrop', () => {
       ['empleado de una tarjeta en un día', empleadoDeTarjeta(5, TARJETA_A.jobSchedulesId), dia(JUEVES)],
       ['empleado del panel en el catálogo', empleadoDelPanel(4), catalogo],
       ['empleado de una tarjeta en el catálogo', empleadoDeTarjeta(5, TARJETA_A.jobSchedulesId), catalogo],
+      ['trabajo del catálogo en la zona de ausencias', trabajoDelCatalogo, zonaAusencias(MARTES)],
+      ['tarjeta en la zona de ausencias', tarjetaArrastrada(TARJETA_A), zonaAusencias(MARTES)],
     ])('%s: no hace nada', (_caso, origen, destino) => {
       expect(resolveDrop(origen, destino, SIN_ALT)).toEqual({ kind: 'none' })
       expect(resolveDrop(origen, destino, CON_ALT)).toEqual({ kind: 'none' })
+    })
+  })
+
+  describe('empleado en la zona de ausencias', () => {
+    it('del panel, en un día sin ausencia suya: abre el diálogo (mark-absent)', () => {
+      expect(resolveDrop(empleadoDelPanel(3), zonaAusencias(MARTES), SIN_ALT_CON_AUSENCIAS)).toEqual({
+        kind: 'mark-absent',
+        employeeId: 3,
+        date: MARTES,
+      })
+    })
+
+    it('de una tarjeta, en un día sin ausencia suya: abre el diálogo (mark-absent)', () => {
+      expect(
+        resolveDrop(empleadoDeTarjeta(5, TARJETA_A.jobSchedulesId), zonaAusencias(LUNES), SIN_ALT_CON_AUSENCIAS),
+      ).toEqual({ kind: 'mark-absent', employeeId: 5, date: LUNES })
+    })
+
+    it('con Alt pulsado también abre el diálogo: Alt no cambia nada', () => {
+      expect(resolveDrop(empleadoDelPanel(3), zonaAusencias(MARTES), CON_ALT_CON_AUSENCIAS)).toEqual({
+        kind: 'mark-absent',
+        employeeId: 3,
+        date: MARTES,
+      })
+    })
+
+    it('un empleado con ausencia en otro día sí puede marcarse en este', () => {
+      // Ana está ausente el lunes, no el martes.
+      expect(resolveDrop(empleadoDelPanel(3), zonaAusencias(MARTES), SIN_ALT_CON_AUSENCIAS).kind).toBe('mark-absent')
+    })
+
+    it('del panel, en un día en que ya está ausente: no hace nada', () => {
+      expect(resolveDrop(empleadoDelPanel(3), zonaAusencias(LUNES), SIN_ALT_CON_AUSENCIAS)).toEqual({ kind: 'none' })
+    })
+
+    it('de una tarjeta, en un día en que ya está ausente: no hace nada', () => {
+      expect(
+        resolveDrop(empleadoDeTarjeta(5, TARJETA_A.jobSchedulesId), zonaAusencias(JUEVES), SIN_ALT_CON_AUSENCIAS),
+      ).toEqual({ kind: 'none' })
+    })
+  })
+
+  describe('empleado ausente en una tarjeta de su día', () => {
+    it('del panel, en una tarjeta del día en que está ausente: devuelve blocked-assign con la fecha de la tarjeta', () => {
+      // Ana está ausente el lunes y la tarjeta B es del lunes.
+      expect(resolveDrop(empleadoDelPanel(3), tarjetaDestino(TARJETA_B), SIN_ALT_CON_AUSENCIAS)).toEqual({
+        kind: 'blocked-assign',
+        employeeId: 3,
+        date: LUNES,
+      })
+    })
+
+    it('de otra tarjeta, en una tarjeta del día en que está ausente: devuelve blocked-assign con la fecha de la tarjeta', () => {
+      expect(resolveDrop(empleadoDeTarjeta(3, TARJETA_MARTES.jobSchedulesId), tarjetaDestino(TARJETA_A), SIN_ALT_CON_AUSENCIAS)).toEqual({
+        kind: 'blocked-assign',
+        employeeId: 3,
+        date: LUNES,
+      })
+    })
+
+    it('en una tarjeta de otro día sí se asigna', () => {
+      expect(resolveDrop(empleadoDelPanel(3), tarjetaDestino(TARJETA_MARTES), SIN_ALT_CON_AUSENCIAS)).toEqual({
+        kind: 'assign',
+        employeeId: 3,
+        schedule: TARJETA_MARTES,
+      })
+    })
+
+    it('otro empleado no ausente en una tarjeta del mismo día sí se asigna', () => {
+      expect(resolveDrop(empleadoDelPanel(4), tarjetaDestino(TARJETA_B), SIN_ALT_CON_AUSENCIAS)).toEqual({
+        kind: 'assign',
+        employeeId: 4,
+        schedule: TARJETA_B,
+      })
+    })
+  })
+
+  describe('ausencia arrastrada', () => {
+    it('soltada fuera de cualquier destino: la quita (remove-absence)', () => {
+      expect(resolveDrop(ausenciaArrastrada(AUSENCIA_ANA), null, SIN_ALT_CON_AUSENCIAS)).toEqual({
+        kind: 'remove-absence',
+        employeeAbsencesId: AUSENCIA_ANA.employeeAbsencesId,
+      })
+    })
+
+    it('soltada en su propia zona (desviación decidida): no hace nada', () => {
+      expect(resolveDrop(ausenciaArrastrada(AUSENCIA_ANA), zonaAusencias(LUNES), SIN_ALT_CON_AUSENCIAS)).toEqual({ kind: 'none' })
+    })
+
+    it.each<[string, DropData]>([
+      ['la zona de ausencias de otro día', zonaAusencias(MARTES)],
+      ['un día', dia(MARTES)],
+      ['una tarjeta', tarjetaDestino(TARJETA_A)],
+      ['el catálogo', catalogo],
+    ])('soltada en %s: no hace nada', (_destino, destino) => {
+      expect(resolveDrop(ausenciaArrastrada(AUSENCIA_ANA), destino, SIN_ALT_CON_AUSENCIAS)).toEqual({ kind: 'none' })
+      expect(resolveDrop(ausenciaArrastrada(AUSENCIA_ANA), destino, CON_ALT_CON_AUSENCIAS)).toEqual({ kind: 'none' })
+    })
+  })
+
+  describe('tarjeta a un día con empleados ausentes', () => {
+    it('con un asignado ausente ese día: bloquea el movimiento y lo nombra (blocked-move)', () => {
+      // Luis (5) está en la tarjeta A y ausente el jueves.
+      expect(resolveDrop(tarjetaArrastrada(TARJETA_A), dia(JUEVES), SIN_ALT_CON_AUSENCIAS)).toEqual({
+        kind: 'blocked-move',
+        schedule: TARJETA_A,
+        date: JUEVES,
+        employeeIds: [5],
+      })
+    })
+
+    it('con varios asignados ausentes: los lista a todos en el orden de la tarjeta', () => {
+      const ausentes = absenceLookup([
+        { ...AUSENCIA_LUIS, employeeAbsencesId: 3, employeesId: 5, date: MARTES },
+        { ...AUSENCIA_ANA, employeeAbsencesId: 4, employeesId: 3, date: MARTES },
+      ])
+
+      expect(resolveDrop(tarjetaArrastrada(TARJETA_A), dia(MARTES), { altKey: false, absences: ausentes })).toEqual({
+        kind: 'blocked-move',
+        schedule: TARJETA_A,
+        date: MARTES,
+        employeeIds: [3, 5],
+      })
+    })
+
+    it('si el ausente ese día no está en la tarjeta: la mueve (move)', () => {
+      // Ana y Luis están ausentes el lunes y el jueves, pero la tarjeta del martes solo lleva a Carlos (8).
+      expect(resolveDrop(tarjetaArrastrada(TARJETA_MARTES), dia(JUEVES), SIN_ALT_CON_AUSENCIAS)).toEqual({
+        kind: 'move',
+        schedule: TARJETA_MARTES,
+        date: JUEVES,
+      })
+    })
+
+    it('una tarjeta sin empleados se mueve a cualquier día', () => {
+      const vacia: Schedule = { ...TARJETA_B, jobSchedulesId: 4, employeesIds: [] }
+
+      expect(resolveDrop(tarjetaArrastrada(vacia), dia(JUEVES), SIN_ALT_CON_AUSENCIAS).kind).toBe('move')
+    })
+
+    it('a su mismo día no hace nada, aunque un asignado esté ausente', () => {
+      // Ana está ausente el lunes y la tarjeta A es del lunes.
+      expect(resolveDrop(tarjetaArrastrada(TARJETA_A), dia(LUNES), SIN_ALT_CON_AUSENCIAS)).toEqual({ kind: 'none' })
+    })
+
+    it('sin ausencias en el día de destino: la mueve (move)', () => {
+      expect(resolveDrop(tarjetaArrastrada(TARJETA_A), dia(MARTES), SIN_ALT_CON_AUSENCIAS).kind).toBe('move')
     })
   })
 })
@@ -176,7 +347,11 @@ describe('ACCEPTS', () => {
     expect(ACCEPTS.catalog).toEqual(['schedule-card'])
   })
 
-  it('no hay más destinos que día, tarjeta y catálogo', () => {
-    expect(Object.keys(ACCEPTS).sort()).toEqual(['catalog', 'day', 'schedule-card'])
+  it('la zona de ausencias acepta empleados y ausencias (desviación decidida respecto a design.md)', () => {
+    expect([...ACCEPTS.absences].sort()).toEqual(['absence', 'employee'])
+  })
+
+  it('hay cuatro destinos: día, tarjeta, catálogo y zona de ausencias', () => {
+    expect(Object.keys(ACCEPTS).sort()).toEqual(['absences', 'catalog', 'day', 'schedule-card'])
   })
 })

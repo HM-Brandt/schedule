@@ -1,5 +1,6 @@
 import { useDroppable } from '@dnd-kit/react'
-import type { Employee, IsoDate, Schedule } from '../../api/types'
+import { AbsenceZone } from '../../absences/AbsenceZone'
+import type { Absence, Employee, IsoDate, Schedule } from '../../api/types'
 import { ACCEPTS } from '../../dnd/dropResolution'
 import { useAcceptsDrag } from '../../dnd/useAcceptsDrag'
 import { useDraggedEmployeeId } from '../../dnd/useDraggedEmployeeId'
@@ -12,6 +13,7 @@ export function DayColumn({
   date,
   isToday,
   schedules,
+  absences,
   employeesById,
   onOpenSchedule,
   onAssignSchedule,
@@ -19,6 +21,7 @@ export function DayColumn({
   date: IsoDate
   isToday: boolean
   schedules: Schedule[]
+  absences: Absence[]
   employeesById: Map<number, Employee>
   onOpenSchedule?: (schedule: Schedule) => void
   onAssignSchedule?: (schedule: Schedule) => void
@@ -27,6 +30,7 @@ export function DayColumn({
   const accepting = useAcceptsDrag('day')
   const employeeId = useDraggedEmployeeId()
   const load = employeeId === null ? 0 : schedules.filter((schedule) => schedule.employeesIds.includes(employeeId)).length
+  const blockEmployeeDrop = absences.some((absence) => absence.employeesId === employeeId)
 
   return (
     <div
@@ -42,7 +46,12 @@ export function DayColumn({
         .join(' ')}
     >
       <DayHeading date={date} isToday={isToday} />
-      {load > 0 && <div className={styles.load}>{load === 1 ? '1 job' : `${load} jobs`}</div>}
+      <AbsenceZone date={date} absences={absences} employeesById={employeesById} className={styles.absences} />
+      {blockEmployeeDrop ? (
+        <div className={styles.load}>Absent</div>
+      ) : (
+        load > 0 && <div className={styles.load}>{load === 1 ? '1 job' : `${load} jobs`}</div>
+      )}
       <div className={styles.cards}>
         {schedules.map((schedule) => (
           <ScheduleCard
@@ -51,6 +60,7 @@ export function DayColumn({
             employeesById={employeesById}
             onOpen={onOpenSchedule}
             onAssign={onAssignSchedule}
+            blockEmployeeDrop={blockEmployeeDrop}
           />
         ))}
       </div>

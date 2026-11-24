@@ -1,5 +1,5 @@
 import { addDays } from 'date-fns'
-import type { Employee, EmployeeHours, Job, ScheduleResponse } from '../api/types'
+import type { Absence, Employee, EmployeeHours, Job, ScheduleResponse } from '../api/types'
 import { getWeekRange, parseIsoDate, toIsoDate } from '../lib/dates'
 
 const JOB_NAMES = [
@@ -76,10 +76,13 @@ export function createSeed(today: Date) {
     { jobSchedulesId: 3, jobsId: jobs[1].jobsId, date: day(2), startTime: '07:00', employeesIds: [8], scheduleComment: null },
     { jobSchedulesId: 4, jobsId: jobs[11].jobsId, date: day(4), startTime: '09:30', employeesIds: [], scheduleComment: null },
   ]
+  const absences: Absence[] = [
+    { employeeAbsencesId: 1, employeesId: 7, date: day(3), absenceType: 'Vacation', absenceComment: 'Viaje familiar' },
+  ]
   const hours: EmployeeHours[] = [
     { employeesId: 1, name: 'Marta Gómez', totalHrs: 32.5 },
     { employeesId: 2, name: 'Jorge Pérez', totalHrs: 40 },
     { employeesId: 3, name: 'Ana López', totalHrs: 12 },
   ]
-  return { employees, jobs, schedules, hours }
+  return { employees, jobs, schedules, absences, hours }
 }

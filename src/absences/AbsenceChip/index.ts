@@ -1,0 +1,1 @@
+export { AbsenceChip } from './AbsenceChip'

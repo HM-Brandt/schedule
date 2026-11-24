@@ -1,0 +1,29 @@
+.chip {
+  display: flex;
+  flex-wrap: wrap;
+  min-width: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-1);
+  padding: 2px var(--space-2);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  font-size: var(--font-size-xs);
+  cursor: grab;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+
+.name {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--color-text);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.type {
+  color: var(--color-text-muted);
+  white-space: nowrap;
+}
